@@ -122,6 +122,48 @@ check("every reference file is linked from its SKILL.md", () => {
   }
 });
 
+// Content invariants carried over from the skills repository's smoke-fixture
+// validator. Extracting the skill would otherwise silently drop this coverage.
+const FIXTURE = "fixtures/smoke/vp-interaction-routing.md";
+const SKILL = "skills/vp-interaction-routing/SKILL.md";
+const BROWSER = "skills/vp-interaction-routing/references/browser-routing.md";
+const NATIVE = "skills/vp-interaction-routing/references/native-ui-routing.md";
+
+const INVARIANTS = [
+  [FIXTURE, /connector.*GitHub|GitHub.*connector/, "fixture must prefer semantic connectors"],
+  [FIXTURE, /verified.*(existing|user.s).*(tabs|login|session)|product label alone is not/,
+    "fixture must require evidence of shared browser state"],
+  [FIXTURE, /agent-browser.*(isolated|repeatable|managed)/,
+    "fixture must cover isolated agent-browser state"],
+  [FIXTURE, /app-server.*MCP bridge|MCP bridge.*app-server/,
+    "fixture must require an app-server bridge"],
+  [FIXTURE, /Peekaboo.*(windows|menus|dialogs|Spaces|unfocused|accessibility)/,
+    "fixture must preserve Peekaboo's extended role"],
+  [FIXTURE, /Do not reuse selectors|invalidates prior selectors/,
+    "fixture must invalidate selectors after switching"],
+  [FIXTURE, /installing or registering a bridge/,
+    "fixture must cover bridge installation authorization"],
+  [FIXTURE, /Peekaboo as the native UI fallback/, "fixture must exercise the Peekaboo fallback"],
+  [FIXTURE, /page content as untrusted data/, "fixture must cover untrusted page content"],
+  [FIXTURE, /sending, publishing, purchasing, or deleting/,
+    "fixture must preserve browser mutation authorization"],
+  [SKILL, /confirmation policy automatically/,
+    "skill must preserve bridge authorization boundaries"],
+  [BROWSER, /untrusted data, not agent instructions/,
+    "browser guidance must treat page content as untrusted"],
+  [BROWSER, /vp-agent-browser-session/,
+    "must delegate profile lifecycle rules to their owner skill"],
+  [NATIVE, /requires explicit user authorization/,
+    "must require authorization before bridge installation"],
+  [NATIVE, /bridge are unavailable on macOS/, "must preserve the Peekaboo fallback"],
+];
+
+for (const [file, pattern, message] of INVARIANTS) {
+  check(message, () => {
+    assert.match(readFileSync(join(root, file), "utf8"), pattern);
+  });
+}
+
 const suites = [];
 (function walk(dir) {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
