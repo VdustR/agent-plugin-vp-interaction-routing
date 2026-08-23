@@ -27,8 +27,8 @@ token or latency savings.
    [references/agent-adapters.md](references/agent-adapters.md).
 5. To give a non-Codex harness access to macOS Codex Computer Use, read
    [references/codex-cua-bridge.md](references/codex-cua-bridge.md). Codex itself
-   must not use that bridge; its own `node_repl` and `@oai/sky` surface is the
-   direct path.
+   must not use that bridge; load its first-party Computer Use skill and discover
+   the tools exposed in the current session.
 6. Use screenshot-coordinate interaction only when semantic, DOM, and
    accessibility interfaces cannot complete the operation.
 

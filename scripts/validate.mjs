@@ -156,6 +156,10 @@ const FIXTURE = "fixtures/smoke/vp-interaction-routing.md";
 const SKILL = "skills/vp-interaction-routing/SKILL.md";
 const BROWSER = "skills/vp-interaction-routing/references/browser-routing.md";
 const NATIVE = "skills/vp-interaction-routing/references/native-ui-routing.md";
+const ADAPTERS = "skills/vp-interaction-routing/references/agent-adapters.md";
+const BRIDGE_REFERENCE =
+  "skills/vp-interaction-routing/references/codex-cua-bridge.md";
+const BRIDGE_SCRIPT = "skills/vp-interaction-routing/scripts/codex-cua-bridge.mjs";
 
 const INVARIANTS = [
   [FIXTURE, /connector.*GitHub|GitHub.*connector/, "fixture must prefer semantic connectors"],
@@ -191,6 +195,28 @@ for (const [file, pattern, message] of INVARIANTS) {
     assert.match(readFileSync(join(root, file), "utf8"), pattern);
   });
 }
+
+check("bridge examples must not assume the global skill install path", () => {
+  const reference = readFileSync(join(root, BRIDGE_REFERENCE), "utf8");
+  assert.doesNotMatch(reference, /~\/.agents\/skills\/vp-interaction-routing/);
+  assert.match(reference, /node "\$BRIDGE" --health/);
+});
+
+check("Codex routing must use the first-party Computer Use session surface", () => {
+  for (const file of [SKILL, NATIVE, ADAPTERS]) {
+    const guidance = readFileSync(join(root, file), "utf8");
+    assert.match(guidance, /first-party Computer Use/,
+      `${file} must name the public capability`);
+    assert.doesNotMatch(guidance, /`node_repl`|`@oai\/sky`/,
+      `${file} must not route Codex through internal tool names`);
+  }
+});
+
+check("bridge internals must keep their upstream implementation contract", () => {
+  const bridge = readFileSync(join(root, BRIDGE_SCRIPT), "utf8");
+  assert.match(bridge, /callMcpTool\("node_repl", "js"/);
+  assert.match(bridge, /import\("@oai\/sky"\)/);
+});
 
 const suites = [];
 (function walk(dir) {
