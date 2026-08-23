@@ -73,29 +73,41 @@ check("the Codex manifest deliberately ships no MCP server", () => {
     "Codex needs its marketplace manifest to install the plugin");
 });
 
-check("the two MCP configs differ only by the plugin-root variable", () => {
-  const neutral = read("mcp.json").mcpServers;
-  const claude = read(".mcp.json").mcpServers;
-  assert.deepEqual(Object.keys(claude), Object.keys(neutral), "server names differ");
-  for (const name of Object.keys(neutral)) {
-    const normalize = (entry, variable) =>
-      JSON.parse(JSON.stringify(entry).replaceAll(`\${${variable}}`, "${ROOT}"));
-    assert.deepEqual(
-      normalize(claude[name], "CLAUDE_PLUGIN_ROOT"),
-      normalize(neutral[name], "PLUGIN_ROOT"),
-      `server "${name}" differs beyond the root variable`,
-    );
+check("every MCP config differs only by the plugin-root variable", () => {
+  // One server, three client formats. Normalizing the root variable makes the
+  // entries comparable, so editing one file without mirroring it into the others
+  // fails here rather than at install time.
+  const configs = [
+    ["mcp.json", "PLUGIN_ROOT"],
+    [".mcp.json", "CLAUDE_PLUGIN_ROOT"],
+    ["mcp_config.json", "PLUGIN_ROOT"],
+  ];
+  const normalize = (entry, variable) =>
+    JSON.parse(JSON.stringify(entry).replaceAll("${" + variable + "}", "${ROOT}"));
+  const [[baseFile, baseVar], ...rest] = configs;
+  const base = read(baseFile).mcpServers;
+  for (const [file, variable] of rest) {
+    const other = read(file).mcpServers;
+    assert.deepEqual(Object.keys(other).sort(), Object.keys(base).sort(),
+      `server names differ in ${file}`);
+    for (const name of Object.keys(base)) {
+      assert.deepEqual(normalize(other[name], variable), normalize(base[name], baseVar),
+        `server "${name}" in ${file} differs beyond the root variable`);
+    }
   }
 });
 
 check("each MCP config uses its own client's root variable", () => {
-  assert.match(readFileSync(join(root, "mcp.json"), "utf8"), /\$\{PLUGIN_ROOT\}/);
-  assert.doesNotMatch(readFileSync(join(root, "mcp.json"), "utf8"), /CLAUDE_PLUGIN_ROOT/);
-  assert.match(readFileSync(join(root, ".mcp.json"), "utf8"), /\$\{CLAUDE_PLUGIN_ROOT\}/);
+  const raw = (f) => readFileSync(join(root, f), "utf8");
+  assert.match(raw("mcp.json"), /\$\{PLUGIN_ROOT\}/);
+  assert.doesNotMatch(raw("mcp.json"), /CLAUDE_PLUGIN_ROOT/);
+  assert.match(raw(".mcp.json"), /\$\{CLAUDE_PLUGIN_ROOT\}/);
+  assert.match(raw("mcp_config.json"), /\$\{PLUGIN_ROOT\}/);
+  assert.doesNotMatch(raw("mcp_config.json"), /CLAUDE_PLUGIN_ROOT/);
 });
 
 check("every referenced command path exists", () => {
-  for (const file of ["mcp.json", ".mcp.json"]) {
+  for (const file of ["mcp.json", ".mcp.json", "mcp_config.json"]) {
     for (const entry of Object.values(read(file).mcpServers)) {
       for (const arg of entry.args ?? []) {
         const rel = arg.replace(/^\$\{[A-Z_]+\}\//, "");
