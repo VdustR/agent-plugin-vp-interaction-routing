@@ -1,0 +1,24 @@
+{
+  "name": "vp-interaction-routing",
+  "version": "0.1.0",
+  "description": "Interaction routing for agents, with a bridge that exposes macOS Codex Computer Use as MCP tools.",
+  "author": {
+    "name": "VdustR"
+  },
+  "homepage": "https://github.com/VdustR/agent-plugin-vp-interaction-routing",
+  "repository": "https://github.com/VdustR/agent-plugin-vp-interaction-routing",
+  "license": "MIT",
+  "keywords": [
+    "computer-use",
+    "macos",
+    "accessibility",
+    "mcp",
+    "codex",
+    "routing"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Interaction Routing",
+    "shortDescription": "Choose the lowest-cost reliable interface for an app or service"
+  }
+}

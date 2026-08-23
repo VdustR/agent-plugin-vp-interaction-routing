@@ -48,12 +48,29 @@ check("mcp.json declares the agent-plugins schema", () => {
   assert.equal(read("mcp.json").$schema, AGENT_MCP_SCHEMA);
 });
 
-check("both manifests agree on name, version and description", () => {
+check("all three manifests agree on name, version and description", () => {
   const a = read("plugin.json");
-  const c = read(".claude-plugin/plugin.json");
-  for (const key of ["name", "version", "description"]) {
-    assert.equal(c[key], a[key], `${key} differs between manifests`);
+  for (const other of [".claude-plugin/plugin.json", ".codex-plugin/plugin.json"]) {
+    const m = read(other);
+    for (const key of ["name", "version", "description"]) {
+      assert.equal(m[key], a[key], `${key} differs in ${other}`);
+    }
   }
+});
+
+check("the Codex manifest deliberately ships no MCP server", () => {
+  // This skill's own rule is that Codex must use its bundled Computer Use
+  // surface rather than the bridge, so shipping the bridge to Codex would
+  // contradict the guidance the plugin carries.
+  // Check the declaration, not the word: "mcp" legitimately appears in keywords.
+  const codex = read(".codex-plugin/plugin.json");
+  assert.equal(codex.mcpServers, undefined, "the Codex manifest must not declare servers");
+  assert.ok(
+    !Object.values(codex).some((v) => typeof v === "string" && v.endsWith("mcp.json")),
+    "the Codex manifest must not point at an MCP config",
+  );
+  assert.ok(existsSync(join(root, ".agents/plugins/marketplace.json")),
+    "Codex needs its marketplace manifest to install the plugin");
 });
 
 check("the two MCP configs differ only by the plugin-root variable", () => {
