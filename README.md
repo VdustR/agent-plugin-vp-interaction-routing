@@ -79,12 +79,14 @@ This installs the skill only, for the reason above.
 ### Antigravity
 
 ```bash
-agy plugin install vp-interaction-routing
+git clone https://github.com/VdustR/agent-plugin-vp-interaction-routing
+agy plugin install ./agent-plugin-vp-interaction-routing
 ```
 
+`agy plugin install` takes a directory, not a plugin name, so clone first.
 Antigravity reads the same root `plugin.json` as the Agent Plugins standard and
-takes its MCP servers from `mcp_config.json`. Confirm with
-`agy plugin validate <path>`, which reports the components it found.
+takes its MCP servers from `mcp_config.json`. Both commands print the components
+they found; `agy plugin validate <path>` reports the same without installing.
 
 ### An Agent Plugins client
 
