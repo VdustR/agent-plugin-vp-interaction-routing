@@ -13,6 +13,7 @@ Plugin name: `vp-interaction-routing`.
 | `skills/vp-interaction-routing/` | Routing guidance: connectors and CLIs first, then browser surfaces, then native UI, then coordinates as a last resort |
 | `skills/vp-interaction-routing/scripts/codex-cua-bridge.mjs` | An MCP stdio server exposing macOS Codex Computer Use, so a non-Codex harness can call it as ordinary tools |
 | `tests/` | 39 checks; the ones needing macOS with Computer Use skip themselves elsewhere |
+| `.claude-plugin/marketplace.json` | Makes the repository installable by `claude plugin install`; Claude Code requires a marketplace manifest, not just a plugin manifest |
 
 The bridge needs macOS with the ChatGPT desktop app and its Computer Use
 component. Those dependencies are why this lives in its own plugin rather than a
@@ -44,8 +45,11 @@ specifications share, so that directory is not duplicated.
 
 ```bash
 claude plugin marketplace add VdustR/agent-plugin-vp-interaction-routing
-claude plugin install vp-interaction-routing
+claude plugin install vp-interaction-routing@vp-agent-plugins -s user
 ```
+
+The marketplace qualifier is required because the plugin is installed from the
+marketplace this repository declares in `.claude-plugin/marketplace.json`.
 
 Installing registers the `codex-cua` MCP server automatically. Its tools appear
 as `plugin:vp-interaction-routing:codex-cua`, so no manual `claude mcp add` is

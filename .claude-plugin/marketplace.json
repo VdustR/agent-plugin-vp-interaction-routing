@@ -1,0 +1,24 @@
+{
+  "name": "vp-agent-plugins",
+  "owner": {
+    "name": "VdustR"
+  },
+  "metadata": {
+    "description": "Agent plugins by VdustR"
+  },
+  "plugins": [
+    {
+      "name": "vp-interaction-routing",
+      "source": "./",
+      "description": "Interaction routing for agents, with a bridge that exposes macOS Codex Computer Use as MCP tools.",
+      "keywords": [
+        "computer-use",
+        "macos",
+        "accessibility",
+        "mcp",
+        "codex",
+        "routing"
+      ]
+    }
+  ]
+}
