@@ -48,7 +48,7 @@ check("mcp.json declares the agent-plugins schema", () => {
   assert.equal(read("mcp.json").$schema, AGENT_MCP_SCHEMA);
 });
 
-check("all three manifests agree on name, version and description", () => {
+check("package metadata and all three manifests agree", () => {
   const a = read("plugin.json");
   for (const other of [".claude-plugin/plugin.json", ".codex-plugin/plugin.json"]) {
     const m = read(other);
@@ -56,6 +56,9 @@ check("all three manifests agree on name, version and description", () => {
       assert.equal(m[key], a[key], `${key} differs in ${other}`);
     }
   }
+  const pkg = read("package.json");
+  assert.equal(pkg.version, a.version, "version differs in package.json");
+  assert.equal(pkg.description, a.description, "description differs in package.json");
 });
 
 check("the Codex refusal is enforced at runtime, not by packaging", () => {

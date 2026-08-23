@@ -1,6 +1,6 @@
 {
   "name": "vp-interaction-routing",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Interaction routing for agents, with a bridge that exposes macOS Codex Computer Use as MCP tools.",
   "author": {
     "name": "VdustR"
