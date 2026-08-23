@@ -28,14 +28,20 @@ do not collide, so both ship from one tree:
 |---|---|---|---|
 | [Agent Plugins](https://agent-plugins.org/) | `plugin.json` | `mcp.json` | `${PLUGIN_ROOT}` |
 | [Claude Code](https://code.claude.com/docs/en/plugins-reference) | `.claude-plugin/plugin.json` | `.mcp.json` | `${CLAUDE_PLUGIN_ROOT}` |
-| Codex | `.codex-plugin/plugin.json` | none, by design | — |
+| Codex | `.codex-plugin/plugin.json` | `.mcp.json`, shared with Claude Code | `${CLAUDE_PLUGIN_ROOT}` |
 | Antigravity | `plugin.json`, shared with Agent Plugins | `mcp_config.json` | `${PLUGIN_ROOT}` |
 
 Every client reads `skills/<name>/SKILL.md`, so that directory is shared rather
-than duplicated. Codex deliberately gets no MCP server: this skill's own rule is
-that Codex reaches Computer Use through its bundled `node_repl` and `@oai/sky`
-surface, so shipping the bridge there would contradict the guidance the plugin
-carries.
+than duplicated.
+
+Codex must not use this bridge: its own routing rule is that Codex reaches
+Computer Use through its bundled `node_repl` and `@oai/sky` surface. That cannot
+be arranged by packaging, because Codex reads the same `.mcp.json` Claude Code
+does. Verified by installing probe plugins carrying exactly one MCP config
+filename each: `.mcp.json` was picked up, `mcp.json` and `mcp_config.json` were
+not. The rule is therefore enforced in the bridge, which refuses tool calls from
+a client identifying as Codex unless `CODEX_CUA_BRIDGE_ALLOW_CODEX=1` is set for
+testing the bridge itself.
 
 Anthropic is not among the Agent Plugins maintainers and Claude Code keeps its
 own format, so no single manifest reaches every client. `npm run validate`
@@ -74,7 +80,10 @@ codex plugin marketplace add VdustR/agent-plugin-vp-interaction-routing
 codex plugin add vp-interaction-routing@vp-agent-plugins
 ```
 
-This installs the skill only, for the reason above.
+Codex will also register the MCP server, because it reads the same `.mcp.json`.
+The bridge refuses its calls, so Codex gets the routing guidance and is told to
+use its own Computer Use surface. Remove with
+`codex plugin remove vp-interaction-routing@vp-agent-plugins`.
 
 ### Antigravity
 

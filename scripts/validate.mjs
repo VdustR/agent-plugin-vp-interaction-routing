@@ -58,17 +58,16 @@ check("all three manifests agree on name, version and description", () => {
   }
 });
 
-check("the Codex manifest deliberately ships no MCP server", () => {
-  // This skill's own rule is that Codex must use its bundled Computer Use
-  // surface rather than the bridge, so shipping the bridge to Codex would
-  // contradict the guidance the plugin carries.
-  // Check the declaration, not the word: "mcp" legitimately appears in keywords.
-  const codex = read(".codex-plugin/plugin.json");
-  assert.equal(codex.mcpServers, undefined, "the Codex manifest must not declare servers");
-  assert.ok(
-    !Object.values(codex).some((v) => typeof v === "string" && v.endsWith("mcp.json")),
-    "the Codex manifest must not point at an MCP config",
-  );
+check("the Codex refusal is enforced at runtime, not by packaging", () => {
+  // Codex reads the same `.mcp.json` Claude Code does, verified by installing
+  // probe plugins that each carried exactly one MCP config filename: only
+  // `.mcp.json` was picked up. Packaging therefore cannot keep the server away
+  // from Codex, so the routing rule has to be enforced in the bridge.
+  const bridge = readFileSync(
+    join(root, "skills/vp-interaction-routing/scripts/codex-cua-bridge.mjs"), "utf8");
+  assert.match(bridge, /function isCodexClient/, "the bridge must detect a Codex client");
+  assert.match(bridge, /refuses calls from Codex/, "and refuse its tool calls");
+  assert.match(bridge, /CODEX_CUA_BRIDGE_ALLOW_CODEX/, "with a deliberate override");
   assert.ok(existsSync(join(root, ".agents/plugins/marketplace.json")),
     "Codex needs its marketplace manifest to install the plugin");
 });

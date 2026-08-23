@@ -57,6 +57,39 @@ test("a client identifying as Codex is told to use its own surface", async () =>
   });
 });
 
+test("a Codex client is refused, because packaging cannot keep the server away", async () => {
+  // Codex reads the same .mcp.json Claude Code does, so it registers this server
+  // whether or not the plugin means it to. Refusing here is the only layer that
+  // can enforce the routing rule the skill states.
+  for (const name of ["codex", "codex-cli", "Codex Desktop"]) {
+    await withClient(async (client) => {
+      await client.initialize(name);
+      const refused = await client.callTool("list_apps", {});
+      assert.equal(refused.result.isError, true, `${name} must be refused`);
+      assert.match(toolText(refused), /refuses calls from Codex/);
+    });
+  }
+
+  // A non-Codex client is unaffected: it fails for want of an upstream here, not
+  // because of the guard, so the guard must not be what it reports.
+  await withClient(async (client) => {
+    await client.initialize("claude-code");
+    const allowed = await client.callTool("list_apps", {});
+    assert.doesNotMatch(toolText(allowed), /refuses calls from Codex/);
+  });
+});
+
+test("the Codex refusal can be overridden deliberately for testing", async () => {
+  const client = new BridgeClient({ env: { CODEX_CUA_BRIDGE_ALLOW_CODEX: "1" } });
+  try {
+    await client.initialize("codex");
+    const allowed = await client.callTool("list_apps", {});
+    assert.doesNotMatch(toolText(allowed), /refuses calls from Codex/);
+  } finally {
+    await client.close();
+  }
+});
+
 test("initialize requires the fields MCP mandates and opens no session without them", async () => {
   const cases = [
     [undefined, /params object/],

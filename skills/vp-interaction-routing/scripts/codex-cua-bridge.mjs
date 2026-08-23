@@ -51,6 +51,7 @@ const MAX_FRAME_CHARS = clampInt(
   268435456,
 );
 const AUTO_APPROVE = process.env.CODEX_CUA_BRIDGE_AUTO_APPROVE === "1";
+const ALLOW_CODEX = process.env.CODEX_CUA_BRIDGE_ALLOW_CODEX === "1";
 const APPROVAL_HISTORY_LIMIT = 100;
 
 const ROUTING_NOTICE = [
@@ -1107,6 +1108,11 @@ async function runHealth(ctx) {
  * MCP stdio server
  * ------------------------------------------------------------------ */
 
+/** Whether the connecting client is Codex, which must use its own surface. */
+function isCodexClient(clientName) {
+  return Boolean(clientName) && /codex/i.test(clientName);
+}
+
 function instructionsFor(clientName) {
   const lines = [];
   if (clientName && /codex/i.test(clientName)) {
@@ -1295,6 +1301,21 @@ function startMcpServer() {
           const toolName = params?.name;
           if (!TOOL_BY_NAME.has(toolName)) {
             replyError(id, -32602, `unknown tool: ${toolName}`);
+            return;
+          }
+          if (isCodexClient(clientName) && !ALLOW_CODEX) {
+            // Codex picks this server up from the same `.mcp.json` Claude Code
+            // uses, so packaging cannot keep it away. Refusing here is what
+            // actually enforces the routing rule the skill states.
+            reply(id, {
+              content: [{
+                type: "text",
+                text:
+                  `${BRIDGE_NAME} refuses calls from Codex. ${ROUTING_NOTICE} ` +
+                  "Set CODEX_CUA_BRIDGE_ALLOW_CODEX=1 only to test the bridge itself.",
+              }],
+              isError: true,
+            });
             return;
           }
           const token = { cancelled: false };
