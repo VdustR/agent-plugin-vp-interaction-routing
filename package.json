@@ -1,0 +1,12 @@
+{
+  "name": "agent-plugin-vp-interaction-routing",
+  "version": "0.1.0",
+  "description": "Interaction routing for agents, with a bridge that exposes macOS Codex Computer Use as MCP tools.",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "scripts": {
+    "validate": "node scripts/validate.mjs",
+    "test": "npm run validate"
+  }
+}

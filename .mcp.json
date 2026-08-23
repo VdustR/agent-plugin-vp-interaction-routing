@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "codex-cua": {
+      "type": "stdio",
+      "command": "node",
+      "args": [
+        "${CLAUDE_PLUGIN_ROOT}/skills/vp-interaction-routing/scripts/codex-cua-bridge.mjs"
+      ]
+    }
+  }
+}

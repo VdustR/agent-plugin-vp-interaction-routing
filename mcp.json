@@ -1,0 +1,12 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
+  "mcpServers": {
+    "codex-cua": {
+      "type": "stdio",
+      "command": "node",
+      "args": [
+        "${PLUGIN_ROOT}/skills/vp-interaction-routing/scripts/codex-cua-bridge.mjs"
+      ]
+    }
+  }
+}

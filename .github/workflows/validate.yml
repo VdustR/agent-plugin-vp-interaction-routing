@@ -1,0 +1,24 @@
+name: Validate
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # No dependencies: the checks and suites use only Node built-ins. Suites
+      # that need macOS Computer Use skip themselves with a reason.
+      - name: Validate
+        run: npm run validate
