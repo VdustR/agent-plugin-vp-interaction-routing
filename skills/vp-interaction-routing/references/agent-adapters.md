@@ -11,9 +11,9 @@ file records routing intent rather than a permanent tool inventory.
   state. Use agent-browser for isolated or managed-profile automation.
 - Use Codex first-party Computer Use for ordinary native applications.
 - Do not route Codex through a Codex Computer Use MCP bridge. The bridge exists
-  to open this capability to other harnesses; as Codex, the bundled `node_repl`
-  and `@oai/sky` surface is the direct path and keeps the Computer Use
-  confirmations policy in the loop.
+  to open this capability to other harnesses. Load the installed first-party
+  Computer Use skill, discover its current session tools, and follow its
+  authorization rules.
 - Use Peekaboo for macOS system surfaces, unfocused applications, deep AX work,
   capture, and troubleshooting.
 

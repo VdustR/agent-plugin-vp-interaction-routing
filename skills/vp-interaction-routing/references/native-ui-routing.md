@@ -33,11 +33,11 @@ user's authorization: say so and offer the command rather than assuming the
 capability is missing. The reference has the registration and verification
 steps.
 
-**The bridge is for harnesses other than Codex.** Codex reaches the same
-capability natively through its bundled `node_repl` and `@oai/sky` surface, so
-routing Codex through a bridge adds a hop, loses the integration, and moves the
-action outside the Codex Computer Use confirmations policy. When operating as
-Codex, use the first-party surface and do not register or call a bridge.
+**The bridge is for harnesses other than Codex.** When operating as Codex, load
+the installed first-party Computer Use skill, discover the tools exposed in the
+current session, and follow that skill's authorization rules. Do not register or
+call this bridge: it adds an app-server hop and moves the action outside the
+Codex Computer Use confirmations policy.
 
 Treat the bridge as an optional capability, not a universal dependency:
 

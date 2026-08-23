@@ -34,14 +34,14 @@ do not collide, so both ship from one tree:
 Every client reads `skills/<name>/SKILL.md`, so that directory is shared rather
 than duplicated.
 
-Codex must not use this bridge: its own routing rule is that Codex reaches
-Computer Use through its bundled `node_repl` and `@oai/sky` surface. That cannot
-be arranged by packaging, because Codex reads the same `.mcp.json` Claude Code
-does. Verified by installing probe plugins carrying exactly one MCP config
-filename each: `.mcp.json` was picked up, `mcp.json` and `mcp_config.json` were
-not. The rule is therefore enforced in the bridge, which refuses tool calls from
-a client identifying as Codex unless `CODEX_CUA_BRIDGE_ALLOW_CODEX=1` is set for
-testing the bridge itself.
+Codex must not use this bridge: it reaches Computer Use through the first-party
+skill and tools exposed in its current session. That cannot be arranged by
+packaging, because Codex reads the same `.mcp.json` Claude Code does. Verified by
+installing probe plugins carrying exactly one MCP config filename each:
+`.mcp.json` was picked up, `mcp.json` and `mcp_config.json` were not. The rule is
+therefore enforced in the bridge, which refuses tool calls from a client
+identifying as Codex unless `CODEX_CUA_BRIDGE_ALLOW_CODEX=1` is set for testing
+the bridge itself.
 
 Anthropic is not among the Agent Plugins maintainers and Claude Code keeps its
 own format, so no single manifest reaches every client. `npm run validate`

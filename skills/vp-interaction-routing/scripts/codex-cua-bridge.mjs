@@ -56,9 +56,10 @@ const APPROVAL_HISTORY_LIMIT = 100;
 
 const ROUTING_NOTICE = [
   "This bridge exists to give a NON-Codex harness access to macOS Codex Computer Use.",
-  "If you are Codex, do not use this bridge. Use your own bundled Computer Use surface",
-  "(`node_repl` with `@oai/sky`) directly: it is better integrated, avoids a redundant",
-  "app-server hop, and keeps the Computer Use confirmations policy in the loop.",
+  "If you are Codex, do not use this bridge. Load the installed first-party Computer Use",
+  "skill, discover the tools exposed in the current session, and follow its authorization",
+  "rules. That path avoids a redundant app-server hop and keeps the Computer Use",
+  "confirmations policy in the loop.",
 ].join(" ");
 
 const SAFETY_NOTICE = [

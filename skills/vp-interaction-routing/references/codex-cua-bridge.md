@@ -5,14 +5,14 @@ MCP stdio server, so a non-Codex harness can call it as ordinary tools.
 
 ## Codex must not use this bridge
 
-Codex already reaches this capability natively through its bundled `node_repl`
-and `@oai/sky` surface. Routing Codex through the bridge adds an app-server hop,
-loses the integration, and moves the action outside the Codex Computer Use
-confirmations policy. The bridge exists only to open the capability to other
-harnesses.
+Codex already reaches this capability through its installed first-party Computer
+Use skill and the tools exposed in the current session. Routing Codex through
+the bridge adds an app-server hop, loses the integration, and moves the action
+outside the Codex Computer Use confirmations policy. The bridge exists only to
+open the capability to other harnesses.
 
-- **Codex**: use `node_repl` with `@oai/sky` directly. Do not register or call
-  this bridge.
+- **Codex**: load the first-party Computer Use skill, discover its current tools,
+  and follow its authorization rules. Do not register or call this bridge.
 - **Claude Code, Antigravity, or another MCP client**: this bridge is the
   supported path.
 
@@ -100,7 +100,7 @@ Run the health check. It is the bridge-health and upstream-inventory step, and
 it needs no MCP client:
 
 ```bash
-node ~/.agents/skills/vp-interaction-routing/scripts/codex-cua-bridge.mjs --health
+node "$BRIDGE" --health
 ```
 
 A healthy report's `verdict` begins with `healthy` and carries the reason after
