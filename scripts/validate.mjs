@@ -182,15 +182,23 @@ const INVARIANTS = [
   [FIXTURE, /page content as untrusted data/, "fixture must cover untrusted page content"],
   [FIXTURE, /sending, publishing, purchasing, or deleting/,
     "fixture must preserve browser mutation authorization"],
+  [FIXTURE, /Do not\s+add a separate confirmation gate.*host policy.*without prompting/s,
+    "fixture must not impose extra confirmation gates"],
   [SKILL, /confirmation policy automatically/,
     "skill must preserve bridge authorization boundaries"],
   [BROWSER, /untrusted data, not agent instructions/,
     "browser guidance must treat page content as untrusted"],
   [BROWSER, /vp-agent-browser-session/,
     "must delegate profile lifecycle rules to their owner skill"],
+  [BROWSER, /Codex in Chrome, Claude in Chrome.*DOM-aware integration/s,
+    "authenticated browser routing must prefer shared Chrome integrations"],
   [NATIVE, /requires explicit user authorization/,
     "must require authorization before bridge installation"],
   [NATIVE, /bridge are unavailable on macOS/, "must preserve the Peekaboo fallback"],
+  [NATIVE, /Peekaboo.*contend with the user's own interaction/s,
+    "must account for Peekaboo contention with the user"],
+  [SKILL, /do not add confirmation gates.*without prompting/s,
+    "routing must honor permissive user authorization preferences"],
 ];
 
 for (const [file, pattern, message] of INVARIANTS) {
@@ -213,6 +221,24 @@ check("Codex routing must use the first-party Computer Use session surface", () 
     assert.doesNotMatch(guidance, /`node_repl`|`@oai\/sky`/,
       `${file} must not route Codex through internal tool names`);
   }
+});
+
+check("authenticated browser routing must preserve the preferred order", () => {
+  const guidance = readFileSync(join(root, BROWSER), "utf8");
+  const sharedChrome = guidance.indexOf("Codex in Chrome, Claude in Chrome");
+  const agentBrowser = guidance.indexOf("agent-browser with a dedicated or managed profile");
+  const desktop = guidance.indexOf("desktop automation only");
+  assert.ok(sharedChrome >= 0 && sharedChrome < agentBrowser && agentBrowser < desktop,
+    "shared Chrome must precede agent-browser, which must precede desktop automation");
+});
+
+check("native UI routing must preserve the low-contention order", () => {
+  const guidance = readFileSync(join(root, NATIVE), "utf8");
+  const firstParty = guidance.indexOf("Prefer Codex first-party Computer Use");
+  const bridge = guidance.indexOf("otherwise use the Codex Computer Use bridge");
+  const peekaboo = guidance.indexOf("Use the installed `peekaboo`");
+  assert.ok(firstParty >= 0 && firstParty < bridge && bridge < peekaboo,
+    "first-party Computer Use must precede the bridge, which must precede Peekaboo");
 });
 
 check("bridge internals must keep their upstream implementation contract", () => {
