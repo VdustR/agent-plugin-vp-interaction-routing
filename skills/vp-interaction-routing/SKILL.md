@@ -53,7 +53,9 @@ different surface merely because it appears cheaper.
   browser chrome, native dialogs, permission prompts, and operating-system UI.
 - Preserve the user's authorization boundaries regardless of which interface
   performs the action. A lower-level bridge does not inherit a host agent's
-  confirmation policy automatically.
+  confirmation policy automatically. Follow the user's current authorization
+  preference and the host policy; do not add confirmation gates when that
+  policy permits the action without prompting.
 
 ## Decision Priority
 

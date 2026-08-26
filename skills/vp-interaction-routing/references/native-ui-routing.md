@@ -5,10 +5,12 @@ API, CLI, or browser DOM interface can complete the current operation.
 
 ## First-Party Computer Use
 
-Prefer the host agent's first-party computer-use surface for ordinary native
-application work when it is available. Typical operations include reading an
-application's accessibility state, clicking controls, entering text, scrolling,
-dragging, and reading back the result.
+Prefer Codex first-party Computer Use for native application work when operating
+as Codex. In another agent, prefer that agent's first-party computer use when it
+is available; otherwise use the Codex Computer Use bridge through Codex
+app-server when it is registered and healthy. Typical operations include
+reading an application's accessibility state, clicking controls, entering text,
+scrolling, dragging, and reading back the result.
 
 ## Codex Computer Use Bridge
 
@@ -53,7 +55,8 @@ Treat the bridge as an optional capability, not a universal dependency:
 - do not assume it works while the Mac is locked;
 - apply the host agent's authorization policy before mutating UI because a
   direct bridge call does not automatically execute the Codex Computer Use
-  confirmation policy.
+  confirmation policy; honor a policy that permits the action without prompting
+  and do not add a separate confirmation gate in this routing layer.
 
 Prefer the host's first-party surface when it provides equal capability and
 better integration. Use the bridge when the host has no native UI surface or
@@ -61,9 +64,10 @@ when the bridge materially improves background-safe accessibility interaction.
 
 ## Peekaboo
 
-Use the installed `peekaboo` skill when first-party computer use and a healthy
-bridge are unavailable on macOS, or for capabilities beyond ordinary
-first-party computer use:
+Peekaboo can move focus, pointer, windows, and Spaces in the user's live desktop,
+so it can contend with the user's own interaction. Use the installed `peekaboo`
+skill only when first-party computer use and a healthy bridge are unavailable on macOS,
+or when the task requires a capability they do not provide:
 
 - operating an unfocused application or a specifically identified window;
 - window movement, resizing, focus, menus, Dock, Spaces, or system dialogs;
@@ -73,7 +77,9 @@ first-party computer use:
 - stable predicate verification and desktop automation troubleshooting.
 
 Refresh Peekaboo state before interaction. Treat its element and snapshot IDs
-as valid only for the observed UI state.
+as valid only for the observed UI state. Avoid Peekaboo interaction while the
+user is actively using the same desktop. If contention is likely and the task
+cannot be isolated, pause for user coordination before acting.
 
 Reading and acting use different observations. The text-only read, `inspect_ui`
 over MCP or `see --tree --no-screenshot` on the command line, is the cheap way to
