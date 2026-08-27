@@ -81,6 +81,12 @@ as valid only for the observed UI state. Avoid Peekaboo interaction while the
 user is actively using the same desktop. If contention is likely and the task
 cannot be isolated, pause for user coordination before acting.
 
+Prefer background accessibility actions when Peekaboo can resolve the target
+process. Use foreground interaction only when the operation requires a key
+window, a Space switch, or a synthetic foreground event. Confirm command-level
+support before relying on a background-specific flag such as
+`--focus-background`.
+
 Reading and acting use different observations. The text-only read, `inspect_ui`
 over MCP or `see --tree --no-screenshot` on the command line, is the cheap way to
 inspect a tree, but its snapshot cannot drive a click:
