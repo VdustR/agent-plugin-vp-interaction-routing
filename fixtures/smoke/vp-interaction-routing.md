@@ -38,6 +38,9 @@ Use `$vp-interaction-routing` to choose tools for four tasks:
   use and a healthy bridge are unavailable.
 - Treat Peekaboo as a live-desktop contender: avoid using it while the user is
   interacting with the same desktop, and coordinate before unavoidable use.
+- Prefer background accessibility actions in Peekaboo. Use foreground
+  interaction only when the operation requires a key window, Space switch, or
+  synthetic foreground event.
 - Refresh state after failure and after switching tools. Do not reuse selectors
   or element identifiers across interfaces.
 - Use screenshot-coordinate interaction only as the final fallback and verify
@@ -60,5 +63,6 @@ Use `$vp-interaction-routing` to choose tools for four tasks:
   and host policy
 - Peekaboo retains its macOS fallback, extended, and troubleshooting roles
 - Peekaboo routing accounts for contention with the user's live desktop
+- Peekaboo routing prefers background accessibility actions
 - tool switching invalidates prior selectors and identifiers
 - token savings do not outrank authorization or verification

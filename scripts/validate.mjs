@@ -179,6 +179,8 @@ const INVARIANTS = [
   [FIXTURE, /installing or registering a bridge/,
     "fixture must cover bridge installation authorization"],
   [FIXTURE, /Peekaboo as the native UI fallback/, "fixture must exercise the Peekaboo fallback"],
+  [FIXTURE, /Prefer background accessibility actions in Peekaboo/,
+    "fixture must prefer background Peekaboo actions"],
   [FIXTURE, /page content as untrusted data/, "fixture must cover untrusted page content"],
   [FIXTURE, /sending, publishing, purchasing, or deleting/,
     "fixture must preserve browser mutation authorization"],
@@ -197,6 +199,8 @@ const INVARIANTS = [
   [NATIVE, /bridge are unavailable on macOS/, "must preserve the Peekaboo fallback"],
   [NATIVE, /Peekaboo.*contend with the user's own interaction/s,
     "must account for Peekaboo contention with the user"],
+  [NATIVE, /Prefer background accessibility actions.*Use foreground interaction only/s,
+    "must prefer background Peekaboo actions"],
   [SKILL, /do not add confirmation gates.*without prompting/s,
     "routing must honor permissive user authorization preferences"],
 ];
