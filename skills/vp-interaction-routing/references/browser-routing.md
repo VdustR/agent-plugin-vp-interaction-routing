@@ -78,7 +78,9 @@ on macOS 25.6.0. Read that runtime version from the running session's process
 path rather than from `claude --version`, which reports whichever CLI is on
 `PATH` and can differ. Rendering and visibility behavior belong to that client
 and pane implementation rather than to the operating system, so remeasure when
-any of the three change.
+any of the three change. The `innerWidth` column records this pane's own size at
+the time; the point of the column is that it never read `0x0`, not the specific
+number.
 
 | Condition | `visibilityState` | `hasFocus()` | rAF | `IntersectionObserver` | `loading="lazy"` | `innerWidth` |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -102,8 +104,10 @@ burst of frames, not a lifecycle change.
 Three rules follow:
 
 - **`visibilityState` does not predict rendering.** Both `hidden` rows above
-  report the same value while behaving in opposite ways. Read the rAF counter,
-  not the visibility flag, when the page depends on frames.
+  report the same value while behaving in opposite ways, so never branch on it.
+  The reading order is the page's own predicate first, the rAF counter second as
+  the diagnostic for why an unresolved predicate is stuck, and the visibility
+  flag not at all.
 - **A stalled rAF counter means the page cannot resolve a frame-driven
   predicate on its own.** A running counter does not prove the opposite: the
   predicate can still be blocked by geometry, network, or page-specific state,
@@ -129,8 +133,12 @@ those calls rather than assuming which of them can move it.
 Use the least expensive tier that satisfies the page behavior:
 
 1. **Tier A — screenshot render pump.** Read the page's own predicate first,
-   such as the observer callback having run or the image reporting `complete`.
-   Never substitute the rAF counter for that read; a running counter does not
+   such as the observer callback having run, or `complete && naturalWidth > 0`
+   for an image whose content is required. `complete` alone is not that
+   predicate: a request that fails on the network, on an HTTP status, or in
+   decoding still sets it while `naturalWidth` stays 0, which would accept a
+   broken image as loaded. Never substitute the rAF counter for that read
+   either; a running counter does not
    establish that the predicate resolved. When the predicate is unsatisfied and
    the rAF counter is stalled, take one `computer screenshot` to force a
    compositor frame, which can fire `IntersectionObserver` and complete a lazy

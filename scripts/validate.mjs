@@ -185,8 +185,8 @@ const INVARIANTS = [
     "fixture must require process-targeted Peekaboo input"],
   [FIXTURE, /open -g -a.*cold-launched/s,
     "fixture must route cold background app launches outside Peekaboo"],
-  [FIXTURE, /Electron apps.*menu list.*keyboard shortcuts.*Never background-click/s,
-    "fixture must prefer menu-discovered Electron keyboard paths"],
+  [FIXTURE, /Electron apps.*menu list.*keyboard shortcuts.*per target\s+app rather than for Electron as a class/s,
+    "fixture must prefer menu-discovered Electron keyboard paths and scope the click route per app"],
   [FIXTURE, /`--snapshot` from a fresh `see`.*`effect: unverifiable`.*capture-and-compare.*semantic\s+predicate/s,
     "fixture must verify material Peekaboo effects and fresh coordinate snapshots"],
   [FIXTURE, /native\s+file\s+or folder picker will take the foreground/s,
@@ -269,6 +269,8 @@ const INVARIANTS = [
     "startup-only visibility checks must not rely on a late shim"],
   [BROWSER, /Read the page's own predicate first.*Never substitute the rAF counter for that read.*[Ee]scalate to Tier C/s,
     "the single-frame render pump must be gated on the page's own predicate"],
+  [BROWSER, /`complete && naturalWidth > 0`.*`complete` alone is not that\s+predicate/s,
+    "an image predicate must require successful decode, not just a finished request"],
   [BROWSER, /no tier fixes those.*only on evidence that the page needs real foreground semantics/s,
     "a running rAF with a false predicate must not escalate to Tier C by default"],
   [BROWSER, /Reserve port 9333.*confirm it is unused.*endpoint belongs to the process and managed profile/s,
@@ -281,9 +283,15 @@ const INVARIANTS = [
     "routing must honor permissive user authorization preferences"],
 ];
 
+// These invariants assert that an idea is present, not how a paragraph happens
+// to be wrapped. Matching raw file text made every reflow a false failure, so
+// each file is collapsed to single-spaced text first. Patterns written with
+// `\s+` or `[\s\S]*` keep working, since both still match one space.
+const collapse = (text) => text.replace(/\s+/g, " ");
+
 for (const [file, pattern, message] of INVARIANTS) {
   check(message, () => {
-    assert.match(readFileSync(join(root, file), "utf8"), pattern);
+    assert.match(collapse(readFileSync(join(root, file), "utf8")), pattern);
   });
 }
 
