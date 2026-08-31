@@ -41,6 +41,26 @@ Use `$vp-interaction-routing` to choose tools for four tasks:
 - Prefer background accessibility actions in Peekaboo. Use foreground
   interaction only when the operation requires a key window, Space switch, or
   synthetic foreground event.
+- Never send Peekaboo keyboard or pointer input without `--app` or `--pid`.
+  Use `open -g -a` when an app must be cold-launched in the background because
+  Peekaboo 4.1 cannot perform that launch.
+- For Electron apps, run `peekaboo menu list --app <pid>` first and prefer the
+  discovered keyboard shortcuts. Never background-click Electron web content;
+  use coordinates only as a last resort with `--snapshot` from a fresh `see` of
+  the exact target window. Treat `effect: unverifiable` as unverified until a
+  capture-and-compare readback proves the effect. Disclose that a native file
+  or folder picker will take the foreground before opening it.
+- Default public background page work to the in-app Browser pane. Account for
+  its permanently hidden lifecycle and use the screenshot render pump, the
+  post-navigation visibility shim, or background Chromium according to whether
+  the page needs lazy loading, focus logic, or real rAF behavior.
+- Use the user's real Chrome only for required logged-in state. Prefer a
+  dedicated managed profile over the daily profile when it can satisfy the
+  task.
+- Take Browser pane screenshots only at viewport widths of 800 CSS px or less,
+  then restore `preset: "desktop"`. Route legible small-text captures through a
+  file at a 1000 CSS px viewport and device scale factor 2, slicing the result
+  so every long edge is at most 2000 px.
 - Refresh state after failure and after switching tools. Do not reuse selectors
   or element identifiers across interfaces.
 - Use screenshot-coordinate interaction only as the final fallback and verify
@@ -64,5 +84,14 @@ Use `$vp-interaction-routing` to choose tools for four tasks:
 - Peekaboo retains its macOS fallback, extended, and troubleshooting roles
 - Peekaboo routing accounts for contention with the user's live desktop
 - Peekaboo routing prefers background accessibility actions
+- Peekaboo background input is process-targeted and cold background launch uses
+  `open -g -a`
+- Electron automation prefers menu-discovered keyboard paths, rejects
+  background web-content clicks, verifies effects by capture comparison, and
+  budgets foreground for native pickers
+- browser routing accounts for the in-app pane's hidden lifecycle and its three
+  fallback tiers
+- pane and file screenshots follow the measured 800 px and 2000 px fidelity
+  limits
 - tool switching invalidates prior selectors and identifiers
 - token savings do not outrank authorization or verification
