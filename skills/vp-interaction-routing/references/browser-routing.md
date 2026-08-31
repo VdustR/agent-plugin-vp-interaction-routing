@@ -86,12 +86,18 @@ any of the three change.
 | Pane displayed, tab never selected | `hidden` | `false` | About 60 per second | Fired | Completed | `464x785` |
 | Pane displayed, tab selected | `visible` | `false` | About 60 per second | Fired | Completed | `464x785` |
 
-The hidden-pane row was measured over 45 seconds on a page that was loaded
-while the pane was already hidden and never selected, with the observer target
-scrolled into view at second 25 by the page's own `setInterval` and no
-screenshot taken. Nineteen seconds after the target entered the viewport, the
-observer had not fired and the image was still `complete: false` with
-`naturalWidth` 0.
+The hidden-pane row was measured on a page that was loaded while the pane was
+already hidden and never selected, with the observer target scrolled into view
+at second 25 by the page's own `setInterval` and no screenshot taken.
+Thirty-eight seconds after the target entered the viewport, the observer had
+not fired and the image was still `complete: false` with `naturalWidth` 0.
+
+Taking exactly one `computer screenshot` at that point resolved both in the
+next sample: the rAF counter recorded a burst of 5 ticks in that one second,
+the observer fired, and the image reached `complete: true` with `naturalWidth`
+200. The counter returned to 0 immediately afterward and `visibilityState`
+stayed `hidden` throughout. That is the whole of the Tier A effect: a short
+burst of frames, not a lifecycle change.
 
 Three rules follow:
 
@@ -113,9 +119,12 @@ while `javascript_tool` does not, so `location.reload()` reloads a page inside a
 hidden pane and reads keep working there. The pane itself is toggled from the
 host application's own `View` menu, `Hide Browser` and `Show Browser` at
 `cmd+shift+B`, which a process-targeted `peekaboo menu` action can drive without
-taking the foreground. Taking a screenshot or running `resize_window` against a
-tab that was never selected was observed to flip it to `visible`, so both count
-as state changes, not passive reads.
+taking the foreground. A screenshot is not automatically a passive read: in a
+displayed pane, a tab that was never selected read as `hidden` and later as
+`visible` after a sequence of `computer screenshot`, `resize_window`, and
+`zoom`, and the responsible call was not isolated. In a hidden pane a single
+screenshot left `visibilityState` unchanged. Re-read the state after any of
+those calls rather than assuming which of them can move it.
 
 Use the least expensive tier that satisfies the page behavior:
 
