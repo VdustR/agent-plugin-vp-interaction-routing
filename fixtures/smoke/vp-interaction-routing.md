@@ -47,13 +47,15 @@ Use `$vp-interaction-routing` to choose tools for five tasks:
   synthetic foreground event.
 - Never send Peekaboo keyboard or pointer input without `--app` or `--pid`.
   Use `open -g -a` when an app must be cold-launched in the background because
-  Peekaboo 4.1 cannot perform that launch.
-- For Electron apps, run `peekaboo menu list --app <pid>` first and prefer the
+  Peekaboo refuses that launch.
+- For Electron apps, run `peekaboo menu list --pid <pid>` first and prefer the
   discovered keyboard shortcuts. Never background-click Electron web content;
   use coordinates only as a last resort with `--snapshot` from a fresh `see` of
   the exact target window. Treat `effect: unverifiable` as unverified until a
   capture-and-compare readback proves a visual effect, and use a semantic
-  predicate for a nonvisual or visually noisy effect. Disclose that a native
+  predicate for a nonvisual or visually noisy effect. Expect background
+  keyboard input into Electron web content to report success while changing
+  nothing, and escalate once a readback shows no change. Disclose that a native
   file or folder picker will take the foreground before opening it.
 - Default public background page work to the in-app Browser pane. Account for
   its permanently hidden lifecycle and use the screenshot render pump, the

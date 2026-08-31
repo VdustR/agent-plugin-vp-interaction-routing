@@ -39,14 +39,14 @@ profile when either can supply the required state.
 | --- | --- | --- |
 | `mcp__Claude_Browser__*` (in-app Browser pane) | No | Preferred background DOM surface when its hidden-page lifecycle is sufficient. |
 | `mcp__claude-in-chrome__*`, `mcp__Control_Chrome__*` | Yes | Use only when the user's real Chrome session is required. |
-| `peekaboo click/type/scroll/press` with `--app` or `--pid` | No | Keep every Peekaboo input explicitly process-targeted. |
-| `peekaboo` input with no target | Yes, effectively | Never use it; keyboard input lands in whichever window is focused. |
-| `peekaboo app launch` | Yes in Peekaboo 4.1 | It cannot cold-launch an app in the background; use `open -g -a` for that route. |
+| `peekaboo click/type/scroll/press` with `--app` or `--pid` | No | Keep every Peekaboo input explicitly process-targeted. Verified effective on a native app. |
+| `peekaboo` input with no target | Refused | Peekaboo rejects untargeted background delivery. `--foreground` does send global input, so never aim it at an unnamed window. |
+| `peekaboo app launch` | Refused | A cold background launch is rejected before dispatch; use `open -g -a` for that route. |
 | `open -g -n -a <App>` | No | Use for a background app launch, including the real-profile Chromium recipe below. |
 | `peekaboo see --window-id <id>` on an Electron app | No | Use for background-safe observation and fresh snapshots. |
-| `peekaboo menu list --app <pid>` on an Electron app | No | Enumerate the menu tree first to find a background-safe keyboard path. |
-| Process-targeted keyboard input on Electron content | No | Background `press` and `type` work; prefer menu-discovered shortcuts. |
-| Coordinate click on Electron web content | Ineffective in background | Treat it as unavailable even when the call reports `success: true`. |
+| `peekaboo menu list --pid <pid>` on an Electron app | No | Enumerate the menu tree first to find a background-safe keyboard path. |
+| Process-targeted keyboard input on Electron content | No, and unreliable | Reported `success: true` with `effect: unverifiable` while changing nothing; prove every effect with a readback. |
+| Coordinate click on Electron web content | Ineffective in background | The click presses an accessibility element, and Electron web content exposes none. |
 | A shortcut that opens a native file or folder picker | Yes | Budget and disclose the foreground interruption before opening the panel. |
 | iOS Simulator `attach` | Yes | Use only when the task needs its live panel. |
 
