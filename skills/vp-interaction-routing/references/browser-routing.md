@@ -46,7 +46,7 @@ profile when either can supply the required state.
 | `peekaboo see --window-id <id>` on an Electron app | No | Use for background-safe observation and fresh snapshots. |
 | `peekaboo menu list --pid <pid>` on an Electron app | No | Enumerate the menu tree first to find a background-safe keyboard path. |
 | Process-targeted keyboard input on Electron content | No, and unreliable | Reported `success: true` with `effect: unverifiable` while changing nothing; prove every effect with a readback. |
-| Coordinate click on Electron web content | Ineffective in background | The click presses an accessibility element, and Electron web content exposes none. |
+| Coordinate click on Electron web content | Ineffective where the app exposes no accessibility element | The click presses an accessibility element, so probe the target app with `see` instead of assuming either outcome. |
 | A shortcut that opens a native file or folder picker | Yes | Budget and disclose the foreground interruption before opening the panel. |
 | iOS Simulator `attach` | Yes | Use only when the task needs its live panel. |
 
@@ -71,44 +71,67 @@ page. Measure it instead of assuming it:
    w: innerWidth, h: innerHeight })
 ```
 
-Add a two-second `requestAnimationFrame` counter when the page depends on
-animation, intersection, or lazy loading. These conditions were measured on
-macOS 25.6.0:
+Add a `requestAnimationFrame` counter when the page depends on animation,
+intersection, or lazy loading. These three conditions were measured in the
+Claude desktop app 1.40609.0 running its bundled Claude Code runtime 2.1.247,
+on macOS 25.6.0. Read that runtime version from the running session's process
+path rather than from `claude --version`, which reports whichever CLI is on
+`PATH` and can differ. Rendering and visibility behavior belong to that client
+and pane implementation rather than to the operating system, so remeasure when
+any of the three change.
 
-| Condition | `document.visibilityState` | `document.hasFocus()` | `requestAnimationFrame` |
-| --- | --- | --- | --- |
-| Pane displayed, tab selected | `visible` | `false` | About 60 ticks per second |
-| Pane displayed, tab never selected | `hidden` | `false` | About 60 ticks per second |
-| Pane hidden | Not reproduced in this retest | | |
+| Condition | `visibilityState` | `hasFocus()` | rAF | `IntersectionObserver` | `loading="lazy"` | `innerWidth` |
+| --- | --- | --- | --- | --- | --- | --- |
+| Pane hidden | `hidden` | `false` | 0 per second | Did not fire | Stayed incomplete | `464x785` |
+| Pane displayed, tab never selected | `hidden` | `false` | About 60 per second | Fired | Completed | `464x785` |
+| Pane displayed, tab selected | `visible` | `false` | About 60 per second | Fired | Completed | `464x785` |
 
-Four consequences follow from those measurements:
+The hidden-pane row was measured over 45 seconds on a page that was loaded
+while the pane was already hidden and never selected, with the observer target
+scrolled into view at second 25 by the page's own `setInterval` and no
+screenshot taken. Nineteen seconds after the target entered the viewport, the
+observer had not fired and the image was still `complete: false` with
+`naturalWidth` 0.
 
-- **`document.hasFocus()` was `false` in every measured condition.** Treat
-  focus-gated page logic as the case that always needs a shim or a real browser.
-- **`visibilityState` is not stable.** A page loads `hidden` and receives a
-  `visibilitychange` when the pane displays it. Taking a screenshot or running
-  `resize_window` against a tab that was never selected was also observed to
-  flip it to `visible`.
-- **`innerWidth` reports the pane's own viewport right after navigation**, such
-  as `464x785`, not `0x0`. Use `resize_window` to set a known width, then
-  restore `preset: "desktop"`.
-- **While `requestAnimationFrame` is running, `IntersectionObserver` fires and
-  `loading="lazy"` images complete on their own**, with no screenshot involved.
+Three rules follow:
 
-`navigate` displays the pane, so a page cannot be loaded into a hidden one. A
-page in a hidden pane is one that was loaded first and hidden afterward, which
-is why that row is unmeasured here rather than assumed to match either other
-row.
+- **`visibilityState` does not predict rendering.** Both `hidden` rows above
+  report the same value while behaving in opposite ways. Read the rAF counter,
+  not the visibility flag, when the page depends on frames.
+- **A stalled rAF counter means the page cannot resolve a frame-driven
+  predicate on its own.** A running counter does not prove the opposite: the
+  predicate can still be blocked by geometry, network, or page-specific state,
+  so read the predicate itself either way.
+- **`document.hasFocus()` was `false` in every condition, including a selected
+  tab in a displayed pane.** Focus-gated page logic always needs a shim or a
+  real browser. `innerWidth` likewise reported the pane's own viewport in every
+  condition, never `0x0`; use `resize_window` for a known width, then restore
+  `preset: "desktop"`.
+
+To produce each condition deliberately: `navigate` always displays the pane,
+while `javascript_tool` does not, so `location.reload()` reloads a page inside a
+hidden pane and reads keep working there. The pane itself is toggled from the
+host application's own `View` menu, `Hide Browser` and `Show Browser` at
+`cmd+shift+B`, which a process-targeted `peekaboo menu` action can drive without
+taking the foreground. Taking a screenshot or running `resize_window` against a
+tab that was never selected was observed to flip it to `visible`, so both count
+as state changes, not passive reads.
 
 Use the least expensive tier that satisfies the page behavior:
 
-1. **Tier A — screenshot render pump.** Use this only when the measured rAF
-   count is zero and the page depends on intersection or lazy loading. Take one
-   `computer screenshot` to force a compositor frame, which can fire
-   `IntersectionObserver` and complete a lazy image. Read the intended
-   lazy-state predicate after that frame; escalate to Tier C when one frame does
-   not satisfy it. When rAF is already ticking, skip this tier: the predicate
-   resolves without it.
+1. **Tier A — screenshot render pump.** Read the page's own predicate first,
+   such as the observer callback having run or the image reporting `complete`.
+   Never substitute the rAF counter for that read; a running counter does not
+   establish that the predicate resolved. When the predicate is unsatisfied and
+   the rAF counter is stalled, take one `computer screenshot` to force a
+   compositor frame, which can fire `IntersectionObserver` and complete a lazy
+   image, then read the predicate again; escalate to Tier C when one frame does
+   not satisfy it. When rAF is already running, skip the pump and wait or retry
+   on the page's own readiness condition instead, because a pending request, a
+   timer, application state, or geometry can hold the predicate false while
+   frames are already being produced, and no tier fixes those. Escalate to
+   Tier C only on evidence that the page needs real foreground semantics. The
+   predicate stays the completion gate in every tier.
 2. **Tier B — in-pane JavaScript shim.** Inject the following after every
    navigation for handlers that can respond to the synthetic focus and
    visibility events, such as refetch-on-focus, visibility-gated data loading,

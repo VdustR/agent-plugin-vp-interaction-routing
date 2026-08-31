@@ -112,18 +112,24 @@ For a native Electron app, use this background-first order:
    keyboard shortcuts without activating the app. This read is background-safe.
 2. Try process-targeted `press` and `type` keyboard input next, and prove the
    result with a readback. Background keyboard delivery into Electron web
-   content is not reliable: it is accepted and reported as `success: true` with
-   `effect: unverifiable` while changing nothing.
-3. Use coordinate clicks only as a last resort, and never for Electron web
-   content. A background click presses the accessibility element under the
-   point, and Electron web content exposes none, so the call fails with
+   content is not reliable: it can be accepted and reported as `success: true`
+   with `effect: unverifiable` while changing nothing.
+3. Use coordinate clicks only as a last resort. A background click presses the
+   accessibility element under the point, so the route exists only where the
+   target app exposes one. Probe the app with `see` before relying on it: an
+   app whose window returns only chrome controls has nothing for the click to
+   press, and the call fails with
    `No pressable accessibility element was found`.
 4. Before opening a native file or folder picker, disclose and budget the
    unavoidable foreground interruption.
 
-Steps 2 and 3 leave no background route into Electron web content. When the
-readback shows nothing changed, escalate to `--foreground`, disclose the
-foreground cost, or move the task to a DOM-aware surface.
+How much of steps 2 and 3 survives is a property of the app, not of Electron.
+Accessibility exposure differs between builds, so establish it per target rather
+than assuming it. In the one app measured here, Antigravity 90766, the window
+exposed 12 elements, all of them window chrome, and neither keyboard input nor a
+coordinate click reached the web content. When a readback shows nothing changed
+in an app like that, escalate to `--foreground`, disclose the foreground cost,
+or move the task to a DOM-aware surface.
 
 `effect: unverifiable` is not evidence of success, for pointer and keyboard
 input alike. Capture the exact target window before the interaction and
