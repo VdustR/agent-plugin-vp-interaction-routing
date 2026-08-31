@@ -80,6 +80,8 @@ Use the least expensive tier that satisfies the page behavior:
 1. **Tier A — screenshot render pump.** Take one `computer screenshot` before
    reading DOM state that depends on intersection or lazy loading. The forced
    compositor frame can fire `IntersectionObserver` and complete a lazy image.
+   Read the intended lazy-state predicate after that frame; escalate to Tier C
+   when one frame does not satisfy it.
 2. **Tier B — in-pane JavaScript shim.** Inject the following after every
    navigation for handlers that can respond to the synthetic focus and
    visibility events, such as refetch-on-focus, visibility-gated data loading,
@@ -109,6 +111,9 @@ Use this route when the page needs real foreground semantics plus a real Chrome
 window, extensions, or a persistent logged-in profile. Use a dedicated managed
 user-data directory that is not active in another Chromium process; otherwise
 the profile singleton lock can prevent the debug-enabled process from starting.
+Reserve port 9333 for this session, confirm it is unused before launch, and
+verify that the endpoint belongs to the process and managed profile just started
+before interacting with it.
 
 ```bash
 open -g -n -a "/path/to/Chromium.app" --args \

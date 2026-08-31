@@ -9,8 +9,10 @@ Use `$vp-interaction-routing` to choose tools for five tasks:
 - run repeatable signed-in web checks in parallel worktrees;
 - operate a native macOS application from Claude Code or Antigravity when their
   first-party computer use is unavailable.
-- capture a 1280 CSS px-wide page with legible 9 px text and a tall full-page
-  result while preserving as much measured detail as the available routes allow.
+- capture legible 9 px text from a page currently shown at a 1280 CSS px-wide
+  viewport, plus a tall full-page result, while preserving as much measured
+  detail as the available routes allow; the current viewport is not a required
+  output layout constraint.
 
 ## Expected Behavior
 
