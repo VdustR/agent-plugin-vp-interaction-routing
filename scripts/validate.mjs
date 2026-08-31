@@ -284,14 +284,44 @@ const INVARIANTS = [
 ];
 
 // These invariants assert that an idea is present, not how a paragraph happens
-// to be wrapped. Matching raw file text made every reflow a false failure, so
-// each file is collapsed to single-spaced text first. Patterns written with
-// `\s+` or `[\s\S]*` keep working, since both still match one space.
-const collapse = (text) => text.replace(/\s+/g, " ");
+// to be wrapped. Matching raw file text made every reflow a false failure.
+//
+// Only a wrapped continuation line is joined to the line above it. Blank lines,
+// list items, table rows, headings, quotes, and fenced code keep their own line,
+// so a pattern without the `s` flag stays bounded to one block instead of
+// reaching across the whole file. Collapsing every newline instead would let
+// `/connector.*GitHub/` pass on two unrelated paragraphs. Patterns written with
+// `\s+` or `[\s\S]*` are unaffected either way.
+const BLOCK_START = /^\s*(?:$|[-*+] |\d+[.)] |\||#{1,6} |>|```)/;
+
+const reflow = (text) => {
+  const lines = [];
+  let inFence = false;
+  for (const raw of text.split("\n")) {
+    const isFence = /^\s*```/.test(raw);
+    const previous = lines[lines.length - 1];
+    const continues =
+      !inFence && !isFence && previous !== undefined && previous !== "" &&
+      !BLOCK_START.test(raw);
+    if (continues) lines[lines.length - 1] += ` ${raw.trim()}`;
+    else lines.push(raw.trim());
+    if (isFence) inFence = !inFence;
+  }
+  return lines.join("\n");
+};
+
+check("the invariant matcher joins wrapped lines without merging blocks", () => {
+  const wrapped = "- Prefer the authenticated connector for the\n  GitHub operation.";
+  const unrelated = "- Prefer the authenticated connector.\n\n- A later bullet about GitHub.";
+  assert.match(reflow(wrapped), /connector for the GitHub/,
+    "a wrapped continuation must read as one line");
+  assert.doesNotMatch(reflow(unrelated), /connector.*GitHub/,
+    "two unrelated blocks must not satisfy one pattern without the s flag");
+});
 
 for (const [file, pattern, message] of INVARIANTS) {
   check(message, () => {
-    assert.match(collapse(readFileSync(join(root, file), "utf8")), pattern);
+    assert.match(reflow(readFileSync(join(root, file), "utf8")), pattern);
   });
 }
 
