@@ -292,7 +292,12 @@ const INVARIANTS = [
 // reaching across the whole file. Collapsing every newline instead would let
 // `/connector.*GitHub/` pass on two unrelated paragraphs. Patterns written with
 // `\s+` or `[\s\S]*` are unaffected either way.
+// A line that opens its own block never continues the line above it.
 const BLOCK_START = /^\s*(?:$|[-*+] |\d+[.)] |\||#{1,6} |>|```)/;
+// A block that ends at its own line never accepts a continuation, so prose
+// written directly under a heading stays separate from it. Paragraphs and list
+// items are absent here because those are exactly the blocks that do wrap.
+const BLOCK_END = /^\s*(?:#{1,6} |\||>|```)/;
 
 const reflow = (text) => {
   const lines = [];
@@ -302,7 +307,7 @@ const reflow = (text) => {
     const previous = lines[lines.length - 1];
     const continues =
       !inFence && !isFence && previous !== undefined && previous !== "" &&
-      !BLOCK_START.test(raw);
+      !BLOCK_START.test(raw) && !BLOCK_END.test(previous);
     if (continues) lines[lines.length - 1] += ` ${raw.trim()}`;
     else lines.push(raw.trim());
     if (isFence) inFence = !inFence;
@@ -312,11 +317,26 @@ const reflow = (text) => {
 
 check("the invariant matcher joins wrapped lines without merging blocks", () => {
   const wrapped = "- Prefer the authenticated connector for the\n  GitHub operation.";
-  const unrelated = "- Prefer the authenticated connector.\n\n- A later bullet about GitHub.";
   assert.match(reflow(wrapped), /connector for the GitHub/,
     "a wrapped continuation must read as one line");
-  assert.doesNotMatch(reflow(unrelated), /connector.*GitHub/,
-    "two unrelated blocks must not satisfy one pattern without the s flag");
+
+  // Every shape whose lines must stay separate, since one pattern reaching
+  // across two of them would weaken every invariant without an `s` flag at once.
+  // Each sample keeps `connector` lowercase so the assertion fails for the
+  // intended reason rather than on a case mismatch.
+  const separate = {
+    "a blank line": "- Prefer the authenticated connector.\n\n- A bullet on GitHub.",
+    "a heading followed by prose": "# Policy for the connector\nGitHub is elsewhere.",
+    "a table row followed by prose": "| connector | yes |\nGitHub is elsewhere.",
+    "fenced code": "```\nconnector\n```\n\nGitHub is elsewhere.",
+    "a quote followed by prose": "> Prefer the connector.\nGitHub is elsewhere.",
+  };
+  for (const [shape, sample] of Object.entries(separate)) {
+    assert.match(sample, /connector/, `${shape} sample must contain the first term`);
+    assert.match(sample, /GitHub/, `${shape} sample must contain the second term`);
+    assert.doesNotMatch(reflow(sample), /connector.*GitHub/,
+      `${shape} must not let one pattern span two blocks`);
+  }
 });
 
 for (const [file, pattern, message] of INVARIANTS) {
