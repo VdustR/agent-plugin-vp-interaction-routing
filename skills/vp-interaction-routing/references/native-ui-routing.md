@@ -108,9 +108,11 @@ For a native Electron app, use this background-first order:
 
 `effect: unverifiable` is not evidence of success. Capture the exact target
 window before the interaction and compare a follow-up capture before another
-step depends on the effect. A background coordinate click also requires
-`--snapshot` from a fresh `see` capture of that exact target window; PID-only or
-app-only coordinates are refused.
+step depends on a visual effect. Verify the intended predicate through a
+semantic readback when the effect is nonvisual or when unrelated animation,
+caret movement, or other visual noise could change the capture. A background
+coordinate click also requires `--snapshot` from a fresh `see` capture of that
+exact target window; PID-only or app-only coordinates are refused.
 
 Reading and acting use different observations. The text-only read, `inspect_ui`
 over MCP or `see --tree --no-screenshot` on the command line, is the cheap way to

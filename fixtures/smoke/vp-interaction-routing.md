@@ -2,13 +2,15 @@
 
 ## Prompt
 
-Use `$vp-interaction-routing` to choose tools for four tasks:
+Use `$vp-interaction-routing` to choose tools for five tasks:
 
 - update a GitHub issue when an authenticated connector is available;
 - inspect a page that is already signed in within the user's current Chrome;
 - run repeatable signed-in web checks in parallel worktrees;
 - operate a native macOS application from Claude Code or Antigravity when their
   first-party computer use is unavailable.
+- capture a 1280 CSS px-wide page with legible 9 px text and a tall full-page
+  result while preserving as much measured detail as the available routes allow.
 
 ## Expected Behavior
 
@@ -48,15 +50,16 @@ Use `$vp-interaction-routing` to choose tools for four tasks:
   discovered keyboard shortcuts. Never background-click Electron web content;
   use coordinates only as a last resort with `--snapshot` from a fresh `see` of
   the exact target window. Treat `effect: unverifiable` as unverified until a
-  capture-and-compare readback proves the effect. Disclose that a native file
-  or folder picker will take the foreground before opening it.
+  capture-and-compare readback proves a visual effect, and use a semantic
+  predicate for a nonvisual or visually noisy effect. Disclose that a native
+  file or folder picker will take the foreground before opening it.
 - Default public background page work to the in-app Browser pane. Account for
   its permanently hidden lifecycle and use the screenshot render pump, the
   post-navigation visibility shim, or background Chromium according to whether
   the page needs lazy loading, focus logic, or real rAF behavior.
-- Use the user's real Chrome only for required logged-in state. Prefer a
-  dedicated managed profile over the daily profile when it can satisfy the
-  task.
+- Use the user's real Chrome only for required current tabs, login, extensions,
+  handoff, or actual browser-environment behavior. Prefer a dedicated managed
+  profile over the daily profile when it can satisfy the task.
 - Take Browser pane screenshots only at viewport widths of 800 CSS px or less,
   then restore `preset: "desktop"`. Route legible small-text captures through a
   file at a 1000 CSS px viewport and device scale factor 2, slicing the result

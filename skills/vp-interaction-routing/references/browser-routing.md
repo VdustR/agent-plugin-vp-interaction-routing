@@ -29,10 +29,11 @@ separate confirmation requirement in this routing layer.
 ## Foreground Cost
 
 Default to the in-app Browser pane for public page work that does not require a
-real visible-page lifecycle. Use the user's real Chrome only when the task
-genuinely requires its logged-in session. Prefer a dedicated managed profile
-through `vp-agent-browser-session` over the daily profile when either can supply
-the required state.
+real visible-page lifecycle or user-specific browser state. Use the user's real
+Chrome only when the task genuinely requires its current tabs, logged-in
+session, extensions, direct handoff, or actual browser environment. Prefer a
+dedicated managed profile through `vp-agent-browser-session` over the daily
+profile when either can supply the required state.
 
 | Surface | Takes the macOS foreground | Routing consequence |
 | --- | --- | --- |
@@ -80,9 +81,12 @@ Use the least expensive tier that satisfies the page behavior:
    reading DOM state that depends on intersection or lazy loading. The forced
    compositor frame can fire `IntersectionObserver` and complete a lazy image.
 2. **Tier B — in-pane JavaScript shim.** Inject the following after every
-   navigation for refetch-on-focus, visibility-gated data loading, or socket
-   liveness checks. It changes page logic but does not start
-   `requestAnimationFrame`.
+   navigation for handlers that can respond to the synthetic focus and
+   visibility events, such as refetch-on-focus, visibility-gated data loading,
+   or socket liveness checks. It changes page logic but does not start
+   `requestAnimationFrame`. A page that performs a one-time startup check before
+   the shim can run requires Tier C unless the browser surface supports an
+   initialization script that installs these overrides before navigation.
 
    ```javascript
    Object.defineProperty(document, "visibilityState", { get: () => "visible", configurable: true });
@@ -102,7 +106,9 @@ Use the least expensive tier that satisfies the page behavior:
 ### Background Chromium With A Real Profile
 
 Use this route when the page needs real foreground semantics plus a real Chrome
-window, extensions, or a persistent logged-in profile:
+window, extensions, or a persistent logged-in profile. Use a dedicated managed
+user-data directory that is not active in another Chromium process; otherwise
+the profile singleton lock can prevent the debug-enabled process from starting.
 
 ```bash
 open -g -n -a "/path/to/Chromium.app" --args \
