@@ -189,7 +189,7 @@ const INVARIANTS = [
     "fixture must prefer menu-discovered Electron keyboard paths and scope the click route per app"],
   [FIXTURE, /`--snapshot` from a fresh `see`.*`effect: unverifiable`.*capture-and-compare.*semantic\s+predicate/s,
     "fixture must verify material Peekaboo effects and fresh coordinate snapshots"],
-  [FIXTURE, /native\s+file\s+or folder picker will take the foreground/s,
+  [FIXTURE, /native\s+file\s+or folder picker will\s+take the foreground/s,
     "fixture must budget Electron native-picker foreground cost"],
   [FIXTURE, /screenshot render pump.*visibility shim.*background Chromium/s,
     "fixture must cover all three hidden-page fallback tiers"],
@@ -283,65 +283,14 @@ const INVARIANTS = [
     "routing must honor permissive user authorization preferences"],
 ];
 
-// These invariants assert that an idea is present, not how a paragraph happens
-// to be wrapped. Matching raw file text made every reflow a false failure.
-//
-// Only a wrapped continuation line is joined to the line above it. Blank lines,
-// list items, table rows, headings, quotes, and fenced code keep their own line,
-// so a pattern without the `s` flag stays bounded to one block instead of
-// reaching across the whole file. Collapsing every newline instead would let
-// `/connector.*GitHub/` pass on two unrelated paragraphs. Patterns written with
-// `\s+` or `[\s\S]*` are unaffected either way.
-// A line that opens its own block never continues the line above it.
-const BLOCK_START = /^\s*(?:$|[-*+] |\d+[.)] |\||#{1,6} |>|```)/;
-// A block that ends at its own line never accepts a continuation, so prose
-// written directly under a heading stays separate from it. Paragraphs and list
-// items are absent here because those are exactly the blocks that do wrap.
-const BLOCK_END = /^\s*(?:#{1,6} |\||>|```)/;
-
-const reflow = (text) => {
-  const lines = [];
-  let inFence = false;
-  for (const raw of text.split("\n")) {
-    const isFence = /^\s*```/.test(raw);
-    const previous = lines[lines.length - 1];
-    const continues =
-      !inFence && !isFence && previous !== undefined && previous !== "" &&
-      !BLOCK_START.test(raw) && !BLOCK_END.test(previous);
-    if (continues) lines[lines.length - 1] += ` ${raw.trim()}`;
-    else lines.push(raw.trim());
-    if (isFence) inFence = !inFence;
-  }
-  return lines.join("\n");
-};
-
-check("the invariant matcher joins wrapped lines without merging blocks", () => {
-  const wrapped = "- Prefer the authenticated connector for the\n  GitHub operation.";
-  assert.match(reflow(wrapped), /connector for the GitHub/,
-    "a wrapped continuation must read as one line");
-
-  // Every shape whose lines must stay separate, since one pattern reaching
-  // across two of them would weaken every invariant without an `s` flag at once.
-  // Each sample keeps `connector` lowercase so the assertion fails for the
-  // intended reason rather than on a case mismatch.
-  const separate = {
-    "a blank line": "- Prefer the authenticated connector.\n\n- A bullet on GitHub.",
-    "a heading followed by prose": "# Policy for the connector\nGitHub is elsewhere.",
-    "a table row followed by prose": "| connector | yes |\nGitHub is elsewhere.",
-    "fenced code": "```\nconnector\n```\n\nGitHub is elsewhere.",
-    "a quote followed by prose": "> Prefer the connector.\nGitHub is elsewhere.",
-  };
-  for (const [shape, sample] of Object.entries(separate)) {
-    assert.match(sample, /connector/, `${shape} sample must contain the first term`);
-    assert.match(sample, /GitHub/, `${shape} sample must contain the second term`);
-    assert.doesNotMatch(reflow(sample), /connector.*GitHub/,
-      `${shape} must not let one pattern span two blocks`);
-  }
-});
-
+// These invariants match raw file text, so a pattern has to tolerate the line
+// wrapping of the prose it checks. Write `\s+` wherever a wrap can fall rather
+// than a literal space. Normalizing the text before matching was tried and
+// reverted in #8, since every normalizer that joined wrapped
+// lines also let a pattern without the `s` flag reach across unrelated blocks.
 for (const [file, pattern, message] of INVARIANTS) {
   check(message, () => {
-    assert.match(reflow(readFileSync(join(root, file), "utf8")), pattern);
+    assert.match(readFileSync(join(root, file), "utf8"), pattern);
   });
 }
 
