@@ -87,6 +87,33 @@ window, a Space switch, or a synthetic foreground event. Confirm command-level
 support before relying on a background-specific flag such as
 `--focus-background`.
 
+Peekaboo 4 requires explicit targets for background input. Always pass `--app`
+or `--pid` to `peekaboo click`, `type`, `scroll`, and `press`; untargeted
+keyboard input lands in the currently focused window. Peekaboo 4.1 also refuses
+a cold background `app launch` and directs the caller to retry in the
+foreground. When an app must start without taking the foreground, use
+`open -g -a <App>` instead.
+
+For a native Electron app, use this background-first order:
+
+1. Run `peekaboo menu list --app <pid>` to enumerate the menu tree and discover
+   keyboard shortcuts without activating the app.
+2. Drive Electron content through process-targeted `press` and `type` keyboard
+   input. Background keyboard input is supported.
+3. Use coordinate clicks only as a last resort, and never for Electron web
+   content: the content does not receive background coordinate clicks even when
+   Peekaboo returns `success: true` with `effect: unverifiable`.
+4. Before opening a native file or folder picker, disclose and budget the
+   unavoidable foreground interruption.
+
+`effect: unverifiable` is not evidence of success. Capture the exact target
+window before the interaction and compare a follow-up capture before another
+step depends on a visual effect. Verify the intended predicate through a
+semantic readback when the effect is nonvisual or when unrelated animation,
+caret movement, or other visual noise could change the capture. A background
+coordinate click also requires `--snapshot` from a fresh `see` capture of that
+exact target window; PID-only or app-only coordinates are refused.
+
 Reading and acting use different observations. The text-only read, `inspect_ui`
 over MCP or `see --tree --no-screenshot` on the command line, is the cheap way to
 inspect a tree, but its snapshot cannot drive a click:
