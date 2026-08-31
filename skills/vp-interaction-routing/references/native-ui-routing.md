@@ -88,38 +88,69 @@ support before relying on a background-specific flag such as
 `--focus-background`.
 
 Peekaboo 4 requires explicit targets for background input. Always pass `--app`
-or `--pid` to `peekaboo click`, `type`, `scroll`, and `press`; untargeted
-keyboard input lands in the currently focused window. Peekaboo 4.1 also refuses
-a cold background `app launch` and directs the caller to retry in the
-foreground. When an app must start without taking the foreground, use
-`open -g -a <App>` instead.
+or `--pid` to `peekaboo click`, `type`, `scroll`, and `press`. Untargeted
+background input is refused rather than delivered:
+
+```
+Keyboard input requires --app, --pid, or --snapshot for background delivery.
+```
+
+`--foreground` is the documented escape hatch and does send global input, so
+treat an untargeted foreground call as input aimed at whatever the user is
+using. Pass a process id through `--pid <pid>` or `--app 'PID:<pid>'`; `--app`
+with a bare number is read as an application name and fails with
+`Application '<pid>' not found`.
+
+Peekaboo also refuses a cold background `app launch` before dispatch and directs
+the caller to retry in the foreground. When an app must start without taking the
+foreground, use `open -g -a <App>` instead, which was measured to leave the
+active application unchanged.
 
 For a native Electron app, use this background-first order:
 
-1. Run `peekaboo menu list --app <pid>` to enumerate the menu tree and discover
-   keyboard shortcuts without activating the app.
-2. Drive Electron content through process-targeted `press` and `type` keyboard
-   input. Background keyboard input is supported.
-3. Use coordinate clicks only as a last resort, and never for Electron web
-   content: the content does not receive background coordinate clicks even when
-   Peekaboo returns `success: true` with `effect: unverifiable`.
+1. Run `peekaboo menu list --pid <pid>` to enumerate the menu tree and discover
+   keyboard shortcuts without activating the app. This read is background-safe.
+2. Try process-targeted `press` and `type` keyboard input next, and prove the
+   result with a readback. Background keyboard delivery into Electron web
+   content is not reliable: it can be accepted and reported as `success: true`
+   with `effect: unverifiable` while changing nothing.
+3. Use coordinate clicks only as a last resort. A background click presses the
+   accessibility element under the point, so the route exists only where the
+   target app exposes one. Probe the app with `see` before relying on it: an
+   app whose window returns only chrome controls has nothing for the click to
+   press, and the call fails with
+   `No pressable accessibility element was found`.
 4. Before opening a native file or folder picker, disclose and budget the
    unavoidable foreground interruption.
 
-`effect: unverifiable` is not evidence of success. Capture the exact target
-window before the interaction and compare a follow-up capture before another
-step depends on a visual effect. Verify the intended predicate through a
-semantic readback when the effect is nonvisual or when unrelated animation,
-caret movement, or other visual noise could change the capture. A background
-coordinate click also requires `--snapshot` from a fresh `see` capture of that
-exact target window; PID-only or app-only coordinates are refused.
+How much of steps 2 and 3 survives is a property of the app, not of Electron.
+Accessibility exposure differs between builds, so establish it per target rather
+than assuming it. In the one app measured here, Antigravity 90766, the window
+exposed 12 elements, all of them window chrome, and neither keyboard input nor a
+coordinate click reached the web content. When a readback shows nothing changed
+in an app like that, escalate to `--foreground`, disclose the foreground cost,
+or move the task to a DOM-aware surface.
+
+`effect: unverifiable` is not evidence of success, for pointer and keyboard
+input alike. Capture the exact target window before the interaction and
+compare a follow-up capture before another step depends on a visual effect.
+Verify the intended predicate through a semantic readback when the effect is
+nonvisual or when unrelated animation, caret movement, or other visual noise
+could change the capture. A background coordinate click also requires
+`--snapshot` from a fresh `see` capture of that exact target window; PID-only
+or app-only coordinates are refused.
+
+The Peekaboo behavior in this section was measured against Peekaboo 4.0.0. Treat
+a specific message, flag, or refusal as version-dependent and re-derive it from
+the installed build before relying on it; the routing rules above hold because
+of what the input model can reach, not because of any one release.
 
 Reading and acting use different observations. The text-only read, `inspect_ui`
 over MCP or `see --tree --no-screenshot` on the command line, is the cheap way to
 inspect a tree, but its snapshot cannot drive a click:
 
 ```
-Exact-window snapshot has no capture-time process-generation receipt. Run see again.
+Snapshot is stale: Exact-window click snapshot has no capture-time process-generation receipt and bounds. Re-run peekaboo see to refresh.
 ```
 
 Use `see` when the intent is to act, and reserve the text-only read for
