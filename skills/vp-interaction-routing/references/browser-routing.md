@@ -37,7 +37,7 @@ profile when either can supply the required state.
 
 | Surface | Takes the macOS foreground | Routing consequence |
 | --- | --- | --- |
-| `mcp__Claude_Browser__*` (in-app Browser pane) | No | Preferred background DOM surface when its hidden-page lifecycle is sufficient. |
+| `mcp__Claude_Browser__*` (in-app Browser pane) | No | Preferred background DOM surface when its measured page lifecycle is sufficient. |
 | `mcp__claude-in-chrome__*`, `mcp__Control_Chrome__*` | Yes | Use only when the user's real Chrome session is required. |
 | `peekaboo click/type/scroll/press` with `--app` or `--pid` | No | Keep every Peekaboo input explicitly process-targeted. Verified effective on a native app. |
 | `peekaboo` input with no target | Refused | Peekaboo rejects untargeted background delivery. `--foreground` does send global input, so never aim it at an unnamed window. |

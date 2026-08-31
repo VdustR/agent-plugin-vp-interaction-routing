@@ -144,8 +144,7 @@ over MCP or `see --tree --no-screenshot` on the command line, is the cheap way t
 inspect a tree, but its snapshot cannot drive a click:
 
 ```
-Snapshot is stale: Exact-window click snapshot has no capture-time
-process-generation receipt and bounds. Re-run peekaboo see to refresh.
+Snapshot is stale: Exact-window click snapshot has no capture-time process-generation receipt and bounds. Re-run peekaboo see to refresh.
 ```
 
 Use `see` when the intent is to act, and reserve the text-only read for
