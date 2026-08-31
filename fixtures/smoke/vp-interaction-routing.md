@@ -57,10 +57,12 @@ Use `$vp-interaction-routing` to choose tools for five tasks:
   keyboard input into Electron web content to report success while changing
   nothing, and escalate once a readback shows no change. Disclose that a native
   file or folder picker will take the foreground before opening it.
-- Default public background page work to the in-app Browser pane. Account for
-  its permanently hidden lifecycle and use the screenshot render pump, the
-  post-navigation visibility shim, or background Chromium according to whether
-  the page needs lazy loading, focus logic, or real rAF behavior.
+- Default public background page work to the in-app Browser pane. Measure its
+  page lifecycle rather than assuming it, because `visibilityState` and
+  `requestAnimationFrame` depend on whether the pane is displayed and the tab is
+  selected. Then use the screenshot render pump, the post-navigation
+  visibility shim, or background Chromium according to whether the page needs
+  lazy loading, focus logic, or real rAF behavior.
 - Use the user's real Chrome only for required current tabs, login, extensions,
   handoff, or actual browser-environment behavior. Prefer a dedicated managed
   profile over the daily profile when it can satisfy the task.
@@ -96,8 +98,8 @@ Use `$vp-interaction-routing` to choose tools for five tasks:
 - Electron automation prefers menu-discovered keyboard paths, rejects
   background web-content clicks, verifies effects by capture comparison, and
   budgets foreground for native pickers
-- browser routing accounts for the in-app pane's hidden lifecycle and its three
-  fallback tiers
+- browser routing measures the in-app pane's lifecycle rather than assuming it,
+  and keeps its three fallback tiers
 - pane and file screenshots follow the measured 800 px and 2000 px fidelity
   limits
 - tool switching invalidates prior selectors and identifiers

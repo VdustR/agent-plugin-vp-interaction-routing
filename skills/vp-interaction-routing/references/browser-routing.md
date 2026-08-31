@@ -61,27 +61,54 @@ profile lifecycle, daily-profile isolation, and manual authentication rules.
 
 ## In-App Browser Lifecycle
 
-The in-app Browser pane is not a drop-in replacement for a visible page. A tab
-in a background pane keeps the following measured state; selecting the tab
-inside an undisplayed pane does not change it.
+The in-app Browser pane is not a drop-in replacement for a visible page, and its
+page lifecycle is not one fixed state. It varies with whether the pane is
+displayed and whether the tab is selected, and it changes underneath a running
+page. Measure it instead of assuming it:
 
-| Observation | Background pane value |
-| --- | --- |
-| `document.visibilityState` | Permanently `hidden` |
-| `visibilitychange` | No event |
-| `document.hasFocus()` | `false` |
-| `requestAnimationFrame` | 0 ticks in 2 seconds |
-| `IntersectionObserver` | Fires only during a screenshot's forced frame |
-| `loading="lazy"` image | `complete: false` before a screenshot and `true` after |
-| `innerWidth` | `0x0` until `resize_window` runs |
+```javascript
+({ vis: document.visibilityState, focus: document.hasFocus(),
+   w: innerWidth, h: innerHeight })
+```
+
+Add a two-second `requestAnimationFrame` counter when the page depends on
+animation, intersection, or lazy loading. These conditions were measured on
+macOS 25.6.0:
+
+| Condition | `document.visibilityState` | `document.hasFocus()` | `requestAnimationFrame` |
+| --- | --- | --- | --- |
+| Pane displayed, tab selected | `visible` | `false` | About 60 ticks per second |
+| Pane displayed, tab never selected | `hidden` | `false` | About 60 ticks per second |
+| Pane hidden | Not reproduced in this retest | | |
+
+Four consequences follow from those measurements:
+
+- **`document.hasFocus()` was `false` in every measured condition.** Treat
+  focus-gated page logic as the case that always needs a shim or a real browser.
+- **`visibilityState` is not stable.** A page loads `hidden` and receives a
+  `visibilitychange` when the pane displays it. Taking a screenshot or running
+  `resize_window` against a tab that was never selected was also observed to
+  flip it to `visible`.
+- **`innerWidth` reports the pane's own viewport right after navigation**, such
+  as `464x785`, not `0x0`. Use `resize_window` to set a known width, then
+  restore `preset: "desktop"`.
+- **While `requestAnimationFrame` is running, `IntersectionObserver` fires and
+  `loading="lazy"` images complete on their own**, with no screenshot involved.
+
+`navigate` displays the pane, so a page cannot be loaded into a hidden one. A
+page in a hidden pane is one that was loaded first and hidden afterward, which
+is why that row is unmeasured here rather than assumed to match either other
+row.
 
 Use the least expensive tier that satisfies the page behavior:
 
-1. **Tier A — screenshot render pump.** Take one `computer screenshot` before
-   reading DOM state that depends on intersection or lazy loading. The forced
-   compositor frame can fire `IntersectionObserver` and complete a lazy image.
-   Read the intended lazy-state predicate after that frame; escalate to Tier C
-   when one frame does not satisfy it.
+1. **Tier A — screenshot render pump.** Use this only when the measured rAF
+   count is zero and the page depends on intersection or lazy loading. Take one
+   `computer screenshot` to force a compositor frame, which can fire
+   `IntersectionObserver` and complete a lazy image. Read the intended
+   lazy-state predicate after that frame; escalate to Tier C when one frame does
+   not satisfy it. When rAF is already ticking, skip this tier: the predicate
+   resolves without it.
 2. **Tier B — in-pane JavaScript shim.** Inject the following after every
    navigation for handlers that can respond to the synthetic focus and
    visibility events, such as refetch-on-focus, visibility-gated data loading,
