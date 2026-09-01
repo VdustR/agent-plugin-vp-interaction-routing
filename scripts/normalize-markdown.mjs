@@ -6,16 +6,34 @@ import { math } from "micromark-extension-math";
 
 const NORMALIZABLE_BLOCKS = new Set(["heading", "paragraph"]);
 const FRONTMATTER_DELIMITER = /^(?:---|\.\.\.)[ \t]*$/;
-const LINE_BREAKING_HTML = new Set([
-  "address", "article", "aside", "base", "basefont", "blockquote", "body", "caption",
-  "center", "col", "colgroup", "dd", "details", "dialog", "dir", "div", "dl", "dt",
-  "fieldset", "figcaption", "figure", "footer", "form", "frame", "frameset", "h1", "h2",
-  "h3", "h4", "h5", "h6", "head", "header", "hgroup", "hr", "html", "iframe",
-  "legend", "li", "link", "main", "menu", "menuitem", "nav", "noframes", "ol",
-  "optgroup", "option", "p", "param", "pre", "script", "search", "section", "style",
-  "summary", "table", "tbody", "td", "textarea", "tfoot", "th", "thead", "title", "tr",
-  "track", "ul",
+const RENDERED_BLOCK_HTML = new Set([
+  "address", "article", "aside", "blockquote", "body", "caption", "center", "dd",
+  "details", "dialog", "dir", "div", "dl", "dt", "fieldset", "figcaption", "figure",
+  "footer", "form", "frameset", "h1", "h2", "h3", "h4", "h5", "h6", "header",
+  "hgroup", "hr", "html", "legend", "li", "main", "menu", "nav", "noframes", "ol",
+  "p", "pre", "search", "section", "summary", "table", "tbody", "td", "tfoot", "th",
+  "thead", "tr", "ul",
 ]);
+
+const labelRange = (node, source) => {
+  if (!["image", "imageReference"].includes(node.type)) return null;
+  const raw = source.slice(node.position.start.offset, node.position.end.offset);
+  if (!raw.startsWith("![")) return null;
+  let depth = 1;
+  for (let index = 2; index < raw.length; index += 1) {
+    if (raw[index] === "\\") {
+      index += 1;
+      continue;
+    }
+    if (raw[index] === "[") depth += 1;
+    if (raw[index] !== "]" || --depth !== 0) continue;
+    return {
+      start: node.position.start.offset + 2,
+      end: node.position.start.offset + index,
+    };
+  }
+  return null;
+};
 
 const splitFrontmatter = (source) => {
   const lines = source.split("\n");
@@ -50,9 +68,9 @@ const literalQuotePrefixes = (block, source) => {
   const visit = (node) => {
     const literal = typeof node.value === "string" ? node.value : node.alt;
     if (typeof literal === "string") {
-      const nodeRaw = source.slice(node.position.start.offset, node.position.end.offset);
-      const imageLabelEnd = node.type === "image" ? nodeRaw.lastIndexOf("](") : -1;
-      const raw = imageLabelEnd >= 0 ? nodeRaw.slice(2, imageLabelEnd) : nodeRaw;
+      const label = labelRange(node, source);
+      const raw = label ? source.slice(label.start, label.end) :
+        source.slice(node.position.start.offset, node.position.end.offset);
       const newlineEvents = [...raw.matchAll(/\n|&#(?:0*10|x0*a);|&NewLine;/gi)]
         .map((match) => match[0] === "\n");
       let event = 0;
@@ -83,7 +101,7 @@ const explicitBreakLines = (block, source) => {
     if (node.type === "html") {
       const tag = node.value.match(/^<\/?([a-z][\w-]*)(?=[\s/>])/i)?.[1].toLowerCase();
       const newlineOffset = source.indexOf("\n", node.position.end.offset);
-      if ((tag === "br" || LINE_BREAKING_HTML.has(tag)) && newlineOffset >= 0) {
+      if ((tag === "br" || RENDERED_BLOCK_HTML.has(tag)) && newlineOffset >= 0) {
         let intervening = source.slice(node.position.end.offset, newlineOffset);
         for (const html of htmlNodes) {
           if (html.position.start.offset < node.position.end.offset ||
@@ -131,10 +149,16 @@ const normalizeParsedMarkdown = (source) => {
     const codeNodes = inlineNodes(node, "inlineCode");
     const mathNodes = inlineNodes(node, "inlineMath");
     const htmlNodes = inlineNodes(node, "html");
-    const linkNodes = inlineNodes(node, "link");
-    const imageNodes = inlineNodes(node, "image");
+    const linkNodes = [
+      ...inlineNodes(node, "link"),
+      ...inlineNodes(node, "linkReference"),
+    ];
+    const imageNodes = [
+      ...inlineNodes(node, "image"),
+      ...inlineNodes(node, "imageReference"),
+    ];
     const rawTextRanges = htmlNodes.flatMap((html) => {
-      const tag = html.value.match(/^<(script|style|title|textarea)(?=[\s>])/i)?.[1];
+      const tag = html.value.match(/^<(script|style|title|textarea)(?=[\s/>])/i)?.[1];
       if (!tag) return [];
       const tail = normalized.slice(html.position.end.offset);
       const closing = new RegExp(`<\\/${tag}\\s*>`, "i").exec(tail);
@@ -164,10 +188,8 @@ const normalizeParsedMarkdown = (source) => {
         !link.children.some(isInside));
       const isImageMetadata = imageNodes.some((image) => {
         if (!isInside(image)) return false;
-        const raw = normalized.slice(image.position.start.offset, image.position.end.offset);
-        const metadataOffset = raw.lastIndexOf("](");
-        return metadataOffset >= 0 &&
-          newlineOffset >= image.position.start.offset + metadataOffset + 2;
+        const label = labelRange(image, normalized);
+        return label && newlineOffset >= label.end;
       });
       if (codeNodes.some(isInside) || mathNodes.some(isInside) || htmlNodes.some(isInside) ||
           rawTextRanges.some(isInsideRange) ||

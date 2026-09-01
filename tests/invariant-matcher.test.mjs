@@ -305,10 +305,21 @@ test("link destination and title metadata remain line-bounded", () => {
 });
 
 test("image destination and title metadata remain line-bounded", () => {
-  assert.doesNotMatch(
-    normalizeMarkdownForInvariant('![alt](connector\n"GitHub")'),
-    /connector.*GitHub/,
-  );
+  for (const markdown of [
+    '![alt](connector\n"GitHub")',
+    '![alt](connector\n"title ]( GitHub")',
+  ]) {
+    assert.doesNotMatch(normalizeMarkdownForInvariant(markdown), /connector.*GitHub/);
+  }
+});
+
+test("reference identifiers remain line-bounded", () => {
+  for (const markdown of [
+    "[visible][connector\nGitHub]\n\n[CONNECTOR GITHUB]: /url",
+    "![visible][connector\nGitHub]\n\n[CONNECTOR GITHUB]: /url",
+  ]) {
+    assert.doesNotMatch(normalizeMarkdownForInvariant(markdown), /connector.*GitHub/);
+  }
 });
 
 test("image alt prefixes ignore destination metadata newlines", () => {
@@ -342,6 +353,17 @@ test("raw-text HTML element bodies remain line-bounded", () => {
   assert.doesNotMatch(
     normalizeMarkdownForInvariant("Visible<script>\nconnector\nGitHub\n</script\n>"),
     /connector GitHub/,
+  );
+  assert.doesNotMatch(
+    normalizeMarkdownForInvariant("Visible<script/>\nconnector\nGitHub\n</script>"),
+    /connector GitHub/,
+  );
+});
+
+test("non-rendering HTML tags do not preserve soft wraps", () => {
+  assert.match(
+    normalizeMarkdownForInvariant('connector<link rel="stylesheet" href="x">\nGitHub'),
+    /connector.*GitHub/,
   );
 });
 
