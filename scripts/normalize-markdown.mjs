@@ -52,6 +52,15 @@ const C1_NUMERIC_REPLACEMENTS = new Map([
   [0x98, 0x02DC], [0x99, 0x2122], [0x9A, 0x0161], [0x9B, 0x203A],
   [0x9C, 0x0153], [0x9E, 0x017E], [0x9F, 0x0178],
 ]);
+const LEGACY_NAMED_REFERENCES = new Set((
+  "AElig AMP Aacute Acirc Agrave Aring Atilde Auml COPY Ccedil ETH Eacute Ecirc Egrave Euml GT " +
+  "Iacute Icirc Igrave Iuml LT Ntilde Oacute Ocirc Ograve Oslash Otilde Ouml QUOT REG THORN " +
+  "Uacute Ucirc Ugrave Uuml Yacute aacute acirc acute aelig agrave amp aring atilde auml brvbar " +
+  "ccedil cedil cent copy curren deg divide eacute ecirc egrave eth euml frac12 frac14 frac34 gt " +
+  "iacute icirc iexcl igrave iquest iuml laquo lt macr micro middot nbsp not ntilde oacute ocirc " +
+  "ograve ordf ordm oslash otilde ouml para plusmn pound quot raquo reg sect shy sup1 sup2 sup3 " +
+  "szlig thorn times uacute ucirc ugrave uml uuml yacute yen yuml"
+).split(" "));
 const ANCESTOR_END_CLOSES = new Map([
   ["dd", new Set(["dl"])],
   ["dt", new Set(["dl"])],
@@ -67,9 +76,9 @@ const ANCESTOR_END_CLOSES = new Map([
 ]);
 
 const HTML_COMMENT_SOURCE = String.raw`<!--(?!>|->)[\s\S]*?(?:(?<!-)--!?>|$)`;
-const HTML_TAG_SOURCE = String.raw`<\/?[A-Za-z][A-Za-z0-9-]*(?:[\t\n\f\r ]+[A-Za-z_:][\w:.-]*(?:[\t\n\f\r ]*=[\t\n\f\r ]*(?:"[^"]*"|'[^']*'|[^\t\n\f\r "'=<>\x60]+))?)*[\t\n\f\r ]*\/?>`;
+const HTML_TAG_SOURCE = String.raw`<\/?[A-Za-z][A-Za-z0-9-]*(?:[\t\n\f\r ]+[^\t\n\f\r "'>\/=<]+(?:[\t\n\f\r ]*=[\t\n\f\r ]*(?:"[^"]*"|'[^']*'|[^\t\n\f\r "'=<>\x60]+))?)*[\t\n\f\r ]*\/?>`;
 const HTML_TOKEN_PATTERN = new RegExp(
-  `${HTML_COMMENT_SOURCE}|<\\?[\\s\\S]*?>|<![A-Z][^>]*>|<!\\[CDATA\\[[\\s\\S]*?\\]\\]>|${HTML_TAG_SOURCE}`,
+  `${HTML_COMMENT_SOURCE}|<\\?[\\s\\S]*?>|<!\\[CDATA\\[[\\s\\S]*?\\]\\]>|<![^>]*>|${HTML_TAG_SOURCE}`,
   "gi",
 );
 
@@ -289,7 +298,7 @@ const parseHtmlTag = (token) => {
     const whitespace = token.slice(index).match(/^[\t\n\f\r ]+/)?.[0].length ?? 0;
     index += whitespace;
     if (/^\/?>/.test(token.slice(index))) break;
-    const name = token.slice(index).match(/^[A-Za-z_:][\w:.-]*/)?.[0];
+    const name = token.slice(index).match(/^[^\t\n\f\r "'>\/=<]+/)?.[0];
     if (!name) break;
     const normalizedName = name.toLowerCase();
     index += name.length;
@@ -316,13 +325,19 @@ const parseHtmlTag = (token) => {
             return String.fromCodePoint(C1_NUMERIC_REPLACEMENTS.get(codePoint) ?? codePoint);
           }
           const namedName = name.endsWith(";") ? name.slice(0, -1) : name;
+          if (!name.endsWith(";") && !LEGACY_NAMED_REFERENCES.has(namedName)) return reference;
           return decodeNamedCharacterReference(namedName) || reference;
         },
       ));
     } else if (!attributes.has(normalizedName)) attributes.set(normalizedName, "");
   }
   const tag = opening[2].toLowerCase();
-  return { tag, isClosing: Boolean(opening[1]) && tag !== "br", attributes };
+  return {
+    tag,
+    isClosing: Boolean(opening[1]) && tag !== "br",
+    isSelfClosing: /\/\s*>$/.test(token),
+    attributes,
+  };
 };
 
 const rawClosingEnd = (tag, tail) => {
@@ -350,12 +365,13 @@ const scriptClosingEnd = (tail) => {
 };
 
 const PROTECTED_HTML_TAGS = new Set([
-  "canvas", "datalist", "iframe", "listing", "noembed", "noframes", "noscript", "plaintext", "pre", "script",
-  "style", "template", "textarea", "title", "xmp",
+  "audio", "canvas", "datalist", "iframe", "listing", "noembed", "noframes", "noscript", "plaintext", "pre", "script",
+  "style", "template", "textarea", "title", "video", "xmp",
 ]);
 const BALANCED_HTML_TAGS = new Set(["details", "listing", "pre", "template"]);
 
-const isProtectedOpening = (parsed) => !parsed.isClosing && (
+const isProtectedOpening = (parsed, foreign = false) => !parsed.isClosing &&
+  !(foreign && parsed.isSelfClosing) && (
   PROTECTED_HTML_TAGS.has(parsed.tag) ||
   ((parsed.attributes.has("hidden") || parsed.attributes.has("popover")) &&
     !VOID_HTML.has(parsed.tag)) ||
@@ -455,7 +471,7 @@ const summaryParts = (body) => {
       }
     }
   }
-  if (!closing) return null;
+  if (!closing) closing = { index: body.length, 0: "" };
   const contentStart = opening.index + opening[0].length;
   return {
     prefix: body.slice(0, opening.index),
@@ -567,7 +583,7 @@ const normalizeConditionalContainers = (tree, source) => {
   return normalized;
 };
 
-const hiddenHtmlRanges = (tree, source) => {
+const hiddenHtmlRanges = (tree, source, containerTag = null) => {
   const ranges = [];
   const openDetailsGroups = new Set();
   const tokens = htmlTokens(tree);
@@ -594,7 +610,8 @@ const hiddenHtmlRanges = (tree, source) => {
     if (!parsed.isClosing && parsed.attributes.has("open") && detailsName) {
       openDetailsGroups.add(detailsName);
     }
-    if (!isProtectedOpening(parsed) && !isLaterGroupedOpen) continue;
+    const isForeign = ["math", "svg"].includes(containerTag);
+    if (!isProtectedOpening(parsed, isForeign) && !isLaterGroupedOpen) continue;
 
     const tail = source.slice(html.end);
     const closingEnd = protectedHtmlClosingEnd(
@@ -654,14 +671,18 @@ const normalizeRawHtmlText = (source, containerTag = null) => {
     extensions: [gfm(), math()],
     mdastExtensions: [gfmFromMarkdown(), mathFromMarkdown()],
   });
-  const protectedRanges = hiddenHtmlRanges(tree, source);
+  const protectedRanges = hiddenHtmlRanges(tree, source, containerTag);
   const tokens = htmlTokens(tree);
   const cdataRanges = [...source.matchAll(/<!\[CDATA\[[\s\S]*?(?:\]\]>|$)/gi)]
+    .map((match) => ({ start: match.index, end: match.index + match[0].length }));
+  const bogusMarkupRanges = [...source.matchAll(/<[!?][\s\S]*?(?:>|$)/g)]
+    .filter((match) => !/^<!--|^<!\[CDATA\[/i.test(match[0]))
     .map((match) => ({ start: match.index, end: match.index + match[0].length }));
   const isProtected = (offset) => protectedRanges.some((range) =>
     offset >= range.start && offset < range.end);
   const isMarkup = (offset) => tokens.some((token) =>
     offset >= token.start && offset < token.end) || cdataRanges.some((range) =>
+    offset >= range.start && offset < range.end) || bogusMarkupRanges.some((range) =>
     offset >= range.start && offset < range.end);
   const edits = [...source.matchAll(/[ \t]*\n[ \t]*/g)]
     .filter((match) => {

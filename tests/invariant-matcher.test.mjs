@@ -924,6 +924,39 @@ test("HTML parser scope controls visibility boundaries", () => {
   );
 });
 
+test("HTML recovery and foreign self-closing syntax preserve visibility", () => {
+  assert.match(
+    normalizeMarkdownForInvariant(
+      '<details name="\'" open>first</details><details name="&apos" open>connector\nGitHub</details>',
+    ),
+    /connector GitHub/,
+  );
+  for (const tag of ["audio", "video"]) {
+    assert.doesNotMatch(
+      normalizeMarkdownForInvariant(`<${tag}>connector\nGitHub</${tag}>`),
+      /connector GitHub/,
+    );
+  }
+  assert.match(
+    normalizeMarkdownForInvariant('<div @click=x>\nconnector\nGitHub\n</div>'),
+    /connector GitHub/,
+  );
+  assert.match(
+    normalizeMarkdownForInvariant(
+      '<svg><script/><text x="0" y="20">connector\nGitHub</text></svg>',
+    ),
+    /connector GitHub/,
+  );
+  assert.match(
+    normalizeMarkdownForInvariant('<details><summary>connector\nGitHub</details>'),
+    /connector GitHub/,
+  );
+  assert.doesNotMatch(
+    normalizeMarkdownForInvariant('<div><!1 connector\nGitHub></div>'),
+    /connector GitHub/,
+  );
+});
+
 test("unreferenced footnote definitions remain metadata", () => {
   assert.doesNotMatch(
     normalizeMarkdownForInvariant("[^route]: connector\n    GitHub"),
