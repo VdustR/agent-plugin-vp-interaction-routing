@@ -11,7 +11,7 @@ const splitFrontmatter = (source) => {
 
   const closingIndex = lines.findIndex((line, index) =>
     index > 0 && FRONTMATTER_DELIMITER.test(line));
-  if (closingIndex < 0) return { frontmatter: source, markdown: "" };
+  if (closingIndex < 0) return { frontmatter: null, markdown: source };
 
   return {
     frontmatter: lines.slice(0, closingIndex + 1).join("\n"),
@@ -45,7 +45,7 @@ const normalizeParsedMarkdown = (source) => {
   // source range but not the paragraph text, so remove them with the wrap.
   for (const [start, end] of normalizableRanges(tree).reverse()) {
     const block = normalized.slice(start, end)
-      .replace(/\n(?: {0,3}>[ \t]?)*[ \t]*/g, " ");
+      .replace(/\n[ \t]*(?:>[ \t]*)*/g, " ");
     normalized = normalized.slice(0, start) + block + normalized.slice(end);
   }
   return normalized;

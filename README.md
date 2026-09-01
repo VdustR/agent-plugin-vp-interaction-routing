@@ -120,6 +120,7 @@ against Peekaboo.
 ## Develop
 
 ```bash
+npm ci             # install the lockfile-pinned validation dependencies
 npm run validate   # manifest consistency checks, then every test suite serially
 ```
 

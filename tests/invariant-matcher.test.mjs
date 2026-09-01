@@ -164,3 +164,15 @@ test("pipe syntax without a delimiter remains paragraph prose", () => {
 
   assert.match(normalizeMarkdownForInvariant(markdown), /connector for \| GitHub/);
 });
+
+test("an unmatched frontmatter opener falls back to Markdown", () => {
+  const markdown = "---\n\nPrefer the connector for\nGitHub operations.";
+
+  assert.match(normalizeMarkdownForInvariant(markdown), /connector for GitHub/);
+});
+
+test("a nested block quote strips list-relative continuation prefixes", () => {
+  const markdown = "-   > Prefer the connector for\n    > GitHub operations.";
+
+  assert.match(normalizeMarkdownForInvariant(markdown), /connector for GitHub/);
+});
