@@ -8,6 +8,8 @@ import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { normalizeMarkdownForInvariant } from "./normalize-markdown.mjs";
+
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const read = (p) => JSON.parse(readFileSync(join(root, p), "utf8"));
 const failures = [];
@@ -283,14 +285,12 @@ const INVARIANTS = [
     "routing must honor permissive user authorization preferences"],
 ];
 
-// These invariants match raw file text, so a pattern has to tolerate the line
-// wrapping of the prose it checks. Write `\s+` wherever a wrap can fall rather
-// than a literal space. Normalizing the text before matching was tried and
-// reverted in #8, since every normalizer that joined wrapped
-// lines also let a pattern without the `s` flag reach across unrelated blocks.
+// Match prose independently of soft wrapping while preserving Markdown block
+// boundaries. A pattern without the `s` flag remains unable to span blocks.
 for (const [file, pattern, message] of INVARIANTS) {
   check(message, () => {
-    assert.match(readFileSync(join(root, file), "utf8"), pattern);
+    const markdown = readFileSync(join(root, file), "utf8");
+    assert.match(normalizeMarkdownForInvariant(markdown), pattern);
   });
 }
 
