@@ -622,6 +622,20 @@ test("collapsed details bodies remain line-bounded", () => {
     ),
     /connector GitHub/,
   );
+  assert.doesNotMatch(
+    normalizeMarkdownForInvariant(
+      '<details name="route" open>first</details>\n' +
+      '<details name="r&#111;ute" open>connector\nGitHub</details>',
+    ),
+    /connector GitHub/,
+  );
+  assert.match(
+    normalizeMarkdownForInvariant(
+      '<details><summary><script>const x="</summary>"</script>' +
+      "connector\nGitHub</summary>hidden</details>",
+    ),
+    /connector GitHub/,
+  );
   const nested = normalizeMarkdownForInvariant(
     "<details open>outer\n<details open>inner\nwrap</details>\nafter</details>",
   );
@@ -649,6 +663,16 @@ test("hidden HTML container bodies remain line-bounded", () => {
     normalizeMarkdownForInvariant("Visible<p hidden>secret<p>connector\nGitHub"),
     /connector GitHub/,
   );
+  assert.match(
+    normalizeMarkdownForInvariant("Visible<p hidden>secret<div>connector\nGitHub</div>"),
+    /connector GitHub/,
+  );
+  for (const markdown of [
+    "Visible<div hidden>secret</div>\nconnector",
+    "Visible<dialog>secret</dialog>\nconnector",
+  ]) {
+    assert.match(normalizeMarkdownForInvariant(markdown), /Visible.*connector/);
+  }
 });
 
 test("legacy preformatted elements remain rendered block boundaries", () => {
@@ -667,6 +691,27 @@ test("raw-text elements accept complete parser-recognized end tags", () => {
   ]) {
     assert.match(normalizeMarkdownForInvariant(markdown), /connector GitHub/);
   }
+  assert.match(
+    normalizeMarkdownForInvariant(
+      "<script><!--<script>--></script>\nconnector\nGitHub\n</script>",
+    ),
+    /connector GitHub/,
+  );
+  assert.doesNotMatch(
+    normalizeMarkdownForInvariant(
+      '<script>const x="<details open>connector\nGitHub</details>"</script>',
+    ),
+    /connector GitHub/,
+  );
+});
+
+test("visible prose inside ordinary HTML blocks is normalized", () => {
+  assert.match(
+    normalizeMarkdownForInvariant(
+      "<div>\nPrefer the connector for\nGitHub operations.\n</div>",
+    ),
+    /connector for GitHub/,
+  );
 });
 
 test("non-rendering HTML tags do not preserve soft wraps", () => {

@@ -1,6 +1,7 @@
 import { fromMarkdown } from "mdast-util-from-markdown";
 import { gfmFromMarkdown } from "mdast-util-gfm";
 import { mathFromMarkdown } from "mdast-util-math";
+import { decodeNamedCharacterReference } from "decode-named-character-reference";
 import { gfm } from "micromark-extension-gfm";
 import { math } from "micromark-extension-math";
 
@@ -20,6 +21,12 @@ const VOID_HTML = new Set([
 const IMPLICIT_SAME_TAG_CLOSE = new Set([
   "dd", "dt", "li", "optgroup", "option", "p", "rp", "rt", "tbody", "td",
   "tfoot", "th", "thead", "tr",
+]);
+const P_CLOSING_START_TAGS = new Set([
+  "address", "article", "aside", "blockquote", "details", "dialog", "div", "dl",
+  "fieldset", "figcaption", "figure", "footer", "form", "h1", "h2", "h3", "h4",
+  "h5", "h6", "header", "hgroup", "hr", "main", "menu", "nav", "ol", "p", "pre",
+  "search", "section", "summary", "table", "ul",
 ]);
 
 const HTML_COMMENT_SOURCE = String.raw`<!--(?!>|->)(?:(?!--)[\s\S])*?(?<!-)-->`;
@@ -144,6 +151,7 @@ const explicitBreaks = (block, source) => {
   const lines = new Set();
   const offsets = new Set();
   const openBlockTags = new Map();
+  const hiddenElements = [];
   const visibleNodes = ["text", "inlineCode", "inlineMath", "image", "imageReference"]
     .flatMap((type) => inlineNodes(block, type));
   const visit = (node) => {
@@ -152,7 +160,10 @@ const explicitBreaks = (block, source) => {
       const parsed = parseHtmlTag(node.value);
       const tag = parsed?.tag;
       const isClosing = Boolean(parsed?.isClosing);
-      const isHidden = parsed?.attributes.has("hidden");
+      const hiddenMatch = isClosing ? hiddenElements.findLastIndex((item) => item === tag) : -1;
+      const opensHidden = !isClosing && (parsed?.attributes.has("hidden") ||
+        (tag === "dialog" && !parsed?.attributes.has("open")));
+      const isHidden = hiddenElements.length > 0 || opensHidden || hiddenMatch >= 0;
       const hasVisibleBefore = visibleNodes.some((visible) =>
         visible.position.end.offset <= node.position.start.offset);
       const isApplicableOpening = !(tag === "frameset" && hasVisibleBefore);
@@ -172,6 +183,8 @@ const explicitBreaks = (block, source) => {
         if (isClosing) openBlockTags.set(tag, Math.max(0, depth - 1));
         else if (isApplicableOpening && !VOID_HTML.has(tag)) openBlockTags.set(tag, depth + 1);
       }
+      if (hiddenMatch >= 0) hiddenElements.splice(hiddenMatch, 1);
+      else if (opensHidden && !VOID_HTML.has(tag)) hiddenElements.push(tag);
     }
     for (const child of node.children ?? []) visit(child);
   };
@@ -191,6 +204,7 @@ const inlineNodes = (block, type) => {
 
 const htmlTokens = (tree) => inlineNodes(tree, "html").flatMap((node) =>
   [...node.value.matchAll(HTML_TOKEN_PATTERN)].map((token) => ({
+    block: node.value.includes("\n"),
     value: token[0],
     start: node.position.start.offset + token.index,
     end: node.position.start.offset + token.index + token[0].length,
@@ -219,8 +233,15 @@ const parseHtmlTag = (token) => {
     const value = token.slice(index).match(/^(?:"[^"]*"|'[^']*'|[^\t\n\f\r "'=<>`]+)/)?.[0];
     if (value) {
       index += value.length;
-      attributes.set(normalizedName,
-        /^['"]/.test(value) ? value.slice(1, -1) : value);
+      const rawValue = /^['"]/.test(value) ? value.slice(1, -1) : value;
+      attributes.set(normalizedName, rawValue.replace(
+        /&(#(?:[xX][0-9A-Fa-f]+|[0-9]+)|[A-Za-z][A-Za-z0-9]+);/g,
+        (reference, name) => {
+          if (/^#x/i.test(name)) return String.fromCodePoint(Number.parseInt(name.slice(2), 16));
+          if (name.startsWith("#")) return String.fromCodePoint(Number.parseInt(name.slice(1), 10));
+          return decodeNamedCharacterReference(name) || reference;
+        },
+      ));
     } else attributes.set(normalizedName, "");
   }
   return { tag: opening[2].toLowerCase(), isClosing: Boolean(opening[1]), attributes };
@@ -239,6 +260,7 @@ const scriptClosingEnd = (tail) => {
   let state = "normal";
   for (const token of tail.matchAll(tokens)) {
     if (token[0] === "<!--" && state === "normal") state = "escaped";
+    else if (token[0] === "-->" && state === "double") state = "escaped";
     else if (token[0] === "-->" && state === "escaped") state = "normal";
     else if (/^<script/i.test(token[0]) && state === "escaped") state = "double";
     else if (/^<\/script/i.test(token[0])) {
@@ -285,6 +307,8 @@ const protectedHtmlClosingEnd = (tag, tail, forceBalanced = false) => {
       skipUntil = childStart + childEnd;
       continue;
     }
+    if (forceBalanced && tag === "p" && !parsed.isClosing &&
+        P_CLOSING_START_TAGS.has(parsed.tag)) return token.index;
     if (parsed.tag !== tag) continue;
     if (parsed.isClosing) depth -= 1;
     else if (forceBalanced && IMPLICIT_SAME_TAG_CLOSE.has(tag)) return token.index;
@@ -311,10 +335,27 @@ const summaryParts = (body) => {
     } else if (!VOID_HTML.has(parsed.tag)) stack.push(parsed.tag);
   }
   if (!opening) return null;
-  const closing = tokens.find((token) => {
+  let closing = null;
+  let skipUntil = 0;
+  for (const token of tokens) {
+    if (token.index <= opening.index || token.index < skipUntil) continue;
     const parsed = parseHtmlTag(token[0]);
-    return token.index > opening.index && parsed?.tag === "summary" && parsed.isClosing;
-  });
+    if (!parsed) continue;
+    if (isProtectedOpening(parsed)) {
+      const childStart = token.index + token[0].length;
+      const childEnd = protectedHtmlClosingEnd(
+        parsed.tag,
+        body.slice(childStart),
+        parsed.attributes.has("hidden") || ["details", "dialog"].includes(parsed.tag),
+      );
+      skipUntil = childEnd < 0 ? body.length : childStart + childEnd;
+      continue;
+    }
+    if (parsed.tag === "summary" && parsed.isClosing) {
+      closing = token;
+      break;
+    }
+  }
   if (!closing) return null;
   const contentStart = opening.index + opening[0].length;
   return {
@@ -341,10 +382,16 @@ const normalizeConditionalContainers = (tree, source) => {
   const edits = [];
   let claimedEnd = -1;
   const openDetailsGroups = new Set();
+  const parentProtectedRanges = hiddenHtmlRanges(tree, source);
   for (const html of htmlTokens(tree)) {
     if (html.start < claimedEnd) continue;
     const parsed = parseHtmlTag(html.value);
-    if (!parsed || parsed.isClosing || !["details", "dialog"].includes(parsed.tag)) continue;
+    if (!parsed || parsed.isClosing || parentProtectedRanges.some((range) =>
+      html.start > range.start && html.start < range.end)) continue;
+    const isConditional = ["details", "dialog"].includes(parsed.tag);
+    const isVisibleBlockContainer = html.block && !VOID_HTML.has(parsed.tag) &&
+      !PROTECTED_HTML_TAGS.has(parsed.tag) && !parsed.attributes.has("hidden");
+    if (!isConditional && !isVisibleBlockContainer) continue;
     const tail = source.slice(html.end);
     const closingEnd = protectedHtmlClosingEnd(parsed.tag, tail, true);
     if (closingEnd < 0) continue;
@@ -367,12 +414,14 @@ const normalizeConditionalContainers = (tree, source) => {
       const summary = summaryParts(body);
       if (summary) {
         replacement = (isEffectivelyOpen ?
-          normalizeParsedMarkdown(summary.prefix, true) : summary.prefix) + summary.opening +
-          (summary.isHidden ? summary.content : normalizeParsedMarkdown(summary.content, true)) +
+          normalizeVisibleRegion(summary.prefix) : summary.prefix) + summary.opening +
+          (summary.isHidden ? summary.content : normalizeVisibleRegion(summary.content)) +
           summary.closing +
-          (isEffectivelyOpen ? normalizeParsedMarkdown(summary.suffix, true) : summary.suffix);
-      } else if (isEffectivelyOpen) replacement = normalizeParsedMarkdown(body, true);
-    } else if (isEffectivelyOpen) replacement = normalizeParsedMarkdown(body, true);
+          (isEffectivelyOpen ? normalizeVisibleRegion(summary.suffix) : summary.suffix);
+      } else if (isEffectivelyOpen) replacement = normalizeVisibleRegion(body);
+    } else if (parsed.tag === "dialog") {
+      if (isEffectivelyOpen) replacement = normalizeVisibleRegion(body);
+    } else replacement = normalizeVisibleRegion(body);
     edits.push({
       start: html.end,
       end: closingStart,
@@ -423,6 +472,26 @@ const hiddenHtmlRanges = (tree, source) => {
     });
   }
   return ranges;
+};
+
+const normalizeVisibleRegion = (source) => {
+  if (!source) return source;
+  const tree = fromMarkdown(source, {
+    extensions: [gfm(), math()],
+    mdastExtensions: [gfmFromMarkdown(), mathFromMarkdown()],
+  });
+  const ranges = hiddenHtmlRanges(tree, source)
+    .sort((a, b) => a.start - b.start)
+    .filter((range, index, all) => index === 0 || range.start >= all[index - 1].end);
+  if (ranges.length === 0) return normalizeParsedMarkdown(source, true);
+  let normalized = "";
+  let cursor = 0;
+  for (const range of ranges) {
+    normalized += normalizeParsedMarkdown(source.slice(cursor, range.start), true);
+    normalized += source.slice(range.start, range.end);
+    cursor = range.end;
+  }
+  return normalized + normalizeParsedMarkdown(source.slice(cursor), true);
 };
 
 const normalizeParsedMarkdown = (source, normalizeDetails = true) => {
