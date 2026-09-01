@@ -986,6 +986,39 @@ test("implicit option and nested namespace state stays scoped", () => {
   );
 });
 
+test("HTML display modes and recovery preserve rendered prose", () => {
+  assert.match(
+    normalizeMarkdownForInvariant(
+      '<select multiple size="2"><option>first</option><option>connector\nGitHub</option></select>',
+    ),
+    /connector GitHub/,
+  );
+  assert.doesNotMatch(
+    normalizeMarkdownForInvariant(
+      '<svg><title><script/>connector\nGitHub</script></title></svg>',
+    ),
+    /connector GitHub/,
+  );
+  assert.match(
+    normalizeMarkdownForInvariant('<h1 hidden>secret<h2>connector\nGitHub</h2>'),
+    /connector GitHub/,
+  );
+  assert.match(
+    normalizeMarkdownForInvariant(
+      '<main><div><section>first</div>connector</section>\nGitHub</main>',
+    ),
+    /connector.*GitHub/,
+  );
+  assert.match(
+    normalizeMarkdownForInvariant('<table hidden>connector\nGitHub</table>'),
+    /connector GitHub/,
+  );
+  assert.doesNotMatch(
+    normalizeMarkdownForInvariant('<div><span title="connector\nGitHub'),
+    /connector GitHub/,
+  );
+});
+
 test("unreferenced footnote definitions remain metadata", () => {
   assert.doesNotMatch(
     normalizeMarkdownForInvariant("[^route]: connector\n    GitHub"),

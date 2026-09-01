@@ -410,6 +410,8 @@ const protectedHtmlClosingEnd = (tag, tail, forceBalanced = false, ancestorTags 
         P_CLOSING_START_TAGS.has(parsed.tag)) return token.index;
     if (forceBalanced && !parsed.isClosing &&
         IMPLICIT_CROSS_TAG_CLOSE.get(tag)?.has(parsed.tag)) return token.index;
+    if (forceBalanced && !parsed.isClosing && /^h[1-6]$/.test(tag) &&
+        /^h[1-6]$/.test(parsed.tag)) return token.index;
     if (forceBalanced && parsed.isClosing &&
         ANCESTOR_END_CLOSES.get(tag)?.has(parsed.tag)) return token.index + token[0].length;
     if (forceBalanced && parsed.isClosing && ancestorTags.has(parsed.tag)) {
@@ -496,6 +498,9 @@ const closingTagStart = (tag, tail, closingEnd) => {
 const hiddenOptionRanges = (source) => {
   const ranges = [];
   for (const select of source.matchAll(/<select(?=[\t\n\f\r />])[^>]*>([\s\S]*?)<\/select\s*>/gi)) {
+    const openingTag = select[0].slice(0, select[0].indexOf(">") + 1);
+    if (/\bmultiple(?:[\s=>]|$)/i.test(openingTag) ||
+        /\bsize\s*=\s*(?:["']\s*)?[2-9]/i.test(openingTag)) continue;
     const bodyOffset = select.index + select[0].indexOf(select[1]);
     const openings = [...select[1].matchAll(/<option(?=[\t\n\f\r />])[^>]*>/gi)];
     const visible = Math.max(0, openings.findIndex((option) => /\bselected(?:[\s=>]|$)/i.test(option[0])));
@@ -546,11 +551,12 @@ const normalizeConditionalContainers = (tree, source) => {
       continue;
     }
     const isConditional = ["details", "dialog"].includes(parsed.tag);
+    const isFosteredHiddenTable = parsed.tag === "table" && parsed.attributes.has("hidden");
     const isVisibleBlockContainer = (html.block || ["math", "svg"].includes(parsed.tag)) &&
       !VOID_HTML.has(parsed.tag) &&
       !PROTECTED_HTML_TAGS.has(parsed.tag) && !parsed.attributes.has("hidden") &&
       !parsed.attributes.has("popover");
-    if (!isConditional && !isVisibleBlockContainer) continue;
+    if (!isConditional && !isVisibleBlockContainer && !isFosteredHiddenTable) continue;
     const tail = source.slice(html.end);
     const closingEnd = protectedHtmlClosingEnd(parsed.tag, tail, true);
     if (closingEnd < 0 && !isVisibleBlockContainer) continue;
@@ -572,7 +578,10 @@ const normalizeConditionalContainers = (tree, source) => {
     const normalizeConditionalBody = (region) => region.includes("\n\n") ?
       normalizeVisibleRegion(region) : normalizeRawHtmlText(region);
     let replacement = body;
-    if (parsed.attributes.has("hidden")) replacement = body;
+    if (parsed.attributes.has("hidden")) {
+      replacement = parsed.tag === "table" && !body.includes("<") ?
+        normalizeRawHtmlText(body, "table") : body;
+    }
     else if (parsed.tag === "details") {
       const summary = summaryParts(body);
       if (summary) {
@@ -640,8 +649,11 @@ const hiddenHtmlRanges = (tree, source, containerTag = null) => {
         if (match >= 0) stack.splice(match);
         foreign = stack.at(-1)?.foreign ?? ["math", "svg"].includes(containerTag);
       } else if (!parsed.isSelfClosing) {
+        const isSvgIntegration = foreign && ["desc", "foreignobject", "title"].includes(parsed.tag);
+        const isMathIntegration = foreign && parsed.tag === "annotation-xml" &&
+          /\bencoding\s*=\s*["']?(?:text\/html|application\/xhtml\+xml)/i.test(token.value);
         const childForeign = ["math", "svg"].includes(parsed.tag) ? true :
-          (foreign && parsed.tag !== "foreignobject");
+          (foreign && !isSvgIntegration && !isMathIntegration);
         stack.push({ tag: parsed.tag, foreign: childForeign });
         foreign = childForeign;
       }
@@ -732,6 +744,8 @@ const normalizeRawHtmlText = (source, containerTag = null) => {
   const bogusMarkupRanges = [...source.matchAll(/<[!?][\s\S]*?(?:>|$)/g)]
     .filter((match) => !/^<!--|^<!\[CDATA\[/i.test(match[0]))
     .map((match) => ({ start: match.index, end: match.index + match[0].length }));
+  const unfinishedTag = /<[A-Za-z][^>]*$/.exec(source);
+  if (unfinishedTag) bogusMarkupRanges.push({ start: unfinishedTag.index, end: source.length });
   const isProtected = (offset) => protectedRanges.some((range) =>
     offset >= range.start && offset < range.end);
   const isMarkup = (offset) => tokens.some((token) =>
@@ -744,14 +758,14 @@ const normalizeRawHtmlText = (source, containerTag = null) => {
       return !isProtected(newline) && !isMarkup(newline);
     })
     .map((match) => ({ start: match.index, end: match.index + match[0].length, value: " " }));
-  const openBlockTags = new Map();
+  const openBlockStack = [];
   let tableDepth = containerTag === "table" ? 1 : 0;
   const tableScopes = new Map([["td", 0], ["th", 0], ["tr", 0]]);
   for (const token of tokens) {
     const parsed = parseHtmlTag(token.value);
     if (!parsed || isProtected(token.start) || parsed.attributes.has("hidden")) continue;
-    const depth = openBlockTags.get(parsed.tag) ?? 0;
-    const isActiveClosing = !parsed.isClosing || parsed.tag === "p" || depth > 0;
+    const isActiveClosing = !parsed.isClosing || parsed.tag === "p" ||
+      openBlockStack.includes(parsed.tag);
     const tableScope = tableScopes.get(parsed.tag);
     const isActiveTableBoundary = tableDepth > 0 && tableScope !== undefined &&
       (!parsed.isClosing || tableScope > 0);
@@ -764,8 +778,10 @@ const normalizeRawHtmlText = (source, containerTag = null) => {
       edits.push({ start: token.end, end: token.end, value: "\n" });
     }
     if (RENDERED_BLOCK_HTML.has(parsed.tag) && parsed.tag !== "p") {
-      if (parsed.isClosing) openBlockTags.set(parsed.tag, Math.max(0, depth - 1));
-      else if (!VOID_HTML.has(parsed.tag)) openBlockTags.set(parsed.tag, depth + 1);
+      if (parsed.isClosing) {
+        const match = openBlockStack.lastIndexOf(parsed.tag);
+        if (match >= 0) openBlockStack.splice(match);
+      } else if (!VOID_HTML.has(parsed.tag)) openBlockStack.push(parsed.tag);
     }
     if (parsed.tag === "table") tableDepth += parsed.isClosing ? -1 : 1;
     if (tableScope !== undefined) {
