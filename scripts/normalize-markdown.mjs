@@ -78,21 +78,14 @@ const explicitBreakLines = (block, source) => {
   return lines;
 };
 
-const inlineNodeLines = (block, source, type) => {
-  const lines = new Set();
+const inlineNodes = (block, type) => {
+  const nodes = [];
   const visit = (node) => {
-    if (node.type === type) {
-      const raw = source.slice(node.position.start.offset, node.position.end.offset);
-      for (let index = raw.indexOf("\n"), line = node.position.start.line;
-        index >= 0;
-        index = raw.indexOf("\n", index + 1), line += 1) {
-        lines.add(line + 1);
-      }
-    }
+    if (node.type === type) nodes.push(node);
     for (const child of node.children ?? []) visit(child);
   };
   visit(block);
-  return lines;
+  return nodes;
 };
 
 const normalizeParsedMarkdown = (source) => {
@@ -112,21 +105,41 @@ const normalizeParsedMarkdown = (source) => {
       (node.children.at(-1)?.position.end ?? node.position.end) : node.position.end;
     const literalPrefixes = literalQuotePrefixes(node);
     const preservedBreakLines = explicitBreakLines(node, normalized);
-    const codeLines = inlineNodeLines(node, normalized, "inlineCode");
-    const mathLines = inlineNodeLines(node, normalized, "inlineMath");
+    const codeNodes = inlineNodes(node, "inlineCode");
+    const mathNodes = inlineNodes(node, "inlineMath");
+    const original = normalized.slice(start.offset, end.offset);
+    const edits = codeNodes.map((code) => {
+      const raw = normalized.slice(code.position.start.offset, code.position.end.offset);
+      const delimiter = raw.match(/^`+/)?.[0] ?? "`";
+      return {
+        start: code.position.start.offset - start.offset,
+        end: code.position.end.offset - start.offset,
+        replacement: `${delimiter}${code.value.replace(/\n/g, " ")}${delimiter}`,
+      };
+    });
     let line = start.line;
-    const block = normalized.slice(start.offset, end.offset)
-      .replace(/[ \t]*\n[ \t]*(?:>[ \t]*)*/g, (match, offset) => {
-        line += 1;
-        if (preservedBreakLines.has(line)) return match;
-        if (mathLines.has(line)) return match;
-        if (codeLines.has(line)) return match.replace("\n", " ");
-        const consumedPrefix = match.match(/\n[ \t]*((?:>[ \t]*)+)$/)?.[1];
-        const literal = literalPrefixes.get(line);
-        const matchEnd = start.offset + offset + match.length;
-        const beginsAfterMatch = literal?.startLine === line && literal.startOffset >= matchEnd;
-        return ` ${consumedPrefix && !beginsAfterMatch ? (literal?.prefix ?? "") : ""}`;
+    for (const match of original.matchAll(/[ \t]*\n[ \t]*(?:>[ \t]*)*/g)) {
+      line += 1;
+      const newlineOffset = start.offset + match.index + match[0].indexOf("\n");
+      const isInside = (child) => newlineOffset >= child.position.start.offset &&
+        newlineOffset < child.position.end.offset;
+      if (codeNodes.some(isInside) || mathNodes.some(isInside) || preservedBreakLines.has(line)) {
+        continue;
+      }
+      const consumedPrefix = match[0].match(/\n[ \t]*((?:>[ \t]*)+)$/)?.[1];
+      const literal = literalPrefixes.get(line);
+      const matchEnd = start.offset + match.index + match[0].length;
+      const beginsAfterMatch = literal?.startLine === line && literal.startOffset >= matchEnd;
+      edits.push({
+        start: match.index,
+        end: match.index + match[0].length,
+        replacement: ` ${consumedPrefix && !beginsAfterMatch ? (literal?.prefix ?? "") : ""}`,
       });
+    }
+    let block = original;
+    for (const edit of edits.sort((a, b) => b.start - a.start)) {
+      block = block.slice(0, edit.start) + edit.replacement + block.slice(edit.end);
+    }
     normalized = normalized.slice(0, start.offset) + block + normalized.slice(end.offset);
   }
   return normalized;

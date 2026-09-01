@@ -289,6 +289,15 @@ test("inline-code newlines retain their adjacent whitespace", () => {
   );
 });
 
+test("inline-code normalization removes Markdown container prefixes", () => {
+  for (const markdown of [
+    "> `connector for\n> GitHub`",
+    "- `connector for\n  GitHub`",
+  ]) {
+    assert.match(normalizeMarkdownForInvariant(markdown), /connector for GitHub/);
+  }
+});
+
 test("inline-math newlines remain line boundaries", () => {
   assert.doesNotMatch(normalizeMarkdownForInvariant("$connector\nGitHub$"), /connector GitHub/);
 });
