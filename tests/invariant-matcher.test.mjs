@@ -43,18 +43,26 @@ const separateBlocks = {
     "Policy for the connector\n========================\nGitHub is elsewhere.",
   "a list item followed by another list item":
     "- Prefer the authenticated connector.\n- GitHub is elsewhere.",
+  "a deeply nested list item":
+    "- Prefer the authenticated connector.\n    - GitHub is elsewhere.",
   "a table row followed by prose":
     "| connector | yes |\nGitHub is elsewhere.",
   "a pipe-less table followed by prose":
     "connector | policy\n--------- | ------\nGitHub is elsewhere.",
   "a block quote followed by prose":
     "> Prefer the connector.\nGitHub is elsewhere.",
+  "an ATX heading inside a block quote":
+    "> Prefer the connector.\n> # GitHub is elsewhere.",
+  "a list item inside a block quote":
+    "> Prefer the connector.\n> - GitHub is elsewhere.",
   "backtick-fenced code followed by prose":
     "```text\nconnector\n```\nGitHub is elsewhere.",
   "tilde-fenced code followed by prose":
     "~~~text\nconnector\n~~~\nGitHub is elsewhere.",
   "frontmatter followed by prose":
     "---\ndescription: connector\n---\nGitHub is elsewhere.",
+  "an indented code block followed by prose":
+    "    connector\nGitHub is elsewhere.",
 };
 
 test("the blanket whitespace collapse reproduces the cross-list leak", () => {
@@ -110,5 +118,25 @@ test("block-quote continuations normalize without joining following prose", () =
   const normalized = normalizeMarkdownForInvariant(markdown);
 
   assert.match(normalized, /connector wraps.*GitHub/);
+  assert.doesNotMatch(normalized, /GitHub.*Following/);
+});
+
+test("a fence with trailing content does not close the code block", () => {
+  const markdown = "````text\n```` not a close\nconnector\nGitHub\n````";
+
+  assert.doesNotMatch(normalizeMarkdownForInvariant(markdown), CROSS_BLOCK_PATTERN);
+});
+
+test("an indented frontmatter scalar cannot close frontmatter", () => {
+  const markdown = "---\nvalue: |\n  ---\nconnector: one\nGitHub: two\n---";
+
+  assert.doesNotMatch(normalizeMarkdownForInvariant(markdown), CROSS_BLOCK_PATTERN);
+});
+
+test("soft-wrapped Setext heading text is normalized within its block", () => {
+  const markdown = "Policy connector\nfor the GitHub route\n---\nFollowing prose.";
+  const normalized = normalizeMarkdownForInvariant(markdown);
+
+  assert.match(normalized, /connector for the GitHub/);
   assert.doesNotMatch(normalized, /GitHub.*Following/);
 });
