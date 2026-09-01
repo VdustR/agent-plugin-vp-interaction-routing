@@ -14,7 +14,12 @@ const RENDERED_BLOCK_HTML = new Set([
   "p", "pre", "search", "section", "summary", "table", "ul",
 ]);
 
-const HTML_TOKEN_PATTERN = /<!--[\s\S]*?-->|<\?[\s\S]*?\?>|<![A-Z][^>]*>|<!\[CDATA\[[\s\S]*?\]\]>|<\/?[A-Za-z][A-Za-z0-9-]*(?:[\t\n\f\r ]+[A-Za-z_:][\w:.-]*(?:[\t\n\f\r ]*=[\t\n\f\r ]*(?:"[^"]*"|'[^']*'|[^\t\n\f\r "'=<>`]+))?)*[\t\n\f\r ]*\/?>/gi;
+const HTML_COMMENT_SOURCE = String.raw`<!--(?!>|->)(?:(?!--)[\s\S])*?(?<!-)-->`;
+const HTML_TAG_SOURCE = String.raw`<\/?[A-Za-z][A-Za-z0-9-]*(?:[\t\n\f\r ]+[A-Za-z_:][\w:.-]*(?:[\t\n\f\r ]*=[\t\n\f\r ]*(?:"[^"]*"|'[^']*'|[^\t\n\f\r "'=<>\x60]+))?)*[\t\n\f\r ]*\/?>`;
+const HTML_TOKEN_PATTERN = new RegExp(
+  `${HTML_COMMENT_SOURCE}|<\\?[\\s\\S]*?\\?>|<![A-Z][^>]*>|<!\\[CDATA\\[[\\s\\S]*?\\]\\]>|${HTML_TAG_SOURCE}`,
+  "gi",
+);
 
 const matchingDelimiterEnd = (source, start, marker) => {
   const length = source.slice(start).match(new RegExp(`^\\${marker}+`))[0].length;
@@ -52,7 +57,7 @@ const labelRange = (node, source) => {
     }
     if (raw[index] === "<") {
       const html = raw.slice(index).match(
-        /^(?:<!--[\s\S]*?-->|<\?[\s\S]*?\?>|<![A-Z][^>]*>|<!\[CDATA\[[\s\S]*?\]\]>|<\/?[A-Za-z][A-Za-z0-9-]*(?:[\t\n\f\r ]+[A-Za-z_:][\w:.-]*(?:[\t\n\f\r ]*=[\t\n\f\r ]*(?:"[^"]*"|'[^']*'|[^\t\n\f\r "'=<>`]+))?)*[\t\n\f\r ]*\/?>)/,
+        new RegExp(`^(?:${HTML_COMMENT_SOURCE}|<\\?[\\s\\S]*?\\?>|<![A-Z][^>]*>|<!\\[CDATA\\[[\\s\\S]*?\\]\\]>|${HTML_TAG_SOURCE})`),
       )?.[0];
       if (html) {
         index += html.length - 1;
@@ -130,19 +135,28 @@ const literalQuotePrefixes = (block, source) => {
 const explicitBreaks = (block, source) => {
   const lines = new Set();
   const offsets = new Set();
+  const openBlockTags = new Map();
   const visibleNodes = ["text", "inlineCode", "inlineMath", "image", "imageReference"]
     .flatMap((type) => inlineNodes(block, type));
   const visit = (node) => {
     if (node.type === "break") lines.add(node.position.end.line);
     if (node.type === "html") {
-      const tag = node.value.match(/^<\/?([a-z][\w-]*)(?=[\s/>])/i)?.[1].toLowerCase();
+      const tagMatch = node.value.match(/^<(\/)?([a-z][\w-]*)(?=[\s/>])/i);
+      const tag = tagMatch?.[2].toLowerCase();
+      const isClosing = Boolean(tagMatch?.[1]);
+      const isActiveClosing = !isClosing || tag === "p" || (openBlockTags.get(tag) ?? 0) > 0;
       const newlineOffset = source.indexOf("\n", node.position.end.offset);
-      if ((tag === "br" || RENDERED_BLOCK_HTML.has(tag)) && newlineOffset >= 0) {
+      if ((tag === "br" || (RENDERED_BLOCK_HTML.has(tag) && isActiveClosing)) && newlineOffset >= 0) {
         const hasVisibleContent = visibleNodes.some((visible) =>
           visible.position.start.offset < newlineOffset &&
           visible.position.end.offset > node.position.end.offset);
         if (hasVisibleContent) offsets.add(node.position.end.offset);
         else lines.add(node.position.end.line + 1);
+      }
+      if (RENDERED_BLOCK_HTML.has(tag) && tag !== "p") {
+        const depth = openBlockTags.get(tag) ?? 0;
+        if (isClosing) openBlockTags.set(tag, Math.max(0, depth - 1));
+        else if (!/\/>\s*$/.test(node.value)) openBlockTags.set(tag, depth + 1);
       }
     }
     for (const child of node.children ?? []) visit(child);
@@ -176,6 +190,43 @@ const scriptClosingEnd = (tail) => {
   return -1;
 };
 
+const PROTECTED_HTML_TAGS = new Set([
+  "iframe", "listing", "noembed", "noframes", "noscript", "plaintext", "pre",
+  "script", "style", "template", "textarea", "title", "xmp",
+]);
+const BALANCED_HTML_TAGS = new Set(["listing", "pre", "template"]);
+
+const protectedHtmlClosingEnd = (tag, tail) => {
+  if (tag === "plaintext") return tail.length;
+  if (tag === "script") return scriptClosingEnd(tail);
+  if (tag === "noscript" || !BALANCED_HTML_TAGS.has(tag)) {
+    const closing = new RegExp(`<\\/${tag}[\\t\\n\\f\\r ]*>`, "i").exec(tail);
+    return closing ? closing.index + closing[0].length : -1;
+  }
+
+  let depth = 1;
+  let skipUntil = 0;
+  for (const token of tail.matchAll(HTML_TOKEN_PATTERN)) {
+    if (token.index < skipUntil) continue;
+    const tokenMatch = token[0].match(/^<(\/)?([A-Za-z][A-Za-z0-9-]*)/);
+    const tokenTag = tokenMatch?.[2].toLowerCase();
+    if (!tokenTag) continue;
+    const isClosing = Boolean(tokenMatch[1]);
+    if (!isClosing && tokenTag !== tag && PROTECTED_HTML_TAGS.has(tokenTag)) {
+      const childStart = token.index + token[0].length;
+      const childEnd = protectedHtmlClosingEnd(tokenTag, tail.slice(childStart));
+      if (childEnd < 0) return -1;
+      skipUntil = childStart + childEnd;
+      continue;
+    }
+    if (tokenTag !== tag) continue;
+    if (isClosing) depth -= 1;
+    else depth += 1;
+    if (depth === 0) return token.index + token[0].length;
+  }
+  return -1;
+};
+
 const hiddenHtmlRanges = (tree, source) => {
   const ranges = [];
   for (const html of inlineNodes(tree, "html")) {
@@ -186,25 +237,7 @@ const hiddenHtmlRanges = (tree, source) => {
     if (!tag) continue;
 
     const tail = source.slice(html.position.end.offset);
-    let closingEnd = -1;
-    if (tag === "plaintext") closingEnd = tail.length;
-    else if (tag === "script") closingEnd = scriptClosingEnd(tail);
-    else if (!["listing", "noscript", "pre", "template"].includes(tag)) {
-      const closing = new RegExp(`<\\/${tag}[\\t\\n\\f\\r ]*>`, "i").exec(tail);
-      if (closing) closingEnd = closing.index + closing[0].length;
-    } else {
-      let depth = 1;
-      for (const token of tail.matchAll(HTML_TOKEN_PATTERN)) {
-        const tokenTag = token[0].match(/^<\/?([A-Za-z][A-Za-z0-9-]*)/)?.[1].toLowerCase();
-        if (tokenTag !== tag) continue;
-        if (new RegExp(`^<\\/${tag}`, "i").test(token[0])) depth -= 1;
-        else if (tag === "template") depth += 1;
-        if (depth === 0) {
-          closingEnd = token.index + token[0].length;
-          break;
-        }
-      }
-    }
+    const closingEnd = protectedHtmlClosingEnd(tag, tail);
     ranges.push({
       start: html.position.start.offset,
       end: closingEnd >= 0 ? html.position.end.offset + closingEnd : source.length,
