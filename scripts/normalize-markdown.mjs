@@ -9,7 +9,8 @@ const FRONTMATTER_DELIMITER = /^(?:---|\.\.\.)[ \t]*$/;
 
 const splitFrontmatter = (source) => {
   const lines = source.split("\n");
-  if (!/^---[ \t]*$/.test(lines[0])) return { frontmatter: null, markdown: source };
+  const opening = lines[0].replace(/^\uFEFF/, "");
+  if (!/^---[ \t]*$/.test(opening)) return { frontmatter: null, markdown: source };
 
   const closingIndex = lines.findIndex((line, index) =>
     index > 0 && FRONTMATTER_DELIMITER.test(line));
@@ -37,9 +38,9 @@ const normalizableBlocks = (tree) => {
 const literalQuotePrefixes = (block) => {
   const prefixes = new Map();
   const visit = (node) => {
-    if (node.type === "text") {
+    if (node.type === "text" || node.type === "inlineCode") {
       for (const [index, line] of node.value.split("\n").entries()) {
-        const prefix = line.match(/^(?:>[ \t]*)+/)?.[0];
+        const prefix = line.match(/^[ \t]*((?:>[ \t]*)+)/)?.[1];
         if (prefix) prefixes.set(node.position.start.line + index, prefix);
       }
     }
@@ -61,7 +62,9 @@ const normalizeParsedMarkdown = (source) => {
   // offsets of blocks that precede it. Container prefixes are part of the raw
   // source range but not the paragraph text, so remove them with the wrap.
   for (const node of normalizableBlocks(tree).reverse()) {
-    const { start, end } = node.position;
+    const { start } = node.position;
+    const end = node.type === "heading" ?
+      (node.children.at(-1)?.position.end ?? node.position.end) : node.position.end;
     const literalPrefixes = literalQuotePrefixes(node);
     let line = start.line;
     const block = normalized.slice(start.offset, end.offset)

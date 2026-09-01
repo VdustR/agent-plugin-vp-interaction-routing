@@ -146,6 +146,7 @@ test("soft-wrapped Setext heading text is normalized within its block", () => {
   const normalized = normalizeMarkdownForInvariant(markdown);
 
   assert.match(normalized, /connector for the GitHub/);
+  assert.doesNotMatch(normalized, /GitHub ---/);
   assert.doesNotMatch(normalized, /GitHub.*Following/);
 });
 
@@ -197,4 +198,18 @@ test("a literal greater-than sign in a lazy continuation is preserved", () => {
 
   assert.match(normalized, /connector for > GitHub/);
   assert.doesNotMatch(normalized, /connector for GitHub/);
+});
+
+test("a literal greater-than sign inside inline code is preserved", () => {
+  const markdown = "`connector for\n    > GitHub`";
+  const normalized = normalizeMarkdownForInvariant(markdown);
+
+  assert.match(normalized, /connector for > GitHub/);
+  assert.doesNotMatch(normalized, /connector for GitHub/);
+});
+
+test("BOM-prefixed frontmatter remains opaque", () => {
+  const markdown = "\uFEFF---\ndescription: connector for\n  GitHub\n---\nBody without guidance.";
+
+  assert.doesNotMatch(normalizeMarkdownForInvariant(markdown), CROSS_BLOCK_PATTERN);
 });
