@@ -94,7 +94,7 @@ test("inline HTML does not disable surrounding prose normalization", () => {
 });
 
 test("inline HTML breaks remain regex boundaries", () => {
-  for (const tag of ["<br>", '<br class="note">']) {
+  for (const tag of ["<br>", '<br class="note">', '<br title=">">']) {
     assert.doesNotMatch(
       normalizeMarkdownForInvariant(`connector ${tag}\nGitHub`),
       CROSS_BLOCK_PATTERN,

@@ -32,7 +32,7 @@ const renderedText = (node) => {
     case "break":
       return "\n";
     case "html":
-      return /^<br(?:\s[^>]*)?\s*\/?>$/i.test(node.value.trim()) ? "\n" : "";
+      return /^<br(?:\s|\/?>)/i.test(node.value.trim()) ? "\n" : "";
     case "image":
     case "imageReference":
       return (node.alt ?? "").replace(/\n/g, " ");
