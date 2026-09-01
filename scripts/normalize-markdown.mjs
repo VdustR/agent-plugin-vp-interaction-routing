@@ -14,6 +14,20 @@ const RENDERED_BLOCK_HTML = new Set([
   "p", "pre", "search", "section", "summary", "table", "ul",
 ]);
 
+const HTML_TOKEN_PATTERN = /<!--[\s\S]*?-->|<\?[\s\S]*?\?>|<![A-Z][^>]*>|<!\[CDATA\[[\s\S]*?\]\]>|<\/?[A-Za-z][A-Za-z0-9-]*(?:[\t\n\f\r ]+[A-Za-z_:][\w:.-]*(?:[\t\n\f\r ]*=[\t\n\f\r ]*(?:"[^"]*"|'[^']*'|[^\t\n\f\r "'=<>`]+))?)*[\t\n\f\r ]*\/?>/gi;
+
+const matchingDelimiterEnd = (source, start, marker) => {
+  const length = source.slice(start).match(new RegExp(`^\\${marker}+`))[0].length;
+  for (let index = start + length; index < source.length;) {
+    index = source.indexOf(marker, index);
+    if (index < 0) return -1;
+    const runLength = source.slice(index).match(new RegExp(`^\\${marker}+`))[0].length;
+    if (runLength === length) return index + length;
+    index += runLength;
+  }
+  return -1;
+};
+
 const labelRange = (node, source) => {
   const isImage = ["image", "imageReference"].includes(node.type);
   if (!isImage && !["link", "linkReference"].includes(node.type)) return null;
@@ -27,15 +41,13 @@ const labelRange = (node, source) => {
       continue;
     }
     if (raw[index] === "`") {
-      const delimiter = raw.slice(index).match(/^`+/)[0];
-      const closing = raw.indexOf(delimiter, index + delimiter.length);
-      if (closing >= 0) index = closing + delimiter.length - 1;
+      const closing = matchingDelimiterEnd(raw, index, "`");
+      if (closing >= 0) index = closing - 1;
       continue;
     }
     if (raw[index] === "$") {
-      const delimiter = raw.slice(index).match(/^\$+/)[0];
-      const closing = raw.indexOf(delimiter, index + delimiter.length);
-      if (closing >= 0) index = closing + delimiter.length - 1;
+      const closing = matchingDelimiterEnd(raw, index, "$");
+      if (closing >= 0) index = closing - 1;
       continue;
     }
     if (raw[index] === "<") {
@@ -159,7 +171,7 @@ const hiddenHtmlRanges = (tree, source) => inlineNodes(tree, "html").flatMap((ht
   if (tag === "plaintext") {
     return [{ start: html.position.start.offset, end: source.length }];
   }
-  if (tag !== "template") {
+  if (!["listing", "pre", "template"].includes(tag)) {
     const closing = new RegExp(`<\\/${tag}[\\t\\n\\f\\r ]*>`, "i").exec(tail);
     return [{
       start: html.position.start.offset,
@@ -167,12 +179,12 @@ const hiddenHtmlRanges = (tree, source) => inlineNodes(tree, "html").flatMap((ht
     }];
   }
 
-  const tokenPattern = /<!--[\s\S]*?-->|<\?[\s\S]*?\?>|<![A-Z][^>]*>|<!\[CDATA\[[\s\S]*?\]\]>|<\/?template(?=[\t\n\f\r />])[^>]*>/gi;
   let depth = 1;
-  for (const token of tail.matchAll(tokenPattern)) {
-    if (!/^<\/?template/i.test(token[0])) continue;
-    if (/^<\/template/i.test(token[0])) depth -= 1;
-    else depth += 1;
+  for (const token of tail.matchAll(HTML_TOKEN_PATTERN)) {
+    const tokenTag = token[0].match(/^<\/?([A-Za-z][A-Za-z0-9-]*)/)?.[1].toLowerCase();
+    if (tokenTag !== tag) continue;
+    if (new RegExp(`^<\\/${tag}`, "i").test(token[0])) depth -= 1;
+    else if (tag === "template") depth += 1;
     if (depth === 0) {
       return [{
         start: html.position.start.offset,
@@ -235,7 +247,8 @@ const normalizeParsedMarkdown = (source) => {
       const isInsideRange = (range) => newlineOffset >= range.start && newlineOffset < range.end;
       const isLinkMetadata = linkNodes.some((link) => {
         if (!isInside(link)) return false;
-        if (link.type === "linkReference" && link.identifier.startsWith("^")) return true;
+        if (link.type === "linkReference" && link.referenceType === "shortcut" &&
+            link.identifier.startsWith("^")) return true;
         const label = labelRange(link, normalized);
         return label && newlineOffset >= label.end;
       });

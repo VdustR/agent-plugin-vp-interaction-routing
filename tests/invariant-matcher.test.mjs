@@ -341,12 +341,23 @@ test("visible link-label wraps between inline children are folded", () => {
     normalizeMarkdownForInvariant("[connector *for*\nGitHub](x)"),
     /connector \*for\* GitHub/,
   );
+  assert.match(
+    normalizeMarkdownForInvariant("[connector\nGitHub][^route]\n\n[^route]: /target"),
+    /connector GitHub/,
+  );
 });
 
 test("inline math brackets do not shift link metadata boundaries", () => {
   assert.doesNotMatch(
     normalizeMarkdownForInvariant('[visible $[$](connector\n"GitHub")'),
     /connector.*GitHub/,
+  );
+});
+
+test("longer delimiter runs do not close inline spans", () => {
+  assert.match(
+    normalizeMarkdownForInvariant("[connector `[``]\nGitHub](x)"),
+    /\] GitHub/,
   );
 });
 
@@ -458,6 +469,12 @@ test("raw-text HTML element bodies remain line-bounded", () => {
     ),
     /connector GitHub/,
   );
+  assert.match(
+    normalizeMarkdownForInvariant(
+      'Visible<template><div data-note="<template>"></div></template>\nconnector\nGitHub',
+    ),
+    /connector GitHub/,
+  );
   assert.doesNotMatch(
     normalizeMarkdownForInvariant(
       "Visible<script>\nx\n</script\u00a0>\nconnector\nGitHub\n</script>",
@@ -475,6 +492,12 @@ test("raw-text HTML element bodies remain line-bounded", () => {
   for (const tag of ["pre", "listing"]) {
     assert.doesNotMatch(
       normalizeMarkdownForInvariant(`Visible<${tag}>\nconnector\nGitHub\n</${tag}>`),
+      /connector GitHub/,
+    );
+    assert.doesNotMatch(
+      normalizeMarkdownForInvariant(
+        `Visible<${tag}>\n<!-- </${tag}> -->\nconnector\nGitHub\n</${tag}>`,
+      ),
       /connector GitHub/,
     );
   }
