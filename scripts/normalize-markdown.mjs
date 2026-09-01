@@ -5,6 +5,7 @@ import { gfm } from "micromark-extension-gfm";
 const NORMALIZABLE_BLOCKS = new Set(["heading", "paragraph"]);
 const OPAQUE_BLOCKS = new Set(["code", "html", "table"]);
 const FRONTMATTER_DELIMITER = /^---[ \t]*$/;
+const BLOCK_SEPARATOR = "\n\0\n";
 
 const splitFrontmatter = (source) => {
   const lines = source.split("\n");
@@ -70,5 +71,5 @@ export const normalizeMarkdownForInvariant = (text) => {
     return renderedText(block).trim();
   });
 
-  return [frontmatter, ...blocks].filter((block) => block !== null).join("\n");
+  return [frontmatter, ...blocks].filter((block) => block !== null).join(BLOCK_SEPARATOR);
 };

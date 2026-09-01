@@ -51,13 +51,20 @@ test("paragraph and list-item continuation lines normalize", () => {
   assert.equal(normalized, [
     "A connector can wrap onto another line.",
     "A GitHub operation can also wrap onto another line.",
-  ].join("\n"));
+  ].join("\n\0\n"));
 });
 
 test("hard breaks remain regex boundaries", () => {
   assert.doesNotMatch(
     normalizeMarkdownForInvariant("connector  \nGitHub"),
     CROSS_BLOCK_PATTERN,
+  );
+});
+
+test("whitespace matchers cannot cross Markdown blocks", () => {
+  assert.doesNotMatch(
+    normalizeMarkdownForInvariant("connector\n\nGitHub"),
+    /connector\s+GitHub/,
   );
 });
 
