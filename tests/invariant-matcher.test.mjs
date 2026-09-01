@@ -505,6 +505,22 @@ test("raw-text HTML element bodies remain line-bounded", () => {
     normalizeMarkdownForInvariant("Visible<plaintext>\nconnector\nGitHub"),
     /connector GitHub/,
   );
+  assert.match(
+    normalizeMarkdownForInvariant(
+      'Visible<script>const x="<template>"</script>\nconnector\nGitHub',
+    ),
+    /connector GitHub/,
+  );
+  assert.doesNotMatch(
+    normalizeMarkdownForInvariant("Visible<noscript>\nconnector\nGitHub\n</noscript>"),
+    /connector GitHub/,
+  );
+  assert.doesNotMatch(
+    normalizeMarkdownForInvariant(
+      "Visible<script><!--<script></script>\nconnector\nGitHub\n</script>",
+    ),
+    /connector GitHub/,
+  );
 });
 
 test("non-rendering HTML tags do not preserve soft wraps", () => {

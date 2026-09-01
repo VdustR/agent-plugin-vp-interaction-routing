@@ -161,39 +161,57 @@ const inlineNodes = (block, type) => {
   return nodes;
 };
 
-const hiddenHtmlRanges = (tree, source) => inlineNodes(tree, "html").flatMap((html) => {
-  const tag = html.value.match(
-    /^<(iframe|listing|noembed|noframes|plaintext|pre|script|style|template|textarea|title|xmp)(?=[\t\n\f\r />])/i,
-  )?.[1].toLowerCase();
-  if (!tag) return [];
-
-  const tail = source.slice(html.position.end.offset);
-  if (tag === "plaintext") {
-    return [{ start: html.position.start.offset, end: source.length }];
-  }
-  if (!["listing", "pre", "template"].includes(tag)) {
-    const closing = new RegExp(`<\\/${tag}[\\t\\n\\f\\r ]*>`, "i").exec(tail);
-    return [{
-      start: html.position.start.offset,
-      end: closing ? html.position.end.offset + closing.index + closing[0].length : source.length,
-    }];
-  }
-
-  let depth = 1;
-  for (const token of tail.matchAll(HTML_TOKEN_PATTERN)) {
-    const tokenTag = token[0].match(/^<\/?([A-Za-z][A-Za-z0-9-]*)/)?.[1].toLowerCase();
-    if (tokenTag !== tag) continue;
-    if (new RegExp(`^<\\/${tag}`, "i").test(token[0])) depth -= 1;
-    else if (tag === "template") depth += 1;
-    if (depth === 0) {
-      return [{
-        start: html.position.start.offset,
-        end: html.position.end.offset + token.index + token[0].length,
-      }];
+const scriptClosingEnd = (tail) => {
+  const tokens = /<!--|-->|<script(?=[\t\n\f\r />])|<\/script[\t\n\f\r ]*>/gi;
+  let state = "normal";
+  for (const token of tail.matchAll(tokens)) {
+    if (token[0] === "<!--" && state === "normal") state = "escaped";
+    else if (token[0] === "-->" && state === "escaped") state = "normal";
+    else if (/^<script/i.test(token[0]) && state === "escaped") state = "double";
+    else if (/^<\/script/i.test(token[0])) {
+      if (state === "double") state = "escaped";
+      else return token.index + token[0].length;
     }
   }
-  return [{ start: html.position.start.offset, end: source.length }];
-});
+  return -1;
+};
+
+const hiddenHtmlRanges = (tree, source) => {
+  const ranges = [];
+  for (const html of inlineNodes(tree, "html")) {
+    if (ranges.some((range) => html.position.start.offset < range.end)) continue;
+    const tag = html.value.match(
+      /^<(iframe|listing|noembed|noframes|noscript|plaintext|pre|script|style|template|textarea|title|xmp)(?=[\t\n\f\r />])/i,
+    )?.[1].toLowerCase();
+    if (!tag) continue;
+
+    const tail = source.slice(html.position.end.offset);
+    let closingEnd = -1;
+    if (tag === "plaintext") closingEnd = tail.length;
+    else if (tag === "script") closingEnd = scriptClosingEnd(tail);
+    else if (!["listing", "noscript", "pre", "template"].includes(tag)) {
+      const closing = new RegExp(`<\\/${tag}[\\t\\n\\f\\r ]*>`, "i").exec(tail);
+      if (closing) closingEnd = closing.index + closing[0].length;
+    } else {
+      let depth = 1;
+      for (const token of tail.matchAll(HTML_TOKEN_PATTERN)) {
+        const tokenTag = token[0].match(/^<\/?([A-Za-z][A-Za-z0-9-]*)/)?.[1].toLowerCase();
+        if (tokenTag !== tag) continue;
+        if (new RegExp(`^<\\/${tag}`, "i").test(token[0])) depth -= 1;
+        else if (tag === "template") depth += 1;
+        if (depth === 0) {
+          closingEnd = token.index + token[0].length;
+          break;
+        }
+      }
+    }
+    ranges.push({
+      start: html.position.start.offset,
+      end: closingEnd >= 0 ? html.position.end.offset + closingEnd : source.length,
+    });
+  }
+  return ranges;
+};
 
 const normalizeParsedMarkdown = (source) => {
   if (source === "") return source;
