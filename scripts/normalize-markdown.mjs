@@ -22,6 +22,17 @@ const IMPLICIT_SAME_TAG_CLOSE = new Set([
   "dd", "dt", "li", "optgroup", "option", "p", "rp", "rt", "tbody", "td",
   "tfoot", "th", "thead", "tr",
 ]);
+const IMPLICIT_CROSS_TAG_CLOSE = new Map([
+  ["dd", new Set(["dd", "dt"])],
+  ["dt", new Set(["dd", "dt"])],
+  ["optgroup", new Set(["optgroup"])],
+  ["option", new Set(["optgroup", "option"])],
+  ["tbody", new Set(["tbody", "tfoot"])],
+  ["td", new Set(["td", "th"])],
+  ["th", new Set(["td", "th"])],
+  ["thead", new Set(["tbody", "tfoot"])],
+  ["tr", new Set(["tr"])],
+]);
 const P_CLOSING_START_TAGS = new Set([
   "address", "article", "aside", "blockquote", "details", "dialog", "div", "dl",
   "fieldset", "figcaption", "figure", "footer", "form", "h1", "h2", "h3", "h4",
@@ -106,7 +117,14 @@ const splitFrontmatter = (source) => {
 
 const normalizableBlocks = (tree) => {
   const blocks = [];
+  const referencedFootnotes = new Set();
+  const collectReferences = (node) => {
+    if (node.type === "footnoteReference") referencedFootnotes.add(node.identifier);
+    for (const child of node.children ?? []) collectReferences(child);
+  };
+  collectReferences(tree);
   const visit = (node) => {
+    if (node.type === "footnoteDefinition" && !referencedFootnotes.has(node.identifier)) return;
     if (NORMALIZABLE_BLOCKS.has(node.type)) {
       blocks.push(node);
       return;
@@ -225,7 +243,7 @@ const parseHtmlTag = (token) => {
     index += name.length;
     index += token.slice(index).match(/^[\t\n\f\r ]*/)[0].length;
     if (token[index] !== "=") {
-      attributes.set(normalizedName, "");
+      if (!attributes.has(normalizedName)) attributes.set(normalizedName, "");
       continue;
     }
     index += 1;
@@ -234,7 +252,7 @@ const parseHtmlTag = (token) => {
     if (value) {
       index += value.length;
       const rawValue = /^['"]/.test(value) ? value.slice(1, -1) : value;
-      attributes.set(normalizedName, rawValue.replace(
+      if (!attributes.has(normalizedName)) attributes.set(normalizedName, rawValue.replace(
         /&(#(?:[xX][0-9A-Fa-f]+|[0-9]+)|[A-Za-z][A-Za-z0-9]+);/g,
         (reference, name) => {
           if (name.startsWith("#")) {
@@ -247,7 +265,7 @@ const parseHtmlTag = (token) => {
           return decodeNamedCharacterReference(name) || reference;
         },
       ));
-    } else attributes.set(normalizedName, "");
+    } else if (!attributes.has(normalizedName)) attributes.set(normalizedName, "");
   }
   return { tag: opening[2].toLowerCase(), isClosing: Boolean(opening[1]), attributes };
 };
@@ -314,6 +332,8 @@ const protectedHtmlClosingEnd = (tag, tail, forceBalanced = false) => {
     }
     if (forceBalanced && tag === "p" && !parsed.isClosing &&
         P_CLOSING_START_TAGS.has(parsed.tag)) return token.index;
+    if (forceBalanced && !parsed.isClosing &&
+        IMPLICIT_CROSS_TAG_CLOSE.get(tag)?.has(parsed.tag)) return token.index;
     if (parsed.tag !== tag) continue;
     if (parsed.isClosing) depth -= 1;
     else if (forceBalanced && IMPLICIT_SAME_TAG_CLOSE.has(tag)) return token.index;
@@ -343,6 +363,7 @@ const summaryParts = (body) => {
   }
   if (!opening) return null;
   let closing = null;
+  let summaryDepth = 1;
   let skipUntil = 0;
   for (const token of tokens) {
     if (token.index <= opening.index || token.index < skipUntil) continue;
@@ -358,9 +379,12 @@ const summaryParts = (body) => {
       skipUntil = childEnd < 0 ? body.length : childStart + childEnd;
       continue;
     }
-    if (parsed.tag === "summary" && parsed.isClosing) {
-      closing = token;
-      break;
+    if (parsed.tag === "summary") {
+      summaryDepth += parsed.isClosing ? -1 : 1;
+      if (summaryDepth === 0) {
+        closing = token;
+        break;
+      }
     }
   }
   if (!closing) return null;
@@ -401,9 +425,10 @@ const normalizeConditionalContainers = (tree, source) => {
     if (!isConditional && !isVisibleBlockContainer) continue;
     const tail = source.slice(html.end);
     const closingEnd = protectedHtmlClosingEnd(parsed.tag, tail, true);
-    if (closingEnd < 0) continue;
-    const rangeEnd = html.end + closingEnd;
-    const relativeClosingStart = closingTagStart(parsed.tag, tail, closingEnd);
+    if (closingEnd < 0 && !isVisibleBlockContainer) continue;
+    const rangeEnd = closingEnd < 0 ? source.length : html.end + closingEnd;
+    const relativeClosingStart = closingEnd < 0 ? tail.length :
+      closingTagStart(parsed.tag, tail, closingEnd);
     if (relativeClosingStart < 0) continue;
     const closingStart = html.end + relativeClosingStart;
     const body = source.slice(html.end, closingStart);
@@ -422,13 +447,13 @@ const normalizeConditionalContainers = (tree, source) => {
       if (summary) {
         replacement = (isEffectivelyOpen ?
           normalizeVisibleRegion(summary.prefix) : summary.prefix) + summary.opening +
-          (summary.isHidden ? summary.content : normalizeVisibleRegion(summary.content)) +
+          (summary.isHidden ? summary.content : normalizeRawHtmlText(summary.content)) +
           summary.closing +
           (isEffectivelyOpen ? normalizeVisibleRegion(summary.suffix) : summary.suffix);
       } else if (isEffectivelyOpen) replacement = normalizeVisibleRegion(body);
     } else if (parsed.tag === "dialog") {
       if (isEffectivelyOpen) replacement = normalizeVisibleRegion(body);
-    } else replacement = normalizeVisibleRegion(body);
+    } else replacement = normalizeRawHtmlText(body);
     edits.push({
       start: html.end,
       end: closingStart,
@@ -499,6 +524,33 @@ const normalizeVisibleRegion = (source) => {
     cursor = range.end;
   }
   return normalized + normalizeParsedMarkdown(source.slice(cursor), true);
+};
+
+const normalizeRawHtmlText = (source) => {
+  if (!source) return source;
+  const tree = fromMarkdown(source, {
+    extensions: [gfm(), math()],
+    mdastExtensions: [gfmFromMarkdown(), mathFromMarkdown()],
+  });
+  const protectedRanges = hiddenHtmlRanges(tree, source);
+  const isProtected = (offset) => protectedRanges.some((range) =>
+    offset >= range.start && offset < range.end);
+  const edits = [...source.matchAll(/[ \t]*\n[ \t]*/g)]
+    .filter((match) => !isProtected(match.index + match[0].indexOf("\n")))
+    .map((match) => ({ start: match.index, end: match.index + match[0].length, value: " " }));
+  for (const token of htmlTokens(tree)) {
+    const parsed = parseHtmlTag(token.value);
+    if (!parsed || isProtected(token.start) || parsed.attributes.has("hidden")) continue;
+    if (parsed.tag === "br" || RENDERED_BLOCK_HTML.has(parsed.tag)) {
+      edits.push({ start: token.start, end: token.start, value: "\n" });
+      edits.push({ start: token.end, end: token.end, value: "\n" });
+    }
+  }
+  let normalized = source;
+  for (const edit of edits.sort((a, b) => b.start - a.start || b.end - a.end)) {
+    normalized = normalized.slice(0, edit.start) + edit.value + normalized.slice(edit.end);
+  }
+  return normalized;
 };
 
 const normalizeParsedMarkdown = (source, normalizeDetails = true) => {

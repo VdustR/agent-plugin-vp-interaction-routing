@@ -642,6 +642,19 @@ test("collapsed details bodies remain line-bounded", () => {
     ),
     /connector GitHub/,
   );
+  assert.match(
+    normalizeMarkdownForInvariant(
+      "<details><summary><summary>inner</summary>connector\nGitHub</summary>hidden</details>",
+    ),
+    /connector GitHub/,
+  );
+  assert.doesNotMatch(
+    normalizeMarkdownForInvariant(
+      '<details name="route" open>first</details>\n' +
+      '<details name="route" name="other" open>connector\nGitHub</details>',
+    ),
+    /connector GitHub/,
+  );
   const nested = normalizeMarkdownForInvariant(
     "<details open>outer\n<details open>inner\nwrap</details>\nafter</details>",
   );
@@ -717,6 +730,28 @@ test("visible prose inside ordinary HTML blocks is normalized", () => {
       "<div>\nPrefer the connector for\nGitHub operations.\n</div>",
     ),
     /connector for GitHub/,
+  );
+  assert.match(
+    normalizeMarkdownForInvariant("<div>\nconnector\n# GitHub\n</div>"),
+    /connector # GitHub/,
+  );
+  assert.match(
+    normalizeMarkdownForInvariant("<div>\nconnector\nGitHub"),
+    /connector GitHub/,
+  );
+});
+
+test("cross-tag implicit closures end hidden HTML ranges", () => {
+  assert.match(
+    normalizeMarkdownForInvariant("<dl><dt hidden>secret<dd>connector\nGitHub</dl>"),
+    /connector GitHub/,
+  );
+});
+
+test("unreferenced footnote definitions remain metadata", () => {
+  assert.doesNotMatch(
+    normalizeMarkdownForInvariant("[^route]: connector\n    GitHub"),
+    /connector GitHub/,
   );
 });
 
