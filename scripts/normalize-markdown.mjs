@@ -40,7 +40,7 @@ const labelRange = (node, source) => {
     }
     if (raw[index] === "<") {
       const html = raw.slice(index).match(
-        /^(?:<!--[\s\S]*?-->|<\?[\s\S]*?\?>|<![A-Z][^>]*>|<!\[CDATA\[[\s\S]*?\]\]>|<\/?[A-Za-z][A-Za-z0-9-]*(?:\s+[A-Za-z_:][\w:.-]*(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s"'=<>`]+))?)*\s*\/?>)/,
+        /^(?:<!--[\s\S]*?-->|<\?[\s\S]*?\?>|<![A-Z][^>]*>|<!\[CDATA\[[\s\S]*?\]\]>|<\/?[A-Za-z][A-Za-z0-9-]*(?:[\t\n\f\r ]+[A-Za-z_:][\w:.-]*(?:[\t\n\f\r ]*=[\t\n\f\r ]*(?:"[^"]*"|'[^']*'|[^\t\n\f\r "'=<>`]+))?)*[\t\n\f\r ]*\/?>)/,
       )?.[0];
       if (html) {
         index += html.length - 1;
@@ -151,23 +151,26 @@ const inlineNodes = (block, type) => {
 
 const hiddenHtmlRanges = (tree, source) => inlineNodes(tree, "html").flatMap((html) => {
   const tag = html.value.match(
-    /^<(iframe|noembed|noframes|script|style|template|textarea|title|xmp)(?=[\t\n\f\r />])/i,
+    /^<(iframe|listing|noembed|noframes|plaintext|pre|script|style|template|textarea|title|xmp)(?=[\t\n\f\r />])/i,
   )?.[1].toLowerCase();
   if (!tag) return [];
 
   const tail = source.slice(html.position.end.offset);
+  if (tag === "plaintext") {
+    return [{ start: html.position.start.offset, end: source.length }];
+  }
   if (tag !== "template") {
     const closing = new RegExp(`<\\/${tag}[\\t\\n\\f\\r ]*>`, "i").exec(tail);
-    return closing ? [{
+    return [{
       start: html.position.start.offset,
-      end: html.position.end.offset + closing.index + closing[0].length,
-    }] : [];
+      end: closing ? html.position.end.offset + closing.index + closing[0].length : source.length,
+    }];
   }
 
-  const tokenPattern = /<!--[\s\S]*?-->|<\/?template(?=[\t\n\f\r />])[^>]*>/gi;
+  const tokenPattern = /<!--[\s\S]*?-->|<\?[\s\S]*?\?>|<![A-Z][^>]*>|<!\[CDATA\[[\s\S]*?\]\]>|<\/?template(?=[\t\n\f\r />])[^>]*>/gi;
   let depth = 1;
   for (const token of tail.matchAll(tokenPattern)) {
-    if (token[0].startsWith("<!--")) continue;
+    if (!/^<\/?template/i.test(token[0])) continue;
     if (/^<\/template/i.test(token[0])) depth -= 1;
     else depth += 1;
     if (depth === 0) {
@@ -177,7 +180,7 @@ const hiddenHtmlRanges = (tree, source) => inlineNodes(tree, "html").flatMap((ht
       }];
     }
   }
-  return [];
+  return [{ start: html.position.start.offset, end: source.length }];
 });
 
 const normalizeParsedMarkdown = (source) => {

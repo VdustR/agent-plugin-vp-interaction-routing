@@ -393,10 +393,12 @@ test("image alt prefixes ignore destination metadata newlines", () => {
 });
 
 test("invalid HTML-like image label text still participates in bracket matching", () => {
-  assert.match(
-    normalizeMarkdownForInvariant("![connector <x[> note]\nGitHub](x)"),
-    /note\] GitHub/,
-  );
+  for (const markdown of [
+    "![connector <x[> note]\nGitHub](x)",
+    "![connector <x\u00a0a=\"[\"> note]\nGitHub](x)",
+  ]) {
+    assert.match(normalizeMarkdownForInvariant(markdown), /note\] GitHub/);
+  }
 });
 
 test("decoded entity newlines do not shift quote-prefix metadata", () => {
@@ -452,12 +454,32 @@ test("raw-text HTML element bodies remain line-bounded", () => {
   );
   assert.doesNotMatch(
     normalizeMarkdownForInvariant(
+      "Visible<template>\n<?meta </template> ?>\nconnector\nGitHub\n</template>",
+    ),
+    /connector GitHub/,
+  );
+  assert.doesNotMatch(
+    normalizeMarkdownForInvariant(
       "Visible<script>\nx\n</script\u00a0>\nconnector\nGitHub\n</script>",
     ),
     /connector GitHub/,
   );
   assert.doesNotMatch(
     normalizeMarkdownForInvariant("Visible<script>\nfoo\n\nconnector\nGitHub\n</script>"),
+    /connector GitHub/,
+  );
+  assert.doesNotMatch(
+    normalizeMarkdownForInvariant("Visible<script>\nconnector\nGitHub"),
+    /connector GitHub/,
+  );
+  for (const tag of ["pre", "listing"]) {
+    assert.doesNotMatch(
+      normalizeMarkdownForInvariant(`Visible<${tag}>\nconnector\nGitHub\n</${tag}>`),
+      /connector GitHub/,
+    );
+  }
+  assert.doesNotMatch(
+    normalizeMarkdownForInvariant("Visible<plaintext>\nconnector\nGitHub"),
     /connector GitHub/,
   );
 });
