@@ -493,6 +493,27 @@ const closingTagStart = (tag, tail, closingEnd) => {
   return closing?.index ?? -1;
 };
 
+const hiddenOptionRanges = (source) => {
+  const ranges = [];
+  for (const select of source.matchAll(/<select(?=[\t\n\f\r />])[^>]*>([\s\S]*?)<\/select\s*>/gi)) {
+    const bodyOffset = select.index + select[0].indexOf(select[1]);
+    const openings = [...select[1].matchAll(/<option(?=[\t\n\f\r />])[^>]*>/gi)];
+    const visible = Math.max(0, openings.findIndex((option) => /\bselected(?:[\s=>]|$)/i.test(option[0])));
+    for (const [index, opening] of openings.entries()) {
+      if (index === visible) continue;
+      const segmentEnd = openings[index + 1]?.index ?? select[1].length;
+      const segment = select[1].slice(opening.index, segmentEnd);
+      const closing = /<\/option\s*>/i.exec(segment);
+      ranges.push({
+        start: bodyOffset + opening.index,
+        end: bodyOffset + opening.index + (closing ? closing.index + closing[0].length : segment.length),
+        tag: "option",
+      });
+    }
+  }
+  return ranges;
+};
+
 const normalizeConditionalContainers = (tree, source) => {
   const edits = [];
   let claimedEnd = -1;
@@ -548,19 +569,21 @@ const normalizeConditionalContainers = (tree, source) => {
       firstDetailsGroupStart.get(detailsName) === html.start;
     const isEffectivelyOpen = parsed.attributes.has("open") &&
       (!detailsName || isGroupedOpen);
+    const normalizeConditionalBody = (region) => region.includes("\n\n") ?
+      normalizeVisibleRegion(region) : normalizeRawHtmlText(region);
     let replacement = body;
     if (parsed.attributes.has("hidden")) replacement = body;
     else if (parsed.tag === "details") {
       const summary = summaryParts(body);
       if (summary) {
         replacement = (isEffectivelyOpen ?
-          normalizeRawHtmlText(summary.prefix) : summary.prefix) + summary.opening +
+          normalizeConditionalBody(summary.prefix) : summary.prefix) + summary.opening +
           (summary.isHidden ? summary.content : normalizeRawHtmlText(summary.content)) +
           summary.closing + (isEffectivelyOpen && summary.suffix ? "\n" : "") +
-          (isEffectivelyOpen ? normalizeRawHtmlText(summary.suffix) : summary.suffix);
-      } else if (isEffectivelyOpen) replacement = normalizeRawHtmlText(body);
+          (isEffectivelyOpen ? normalizeConditionalBody(summary.suffix) : summary.suffix);
+      } else if (isEffectivelyOpen) replacement = normalizeConditionalBody(body);
     } else if (parsed.tag === "dialog") {
-      if (isEffectivelyOpen) replacement = normalizeRawHtmlText(body);
+      if (isEffectivelyOpen) replacement = normalizeConditionalBody(body);
     } else replacement = normalizeRawHtmlText(body, parsed.tag);
     edits.push({
       start: html.end,
@@ -584,20 +607,7 @@ const normalizeConditionalContainers = (tree, source) => {
 };
 
 const hiddenHtmlRanges = (tree, source, containerTag = null) => {
-  const ranges = [];
-  for (const select of source.matchAll(/<select(?=[\t\n\f\r />])[^>]*>([\s\S]*?)<\/select\s*>/gi)) {
-    const bodyOffset = select.index + select[0].indexOf(select[1]);
-    const options = [...select[1].matchAll(/<option(?=[\t\n\f\r />])[^>]*>[\s\S]*?<\/option\s*>/gi)];
-    const selected = options.findIndex((option) => /<option\b[^>]*\bselected(?:[\s=>]|$)/i.test(option[0]));
-    const visible = selected >= 0 ? selected : 0;
-    for (const [index, option] of options.entries()) {
-      if (index !== visible) ranges.push({
-        start: bodyOffset + option.index,
-        end: bodyOffset + option.index + option[0].length,
-        tag: "option",
-      });
-    }
-  }
+  const ranges = hiddenOptionRanges(source);
   const openDetailsGroups = new Set();
   const tokens = htmlTokens(tree);
   const paragraphs = inlineNodes(tree, "paragraph");
@@ -618,6 +628,26 @@ const hiddenHtmlRanges = (tree, source, containerTag = null) => {
         offset < paragraph.position.end.offset)) stack.unshift("p");
     return new Set(stack);
   };
+  const isForeignAt = (offset) => {
+    const stack = [];
+    let foreign = ["math", "svg"].includes(containerTag);
+    for (const token of tokens) {
+      if (token.start >= offset) break;
+      const parsed = parseHtmlTag(token.value);
+      if (!parsed || VOID_HTML.has(parsed.tag)) continue;
+      if (parsed.isClosing) {
+        const match = stack.findLastIndex((entry) => entry.tag === parsed.tag);
+        if (match >= 0) stack.splice(match);
+        foreign = stack.at(-1)?.foreign ?? ["math", "svg"].includes(containerTag);
+      } else if (!parsed.isSelfClosing) {
+        const childForeign = ["math", "svg"].includes(parsed.tag) ? true :
+          (foreign && parsed.tag !== "foreignobject");
+        stack.push({ tag: parsed.tag, foreign: childForeign });
+        foreign = childForeign;
+      }
+    }
+    return foreign;
+  };
   for (const html of tokens) {
     const parsed = parseHtmlTag(html.value);
     if (!parsed) continue;
@@ -628,7 +658,7 @@ const hiddenHtmlRanges = (tree, source, containerTag = null) => {
     if (!parsed.isClosing && parsed.attributes.has("open") && detailsName) {
       openDetailsGroups.add(detailsName);
     }
-    const isForeign = ["math", "svg"].includes(containerTag) &&
+    const isForeign = isForeignAt(html.start) &&
       !integrationRanges.some((range) => html.start >= range.start && html.start < range.end);
     if (!isProtectedOpening(parsed, isForeign) && !isLaterGroupedOpen) continue;
 
@@ -692,15 +722,8 @@ const normalizeRawHtmlText = (source, containerTag = null) => {
   });
   const protectedRanges = hiddenHtmlRanges(tree, source, containerTag);
   if (containerTag === "select") {
-    const options = [...source.matchAll(/<option(?=[\t\n\f\r />])[^>]*>[\s\S]*?<\/option\s*>/gi)];
-    const selected = options.findIndex((option) => /<option\b[^>]*\bselected(?:[\s=>]|$)/i.test(option[0]));
-    const visible = selected >= 0 ? selected : 0;
-    for (const [index, option] of options.entries()) {
-      if (index !== visible) protectedRanges.push({
-        start: option.index,
-        end: option.index + option[0].length,
-        tag: "option",
-      });
+    for (const range of hiddenOptionRanges(`<select>${source}</select>`)) {
+      protectedRanges.push({ ...range, start: range.start - 8, end: range.end - 8 });
     }
   }
   const tokens = htmlTokens(tree);

@@ -969,6 +969,23 @@ test("implicit ancestors and control fallback content preserve visibility", () =
   ]) assert.doesNotMatch(normalizeMarkdownForInvariant(markdown), /connector GitHub/);
 });
 
+test("implicit option and nested namespace state stays scoped", () => {
+  assert.doesNotMatch(
+    normalizeMarkdownForInvariant('<select><option>first<option>connector\nGitHub</select>'),
+    /connector GitHub/,
+  );
+  assert.match(
+    normalizeMarkdownForInvariant(
+      '<div><svg><script/><text>connector\nGitHub</text></svg></div>',
+    ),
+    /connector GitHub/,
+  );
+  assert.doesNotMatch(
+    normalizeMarkdownForInvariant('<details open>\n\nconnector\n\nGitHub\n\n</details>'),
+    /connector.*GitHub/,
+  );
+});
+
 test("unreferenced footnote definitions remain metadata", () => {
   assert.doesNotMatch(
     normalizeMarkdownForInvariant("[^route]: connector\n    GitHub"),
