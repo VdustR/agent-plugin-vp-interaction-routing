@@ -7,20 +7,22 @@ import { math } from "micromark-extension-math";
 const NORMALIZABLE_BLOCKS = new Set(["heading", "paragraph"]);
 const FRONTMATTER_DELIMITER = /^(?:---|\.\.\.)[ \t]*$/;
 const RENDERED_BLOCK_HTML = new Set([
-  "address", "article", "aside", "blockquote", "body", "caption", "center", "dd",
+  "address", "article", "aside", "blockquote", "caption", "center", "dd",
   "details", "dialog", "dir", "div", "dl", "dt", "fieldset", "figcaption", "figure",
   "footer", "form", "frameset", "h1", "h2", "h3", "h4", "h5", "h6", "header",
-  "hgroup", "hr", "html", "legend", "li", "main", "menu", "nav", "noframes", "ol",
+  "hgroup", "hr", "legend", "li", "main", "menu", "nav", "noframes", "ol",
   "p", "pre", "search", "section", "summary", "table", "tbody", "td", "tfoot", "th",
   "thead", "tr", "ul",
 ]);
 
 const labelRange = (node, source) => {
-  if (!["image", "imageReference"].includes(node.type)) return null;
+  const isImage = ["image", "imageReference"].includes(node.type);
+  if (!isImage && !["link", "linkReference"].includes(node.type)) return null;
   const raw = source.slice(node.position.start.offset, node.position.end.offset);
-  if (!raw.startsWith("![")) return null;
+  const labelStart = isImage ? 2 : 1;
+  if (!raw.startsWith(isImage ? "![" : "[")) return null;
   let depth = 1;
-  for (let index = 2; index < raw.length; index += 1) {
+  for (let index = labelStart; index < raw.length; index += 1) {
     if (raw[index] === "\\") {
       index += 1;
       continue;
@@ -32,15 +34,18 @@ const labelRange = (node, source) => {
       continue;
     }
     if (raw[index] === "<") {
-      const isComment = raw.startsWith("<!--", index);
-      const closing = raw.indexOf(isComment ? "-->" : ">", index + 1);
-      if (closing >= 0) index = closing + (isComment ? 2 : 0);
-      continue;
+      const html = raw.slice(index).match(
+        /^(?:<!--[\s\S]*?-->|<\/?[A-Za-z][A-Za-z0-9-]*(?:\s+[A-Za-z_:][\w:.-]*(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s"'=<>`]+))?)*\s*\/?>)/,
+      )?.[0];
+      if (html) {
+        index += html.length - 1;
+        continue;
+      }
     }
     if (raw[index] === "[") depth += 1;
     if (raw[index] !== "]" || --depth !== 0) continue;
     return {
-      start: node.position.start.offset + 2,
+      start: node.position.start.offset + labelStart,
       end: node.position.start.offset + index,
     };
   }
@@ -83,7 +88,7 @@ const literalQuotePrefixes = (block, source) => {
       const label = labelRange(node, source);
       const raw = label ? source.slice(label.start, label.end) :
         source.slice(node.position.start.offset, node.position.end.offset);
-      const newlineEvents = [...raw.matchAll(/\n|&#(?:0*10|x0*a);|&NewLine;/gi)]
+      const newlineEvents = [...raw.matchAll(/\n|&#(?:0*10|[xX]0*[aA]);|&NewLine;/g)]
         .map((match) => match[0] === "\n");
       let event = 0;
       const physicalLiteral = literal.replace(/\n/g, () => newlineEvents[event++] ? "\n" : " ");
@@ -166,7 +171,7 @@ const normalizeParsedMarkdown = (source) => {
       ...inlineNodes(node, "imageReference"),
     ];
     const rawTextRanges = htmlNodes.flatMap((html) => {
-      const tag = html.value.match(/^<(script|style|title|textarea)(?=[\s/>])/i)?.[1];
+      const tag = html.value.match(/^<(script|style|template|title|textarea)(?=[\s/>])/i)?.[1];
       if (!tag) return [];
       const tail = normalized.slice(html.position.end.offset);
       const closing = new RegExp(`<\\/${tag}\\s*>`, "i").exec(tail);
@@ -192,8 +197,11 @@ const normalizeParsedMarkdown = (source) => {
       const isInside = (child) => newlineOffset >= child.position.start.offset &&
         newlineOffset < child.position.end.offset;
       const isInsideRange = (range) => newlineOffset >= range.start && newlineOffset < range.end;
-      const isLinkMetadata = linkNodes.some((link) => isInside(link) &&
-        !link.children.some(isInside));
+      const isLinkMetadata = linkNodes.some((link) => {
+        if (!isInside(link)) return false;
+        const label = labelRange(link, normalized);
+        return label && newlineOffset >= label.end;
+      });
       const isImageMetadata = imageNodes.some((image) => {
         if (!isInside(image)) return false;
         const label = labelRange(image, normalized);

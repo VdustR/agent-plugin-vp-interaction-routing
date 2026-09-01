@@ -289,6 +289,12 @@ test("visible prose after an HTML break still folds its soft wrap", () => {
     normalizeMarkdownForInvariant("intro<br>connector for\nGitHub"),
     /connector for GitHub/,
   );
+  for (const tag of ["body", "html"]) {
+    assert.match(
+      normalizeMarkdownForInvariant(`connector<${tag}>\nGitHub`),
+      /connector.*GitHub/,
+    );
+  }
 });
 
 test("Markdown closing syntax after an HTML break does not hide the boundary", () => {
@@ -308,6 +314,13 @@ test("link destination and title metadata remain line-bounded", () => {
   assert.doesNotMatch(
     normalizeMarkdownForInvariant('[visible](connector\n"GitHub")'),
     /connector.*GitHub/,
+  );
+});
+
+test("visible link-label wraps between inline children are folded", () => {
+  assert.match(
+    normalizeMarkdownForInvariant("[connector *for*\nGitHub](x)"),
+    /connector \*for\* GitHub/,
   );
 });
 
@@ -338,11 +351,25 @@ test("image alt prefixes ignore destination metadata newlines", () => {
   assert.doesNotMatch(normalized, /connector for GitHub/);
 });
 
+test("invalid HTML-like image label text still participates in bracket matching", () => {
+  assert.match(
+    normalizeMarkdownForInvariant("![connector <x[> note]\nGitHub](x)"),
+    /note\] GitHub/,
+  );
+});
+
 test("decoded entity newlines do not shift quote-prefix metadata", () => {
   const markdown = "> connector for &#10;> note\n> GitHub";
 
   assert.match(normalizeMarkdownForInvariant(markdown), /note GitHub/);
   assert.doesNotMatch(normalizeMarkdownForInvariant(markdown), /note > GitHub/);
+});
+
+test("invalid named newline casing does not shift quote-prefix metadata", () => {
+  const markdown = "> &newline;\n> connector for\n>     > GitHub";
+
+  assert.match(normalizeMarkdownForInvariant(markdown), /connector for > GitHub/);
+  assert.doesNotMatch(normalizeMarkdownForInvariant(markdown), /connector for GitHub/);
 });
 
 test("physical quote prefixes survive earlier decoded entity newlines", () => {
@@ -364,6 +391,10 @@ test("raw-text HTML element bodies remain line-bounded", () => {
   );
   assert.doesNotMatch(
     normalizeMarkdownForInvariant("Visible<script/>\nconnector\nGitHub\n</script>"),
+    /connector GitHub/,
+  );
+  assert.doesNotMatch(
+    normalizeMarkdownForInvariant("Visible<template>\nconnector\nGitHub\n</template>"),
     /connector GitHub/,
   );
 });
