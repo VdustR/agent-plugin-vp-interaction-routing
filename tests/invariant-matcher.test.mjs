@@ -204,7 +204,7 @@ test("a literal greater-than sign inside inline code is preserved", () => {
   const markdown = "`connector for\n    > GitHub`";
   const normalized = normalizeMarkdownForInvariant(markdown);
 
-  assert.match(normalized, /connector for > GitHub/);
+  assert.equal(normalized, "`connector for     > GitHub`");
   assert.doesNotMatch(normalized, /connector for GitHub/);
 });
 
@@ -246,5 +246,24 @@ test("decoded greater-than signs are not inserted into normalized source", () =>
   assert.equal(
     normalizeMarkdownForInvariant("connector for\n&gt; GitHub"),
     "connector for &gt; GitHub",
+  );
+});
+
+test("only a mixed quote prefix's literal suffix is restored", () => {
+  const markdown = "> Prefer the connector for\n>     > GitHub";
+
+  assert.match(normalizeMarkdownForInvariant(markdown), /connector for > GitHub/);
+});
+
+test("line-breaking inline HTML elements preserve following newlines", () => {
+  for (const markdown of ["connector<div>\nGitHub", "connector</p>\nGitHub", "connector<hr>\nGitHub"]) {
+    assert.doesNotMatch(normalizeMarkdownForInvariant(markdown), /connector.*GitHub/);
+  }
+});
+
+test("inline-code newlines retain their adjacent whitespace", () => {
+  assert.equal(
+    normalizeMarkdownForInvariant("`connector  \nGitHub`"),
+    "`connector   GitHub`",
   );
 });
