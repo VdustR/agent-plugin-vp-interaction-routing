@@ -55,7 +55,7 @@ const explicitBreakLines = (block, source) => {
   const lines = new Set();
   const visit = (node) => {
     if (node.type === "break") lines.add(node.position.end.line);
-    if (node.type === "html" && /^<br\s*\/?>$/i.test(node.value) &&
+    if (node.type === "html" && /^<br(?=[\s/>])[\s\S]*\/?>$/i.test(node.value) &&
         /^[ \t]*\n/.test(source.slice(node.position.end.offset))) {
       lines.add(node.position.end.line + 1);
     }

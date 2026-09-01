@@ -221,7 +221,11 @@ test("explicit Markdown hard breaks remain line boundaries", () => {
 });
 
 test("explicit HTML breaks at line endings remain line boundaries", () => {
-  for (const markdown of ["connector<br>\nGitHub", "connector<BR />  \nGitHub"]) {
+  for (const markdown of [
+    "connector<br>\nGitHub",
+    "connector<BR />  \nGitHub",
+    'connector<br class="print-only">\nGitHub',
+  ]) {
     assert.doesNotMatch(normalizeMarkdownForInvariant(markdown), /connector.*GitHub/);
   }
 });
