@@ -87,15 +87,24 @@ test("inline HTML does not disable surrounding prose normalization", () => {
 });
 
 test("inline HTML breaks remain regex boundaries", () => {
-  assert.doesNotMatch(
-    normalizeMarkdownForInvariant("connector <br>\nGitHub"),
-    CROSS_BLOCK_PATTERN,
-  );
+  for (const tag of ["<br>", '<br class="note">']) {
+    assert.doesNotMatch(
+      normalizeMarkdownForInvariant(`connector ${tag}\nGitHub`),
+      CROSS_BLOCK_PATTERN,
+    );
+  }
 });
 
 test("image alt text normalizes soft wraps", () => {
   assert.match(
     normalizeMarkdownForInvariant("![authenticated connector for\nGitHub](route.png)"),
     /connector for GitHub/,
+  );
+});
+
+test("footnote definitions remain metadata", () => {
+  assert.doesNotMatch(
+    normalizeMarkdownForInvariant("[^route]: connector\n    GitHub"),
+    CROSS_BLOCK_PATTERN,
   );
 });

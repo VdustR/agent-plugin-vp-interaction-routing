@@ -31,7 +31,7 @@ const renderedText = (node) => {
     case "break":
       return "\n";
     case "html":
-      return /^<br\s*\/?>$/i.test(node.value.trim()) ? "\n" : "";
+      return /^<br(?:\s[^>]*)?\s*\/?>$/i.test(node.value.trim()) ? "\n" : "";
     case "image":
     case "imageReference":
       return (node.alt ?? "").replace(/\n/g, " ");
@@ -41,6 +41,7 @@ const renderedText = (node) => {
 };
 
 const collectBlocks = (node, blocks = []) => {
+  if (node.type === "footnoteDefinition") return blocks;
   if (NORMALIZABLE_BLOCKS.has(node.type) || OPAQUE_BLOCKS.has(node.type)) {
     blocks.push(node);
     return blocks;
