@@ -553,6 +553,26 @@ test("contextually inert block end tags do not preserve soft wraps", () => {
     normalizeMarkdownForInvariant("connector<div>x</div>\nGitHub"),
     /connector.*GitHub/,
   );
+  assert.doesNotMatch(
+    normalizeMarkdownForInvariant("<div/>aside</div>\nGitHub"),
+    /aside GitHub/,
+  );
+  assert.match(
+    normalizeMarkdownForInvariant("connector<frameset>\nGitHub"),
+    /connector.*GitHub/,
+  );
+});
+
+test("collapsed details bodies remain line-bounded", () => {
+  const body = "<summary>Note</summary>\nconnector\nGitHub\n</details>";
+  assert.doesNotMatch(
+    normalizeMarkdownForInvariant(`Visible<details>\n${body}`),
+    /connector GitHub/,
+  );
+  assert.match(
+    normalizeMarkdownForInvariant(`Visible<details open>\n${body}`),
+    /connector GitHub/,
+  );
 });
 
 test("non-rendering HTML tags do not preserve soft wraps", () => {

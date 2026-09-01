@@ -13,6 +13,10 @@ const RENDERED_BLOCK_HTML = new Set([
   "hgroup", "hr", "legend", "li", "main", "menu", "nav", "noframes", "ol",
   "p", "pre", "search", "section", "summary", "table", "ul",
 ]);
+const VOID_HTML = new Set([
+  "area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta",
+  "param", "source", "track", "wbr",
+]);
 
 const HTML_COMMENT_SOURCE = String.raw`<!--(?!>|->)(?:(?!--)[\s\S])*?(?<!-)-->`;
 const HTML_TAG_SOURCE = String.raw`<\/?[A-Za-z][A-Za-z0-9-]*(?:[\t\n\f\r ]+[A-Za-z_:][\w:.-]*(?:[\t\n\f\r ]*=[\t\n\f\r ]*(?:"[^"]*"|'[^']*'|[^\t\n\f\r "'=<>\x60]+))?)*[\t\n\f\r ]*\/?>`;
@@ -144,7 +148,11 @@ const explicitBreaks = (block, source) => {
       const tagMatch = node.value.match(/^<(\/)?([a-z][\w-]*)(?=[\s/>])/i);
       const tag = tagMatch?.[2].toLowerCase();
       const isClosing = Boolean(tagMatch?.[1]);
-      const isActiveClosing = !isClosing || tag === "p" || (openBlockTags.get(tag) ?? 0) > 0;
+      const hasVisibleBefore = visibleNodes.some((visible) =>
+        visible.position.end.offset <= node.position.start.offset);
+      const isApplicableOpening = !(tag === "frameset" && hasVisibleBefore);
+      const isActiveClosing = (!isClosing && isApplicableOpening) || tag === "p" ||
+        (openBlockTags.get(tag) ?? 0) > 0;
       const newlineOffset = source.indexOf("\n", node.position.end.offset);
       if ((tag === "br" || (RENDERED_BLOCK_HTML.has(tag) && isActiveClosing)) && newlineOffset >= 0) {
         const hasVisibleContent = visibleNodes.some((visible) =>
@@ -156,7 +164,7 @@ const explicitBreaks = (block, source) => {
       if (RENDERED_BLOCK_HTML.has(tag) && tag !== "p") {
         const depth = openBlockTags.get(tag) ?? 0;
         if (isClosing) openBlockTags.set(tag, Math.max(0, depth - 1));
-        else if (!/\/>\s*$/.test(node.value)) openBlockTags.set(tag, depth + 1);
+        else if (isApplicableOpening && !VOID_HTML.has(tag)) openBlockTags.set(tag, depth + 1);
       }
     }
     for (const child of node.children ?? []) visit(child);
@@ -191,10 +199,10 @@ const scriptClosingEnd = (tail) => {
 };
 
 const PROTECTED_HTML_TAGS = new Set([
-  "iframe", "listing", "noembed", "noframes", "noscript", "plaintext", "pre",
+  "details", "iframe", "listing", "noembed", "noframes", "noscript", "plaintext", "pre",
   "script", "style", "template", "textarea", "title", "xmp",
 ]);
-const BALANCED_HTML_TAGS = new Set(["listing", "pre", "template"]);
+const BALANCED_HTML_TAGS = new Set(["details", "listing", "pre", "template"]);
 
 const protectedHtmlClosingEnd = (tag, tail) => {
   if (tag === "plaintext") return tail.length;
@@ -227,14 +235,63 @@ const protectedHtmlClosingEnd = (tag, tail) => {
   return -1;
 };
 
+const normalizeVisibleHtmlGaps = (source) => {
+  let normalized = "";
+  let cursor = 0;
+  for (const token of source.matchAll(HTML_TOKEN_PATTERN)) {
+    if (token.index < cursor) continue;
+    normalized += normalizeParsedMarkdown(source.slice(cursor, token.index), false);
+    const tokenMatch = token[0].match(/^<(\/)?([A-Za-z][A-Za-z0-9-]*)/);
+    const tag = tokenMatch?.[2].toLowerCase();
+    const isClosing = Boolean(tokenMatch?.[1]);
+    const isOpenDetails = tag === "details" &&
+      /[\t\n\f\r ]open(?:[\t\n\f\r />]|=)/i.test(token[0]);
+    if (!isClosing && PROTECTED_HTML_TAGS.has(tag) && !isOpenDetails) {
+      const childStart = token.index + token[0].length;
+      const childEnd = protectedHtmlClosingEnd(tag, source.slice(childStart));
+      const end = childEnd < 0 ? source.length : childStart + childEnd;
+      normalized += source.slice(token.index, end);
+      cursor = end;
+    } else {
+      normalized += token[0];
+      cursor = token.index + token[0].length;
+    }
+  }
+  return normalized + normalizeParsedMarkdown(source.slice(cursor), false);
+};
+
+const normalizeOpenDetails = (tree, source) => {
+  const edits = [];
+  for (const html of inlineNodes(tree, "html")) {
+    if (!/^<details(?=[\t\n\f\r />])/i.test(html.value) ||
+        !/[\t\n\f\r ]open(?:[\t\n\f\r />]|=)/i.test(html.value)) continue;
+    const tail = source.slice(html.position.end.offset);
+    const closingEnd = protectedHtmlClosingEnd("details", tail);
+    if (closingEnd < 0) continue;
+    const rangeEnd = html.position.end.offset + closingEnd;
+    const closingStart = source.lastIndexOf("</details", rangeEnd);
+    edits.push({
+      start: html.position.end.offset,
+      end: closingStart,
+      replacement: normalizeVisibleHtmlGaps(source.slice(html.position.end.offset, closingStart)),
+    });
+  }
+  let normalized = source;
+  for (const edit of edits.sort((a, b) => b.start - a.start)) {
+    normalized = normalized.slice(0, edit.start) + edit.replacement + normalized.slice(edit.end);
+  }
+  return normalized;
+};
+
 const hiddenHtmlRanges = (tree, source) => {
   const ranges = [];
   for (const html of inlineNodes(tree, "html")) {
     if (ranges.some((range) => html.position.start.offset < range.end)) continue;
     const tag = html.value.match(
-      /^<(iframe|listing|noembed|noframes|noscript|plaintext|pre|script|style|template|textarea|title|xmp)(?=[\t\n\f\r />])/i,
+      /^<(details|iframe|listing|noembed|noframes|noscript|plaintext|pre|script|style|template|textarea|title|xmp)(?=[\t\n\f\r />])/i,
     )?.[1].toLowerCase();
     if (!tag) continue;
+    if (tag === "details" && /[\t\n\f\r ]open(?:[\t\n\f\r />]|=)/i.test(html.value)) continue;
 
     const tail = source.slice(html.position.end.offset);
     const closingEnd = protectedHtmlClosingEnd(tag, tail);
@@ -246,12 +303,16 @@ const hiddenHtmlRanges = (tree, source) => {
   return ranges;
 };
 
-const normalizeParsedMarkdown = (source) => {
+const normalizeParsedMarkdown = (source, normalizeDetails = true) => {
   if (source === "") return source;
   const tree = fromMarkdown(source, {
     extensions: [gfm(), math()],
     mdastExtensions: [gfmFromMarkdown(), mathFromMarkdown()],
   });
+  if (normalizeDetails) {
+    const detailsNormalized = normalizeOpenDetails(tree, source);
+    if (detailsNormalized !== source) return normalizeParsedMarkdown(detailsNormalized, false);
+  }
   let normalized = source;
   const protectedHtmlRanges = hiddenHtmlRanges(tree, source);
 
