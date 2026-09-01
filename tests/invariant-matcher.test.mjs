@@ -277,9 +277,16 @@ test("line-breaking inline HTML elements preserve following newlines", () => {
     "connector<script>\nGitHub</script>",
     "connector<style>\nGitHub</style>",
     "connector<textarea>\nGitHub</textarea>",
+    "connector<br><!-- note -->\nGitHub",
   ]) {
     assert.doesNotMatch(normalizeMarkdownForInvariant(markdown), /connector.*GitHub/);
   }
+});
+
+test("multiline inline HTML contents are not folded as prose", () => {
+  const markdown = "Visible <!-- connector\nGitHub -->";
+
+  assert.doesNotMatch(normalizeMarkdownForInvariant(markdown), /connector GitHub/);
 });
 
 test("inline-code newlines retain their adjacent whitespace", () => {

@@ -68,7 +68,7 @@ const explicitBreakLines = (block, source) => {
   const lines = new Set();
   const visit = (node) => {
     if (node.type === "break") lines.add(node.position.end.line);
-    if (node.type === "html" && /^[ \t]*\n/.test(source.slice(node.position.end.offset))) {
+    if (node.type === "html" && /^[^\n]*\n/.test(source.slice(node.position.end.offset))) {
       const tag = node.value.match(/^<\/?([a-z][\w-]*)(?=[\s/>])/i)?.[1].toLowerCase();
       if (tag === "br" || LINE_BREAKING_HTML.has(tag)) lines.add(node.position.end.line + 1);
     }
@@ -107,6 +107,7 @@ const normalizeParsedMarkdown = (source) => {
     const preservedBreakLines = explicitBreakLines(node, normalized);
     const codeNodes = inlineNodes(node, "inlineCode");
     const mathNodes = inlineNodes(node, "inlineMath");
+    const htmlNodes = inlineNodes(node, "html");
     const original = normalized.slice(start.offset, end.offset);
     const edits = codeNodes.map((code) => {
       const raw = normalized.slice(code.position.start.offset, code.position.end.offset);
@@ -123,7 +124,8 @@ const normalizeParsedMarkdown = (source) => {
       const newlineOffset = start.offset + match.index + match[0].indexOf("\n");
       const isInside = (child) => newlineOffset >= child.position.start.offset &&
         newlineOffset < child.position.end.offset;
-      if (codeNodes.some(isInside) || mathNodes.some(isInside) || preservedBreakLines.has(line)) {
+      if (codeNodes.some(isInside) || mathNodes.some(isInside) || htmlNodes.some(isInside) ||
+          preservedBreakLines.has(line)) {
         continue;
       }
       const consumedPrefix = match[0].match(/\n[ \t]*((?:>[ \t]*)+)$/)?.[1];
