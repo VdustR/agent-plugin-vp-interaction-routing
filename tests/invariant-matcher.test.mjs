@@ -872,6 +872,30 @@ test("HTML comments, entities, and foreign text follow tokenizer context", () =>
   );
 });
 
+test("protected and conditional HTML contexts remain isolated", () => {
+  for (const markdown of [
+    '<script>"<svg><![CDATA[connector\nGitHub]]></svg>"</script>',
+    '<div><script>"<svg>"</script><![CDATA[connector\nGitHub]]></div>',
+    '<div><?meta connector\nGitHub></div>',
+    'Visible <span hidden>`connector\nGitHub`</span>',
+  ]) assert.doesNotMatch(normalizeMarkdownForInvariant(markdown), /connector GitHub/);
+  assert.match(
+    normalizeMarkdownForInvariant('<div><span hidden>secret</div>\n\nconnector\nGitHub'),
+    /connector GitHub/,
+  );
+  assert.match(
+    normalizeMarkdownForInvariant('<details open>\nconnector\n# GitHub\n</details>'),
+    /connector # GitHub/,
+  );
+  assert.doesNotMatch(
+    normalizeMarkdownForInvariant(
+      '<details><details name="route" open>nested</details></details>\n' +
+      '<details name="route" open>connector\nGitHub</details>',
+    ),
+    /connector GitHub/,
+  );
+});
+
 test("unreferenced footnote definitions remain metadata", () => {
   assert.doesNotMatch(
     normalizeMarkdownForInvariant("[^route]: connector\n    GitHub"),

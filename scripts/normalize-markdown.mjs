@@ -69,7 +69,7 @@ const ANCESTOR_END_CLOSES = new Map([
 const HTML_COMMENT_SOURCE = String.raw`<!--(?!>|->)(?:(?!--)[\s\S])*?(?:(?<!-)--!?>|$)`;
 const HTML_TAG_SOURCE = String.raw`<\/?[A-Za-z][A-Za-z0-9-]*(?:[\t\n\f\r ]+[A-Za-z_:][\w:.-]*(?:[\t\n\f\r ]*=[\t\n\f\r ]*(?:"[^"]*"|'[^']*'|[^\t\n\f\r "'=<>\x60]+))?)*[\t\n\f\r ]*\/?>`;
 const HTML_TOKEN_PATTERN = new RegExp(
-  `${HTML_COMMENT_SOURCE}|<\\?[\\s\\S]*?\\?>|<![A-Z][^>]*>|<!\\[CDATA\\[[\\s\\S]*?\\]\\]>|${HTML_TAG_SOURCE}`,
+  `${HTML_COMMENT_SOURCE}|<\\?[\\s\\S]*?>|<![A-Z][^>]*>|<!\\[CDATA\\[[\\s\\S]*?\\]\\]>|${HTML_TAG_SOURCE}`,
   "gi",
 );
 
@@ -393,6 +393,8 @@ const protectedHtmlClosingEnd = (tag, tail, forceBalanced = false) => {
         IMPLICIT_CROSS_TAG_CLOSE.get(tag)?.has(parsed.tag)) return token.index;
     if (forceBalanced && parsed.isClosing &&
         ANCESTOR_END_CLOSES.get(tag)?.has(parsed.tag)) return token.index + token[0].length;
+    if (forceBalanced && parsed.isClosing && !RENDERED_BLOCK_HTML.has(tag) &&
+        RENDERED_BLOCK_HTML.has(parsed.tag)) return token.index + token[0].length;
     if (parsed.tag !== tag) continue;
     if (parsed.isClosing) depth -= 1;
     else if (forceBalanced && IMPLICIT_SAME_TAG_CLOSE.has(tag)) return token.index;
@@ -474,15 +476,37 @@ const closingTagStart = (tag, tail, closingEnd) => {
 const normalizeConditionalContainers = (tree, source) => {
   const edits = [];
   let claimedEnd = -1;
-  const openDetailsGroups = new Set();
+  const firstDetailsGroupStart = new Map();
   const parentProtectedRanges = hiddenHtmlRanges(tree, source);
+  for (const nested of htmlTokens(tree)) {
+    const parsed = parseHtmlTag(nested.value);
+    const parentRange = parentProtectedRanges.find((range) =>
+      nested.start > range.start && nested.start < range.end);
+    const name = parsed?.tag === "details" ? parsed.attributes.get("name") : null;
+    if (parentRange && ["details", "dialog"].includes(parentRange.tag) &&
+        !parsed.isClosing && parsed.attributes.has("open") && name) {
+      if (!firstDetailsGroupStart.has(name)) firstDetailsGroupStart.set(name, nested.start);
+    } else if (!parentRange && parsed?.tag === "details" && !parsed.isClosing &&
+        parsed.attributes.has("open") && name && !firstDetailsGroupStart.has(name)) {
+      firstDetailsGroupStart.set(name, nested.start);
+    }
+  }
   for (const html of htmlTokens(tree)) {
     if (html.start < claimedEnd) continue;
     const parsed = parseHtmlTag(html.value);
-    if (!parsed || parsed.isClosing || parentProtectedRanges.some((range) =>
-      html.start > range.start && html.start < range.end)) continue;
+    if (!parsed || parsed.isClosing) continue;
+    const parentRange = parentProtectedRanges.find((range) =>
+      html.start > range.start && html.start < range.end);
+    if (parentRange) {
+      const nestedName = parsed.tag === "details" ? parsed.attributes.get("name") : null;
+      if (["details", "dialog"].includes(parentRange.tag) &&
+          parsed.tag === "details" && parsed.attributes.has("open") && nestedName) {
+      }
+      continue;
+    }
     const isConditional = ["details", "dialog"].includes(parsed.tag);
-    const isVisibleBlockContainer = html.block && !VOID_HTML.has(parsed.tag) &&
+    const isVisibleBlockContainer = (html.block || ["math", "svg"].includes(parsed.tag)) &&
+      !VOID_HTML.has(parsed.tag) &&
       !PROTECTED_HTML_TAGS.has(parsed.tag) && !parsed.attributes.has("hidden");
     if (!isConditional && !isVisibleBlockContainer) continue;
     const tail = source.slice(html.end);
@@ -493,17 +517,14 @@ const normalizeConditionalContainers = (tree, source) => {
       closingTagStart(parsed.tag, tail, closingEnd);
     if (relativeClosingStart < 0) continue;
     let closingStart = html.end + relativeClosingStart;
-    if (isVisibleBlockContainer && html.nodeEnd < closingStart) {
+    if (isVisibleBlockContainer && html.block && html.nodeEnd < closingStart) {
       closingStart = html.nodeEnd;
       rangeEnd = html.nodeEnd;
     }
     const body = source.slice(html.end, closingStart);
     const detailsName = parsed.tag === "details" ? parsed.attributes.get("name") : null;
     const isGroupedOpen = parsed.attributes.has("open") && detailsName &&
-      !openDetailsGroups.has(detailsName);
-    if (parsed.tag === "details" && parsed.attributes.has("open") && detailsName) {
-      openDetailsGroups.add(detailsName);
-    }
+      firstDetailsGroupStart.get(detailsName) === html.start;
     const isEffectivelyOpen = parsed.attributes.has("open") &&
       (!detailsName || isGroupedOpen);
     let replacement = body;
@@ -512,11 +533,11 @@ const normalizeConditionalContainers = (tree, source) => {
       const summary = summaryParts(body);
       if (summary) {
         replacement = (isEffectivelyOpen ?
-          normalizeVisibleRegion(summary.prefix) : summary.prefix) + summary.opening +
+          normalizeRawHtmlText(summary.prefix) : summary.prefix) + summary.opening +
           (summary.isHidden ? summary.content : normalizeRawHtmlText(summary.content)) +
           summary.closing + (isEffectivelyOpen && summary.suffix ? "\n" : "") +
-          (isEffectivelyOpen ? normalizeVisibleRegion(summary.suffix) : summary.suffix);
-      } else if (isEffectivelyOpen) replacement = normalizeVisibleRegion(body);
+          (isEffectivelyOpen ? normalizeRawHtmlText(summary.suffix) : summary.suffix);
+      } else if (isEffectivelyOpen) replacement = normalizeRawHtmlText(body);
     } else if (parsed.tag === "dialog") {
       if (isEffectivelyOpen) replacement = normalizeVisibleRegion(body);
     } else replacement = normalizeRawHtmlText(body, parsed.tag);
@@ -567,13 +588,14 @@ const hiddenHtmlRanges = (tree, source) => {
       const closingStart = closingEnd < 0 ? source.length : html.end + closingEnd;
       const summary = summaryParts(source.slice(html.end, closingStart));
       if (summary) {
-        if (summary.prefix) ranges.push({ start: html.start, end: html.end + summary.prefix.length });
+        if (summary.prefix) ranges.push({ start: html.start, end: html.end + summary.prefix.length, tag: parsed.tag });
         start = html.end + summary.bodyStart;
       }
     }
     ranges.push({
       start,
       end: closingEnd >= 0 ? html.end + closingEnd : source.length,
+      tag: parsed.tag,
     });
   }
   return ranges;
@@ -601,27 +623,23 @@ const normalizeVisibleRegion = (source) => {
 
 const normalizeRawHtmlText = (source, containerTag = null) => {
   if (!source) return source;
+  if (["math", "svg"].includes(containerTag)) {
+    source = source.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/gi, (section, content) =>
+      section.replace(content, content.replace(/[ \t]*\n[ \t]*/g, " ")));
+  }
   const tree = fromMarkdown(source, {
     extensions: [gfm(), math()],
     mdastExtensions: [gfmFromMarkdown(), mathFromMarkdown()],
   });
   const protectedRanges = hiddenHtmlRanges(tree, source);
   const tokens = htmlTokens(tree);
-  const visibleCdataTokens = new Set();
-  let foreignDepth = ["math", "svg"].includes(containerTag) ? 1 : 0;
-  for (const token of tokens) {
-    const parsed = parseHtmlTag(token.value);
-    if (parsed && ["math", "svg"].includes(parsed.tag)) {
-      if (parsed.isClosing) foreignDepth = Math.max(0, foreignDepth - 1);
-      else foreignDepth += 1;
-    } else if (foreignDepth > 0 && /^<!\[CDATA\[/i.test(token.value)) {
-      visibleCdataTokens.add(token.start);
-    }
-  }
+  const cdataRanges = [...source.matchAll(/<!\[CDATA\[[\s\S]*?(?:\]\]>|$)/gi)]
+    .map((match) => ({ start: match.index, end: match.index + match[0].length }));
   const isProtected = (offset) => protectedRanges.some((range) =>
     offset >= range.start && offset < range.end);
   const isMarkup = (offset) => tokens.some((token) =>
-    !visibleCdataTokens.has(token.start) && offset >= token.start && offset < token.end);
+    offset >= token.start && offset < token.end) || cdataRanges.some((range) =>
+    offset >= range.start && offset < range.end);
   const edits = [...source.matchAll(/[ \t]*\n[ \t]*/g)]
     .filter((match) => {
       const newline = match.index + match[0].indexOf("\n");
@@ -655,16 +673,8 @@ const normalizeRawHtmlText = (source, containerTag = null) => {
   return normalized;
 };
 
-const normalizeForeignCdata = (source) => source.replace(
-  /<(svg|math)(?=[\t\n\f\r />])(?:"[^"]*"|'[^']*'|[^>])*?>[\s\S]*?<\/\1\s*>/gi,
-  (foreign) => foreign.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/gi, (section, content) =>
-    section.replace(content, content.replace(/[ \t]*\n[ \t]*/g, " "))),
-);
-
 const normalizeParsedMarkdown = (source, normalizeDetails = true) => {
   if (source === "") return source;
-  const foreignNormalized = normalizeForeignCdata(source);
-  if (foreignNormalized !== source) return normalizeParsedMarkdown(foreignNormalized, normalizeDetails);
   const tree = fromMarkdown(source, {
     extensions: [gfm(), math()],
     mdastExtensions: [gfmFromMarkdown(), mathFromMarkdown()],
@@ -698,7 +708,8 @@ const normalizeParsedMarkdown = (source, normalizeDetails = true) => {
       ...inlineNodes(node, "imageReference"),
     ];
     const original = normalized.slice(start.offset, end.offset);
-    const edits = codeNodes.map((code) => {
+    const edits = codeNodes.filter((code) => !protectedHtmlRanges.some((range) =>
+      code.position.start.offset >= range.start && code.position.start.offset < range.end)).map((code) => {
       const raw = normalized.slice(code.position.start.offset, code.position.end.offset);
       const delimiter = raw.match(/^`+/)?.[0] ?? "`";
       return {
