@@ -1,13 +1,15 @@
 import { fromMarkdown } from "mdast-util-from-markdown";
 import { gfmFromMarkdown } from "mdast-util-gfm";
+import { mathFromMarkdown } from "mdast-util-math";
 import { gfm } from "micromark-extension-gfm";
+import { math } from "micromark-extension-math";
 
 const NORMALIZABLE_BLOCKS = new Set(["heading", "paragraph"]);
 const FRONTMATTER_DELIMITER = /^(?:---|\.\.\.)[ \t]*$/;
 
 const splitFrontmatter = (source) => {
   const lines = source.split("\n");
-  if (lines[0] !== "---") return { frontmatter: null, markdown: source };
+  if (!/^---[ \t]*$/.test(lines[0])) return { frontmatter: null, markdown: source };
 
   const closingIndex = lines.findIndex((line, index) =>
     index > 0 && FRONTMATTER_DELIMITER.test(line));
@@ -35,8 +37,8 @@ const normalizableRanges = (tree) => {
 const normalizeParsedMarkdown = (source) => {
   if (source === "") return source;
   const tree = fromMarkdown(source, {
-    extensions: [gfm()],
-    mdastExtensions: [gfmFromMarkdown()],
+    extensions: [gfm(), math()],
+    mdastExtensions: [gfmFromMarkdown(), mathFromMarkdown()],
   });
   let normalized = source;
 
@@ -45,7 +47,7 @@ const normalizeParsedMarkdown = (source) => {
   // source range but not the paragraph text, so remove them with the wrap.
   for (const [start, end] of normalizableRanges(tree).reverse()) {
     const block = normalized.slice(start, end)
-      .replace(/\n[ \t]*(?:>[ \t]*)*/g, " ");
+      .replace(/[ \t]*\n[ \t]*(?:>[ \t]*)*/g, " ");
     normalized = normalized.slice(0, start) + block + normalized.slice(end);
   }
   return normalized;

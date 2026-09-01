@@ -67,6 +67,8 @@ const separateBlocks = {
     "<!-- connector -->\nGitHub is elsewhere.",
   "a link-reference definition followed by prose":
     "[connector]: /target\nGitHub is elsewhere.",
+  "a display-math block followed by prose":
+    "$$\nconnector\n$$\nGitHub is elsewhere.",
 };
 
 test("the blanket whitespace collapse reproduces the cross-list leak", () => {
@@ -173,6 +175,18 @@ test("an unmatched frontmatter opener falls back to Markdown", () => {
 
 test("a nested block quote strips list-relative continuation prefixes", () => {
   const markdown = "-   > Prefer the connector for\n    > GitHub operations.";
+
+  assert.match(normalizeMarkdownForInvariant(markdown), /connector for GitHub/);
+});
+
+test("frontmatter openers accept trailing horizontal whitespace", () => {
+  const markdown = "--- \ndescription: connector\n  GitHub\n---\nBody without guidance.";
+
+  assert.doesNotMatch(normalizeMarkdownForInvariant(markdown), CROSS_BLOCK_PATTERN);
+});
+
+test("soft-wrap folding removes trailing horizontal whitespace", () => {
+  const markdown = "Prefer the connector for \nGitHub operations.";
 
   assert.match(normalizeMarkdownForInvariant(markdown), /connector for GitHub/);
 });
