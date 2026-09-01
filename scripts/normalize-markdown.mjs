@@ -21,17 +21,32 @@ const splitFrontmatter = (source) => {
   };
 };
 
-const normalizableRanges = (tree) => {
-  const ranges = [];
+const normalizableBlocks = (tree) => {
+  const blocks = [];
   const visit = (node) => {
     if (NORMALIZABLE_BLOCKS.has(node.type)) {
-      ranges.push([node.position.start.offset, node.position.end.offset]);
+      blocks.push(node);
       return;
     }
     for (const child of node.children ?? []) visit(child);
   };
   visit(tree);
-  return ranges;
+  return blocks;
+};
+
+const literalQuotePrefixes = (block) => {
+  const prefixes = new Map();
+  const visit = (node) => {
+    if (node.type === "text") {
+      for (const [index, line] of node.value.split("\n").entries()) {
+        const prefix = line.match(/^(?:>[ \t]*)+/)?.[0];
+        if (prefix) prefixes.set(node.position.start.line + index, prefix);
+      }
+    }
+    for (const child of node.children ?? []) visit(child);
+  };
+  visit(block);
+  return prefixes;
 };
 
 const normalizeParsedMarkdown = (source) => {
@@ -45,10 +60,16 @@ const normalizeParsedMarkdown = (source) => {
   // Work backwards so replacing a soft wrap does not invalidate the source
   // offsets of blocks that precede it. Container prefixes are part of the raw
   // source range but not the paragraph text, so remove them with the wrap.
-  for (const [start, end] of normalizableRanges(tree).reverse()) {
-    const block = normalized.slice(start, end)
-      .replace(/[ \t]*\n[ \t]*(?:>[ \t]*)*/g, " ");
-    normalized = normalized.slice(0, start) + block + normalized.slice(end);
+  for (const node of normalizableBlocks(tree).reverse()) {
+    const { start, end } = node.position;
+    const literalPrefixes = literalQuotePrefixes(node);
+    let line = start.line;
+    const block = normalized.slice(start.offset, end.offset)
+      .replace(/[ \t]*\n[ \t]*(?:>[ \t]*)*/g, () => {
+        line += 1;
+        return ` ${literalPrefixes.get(line) ?? ""}`;
+      });
+    normalized = normalized.slice(0, start.offset) + block + normalized.slice(end.offset);
   }
   return normalized;
 };

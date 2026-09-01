@@ -190,3 +190,11 @@ test("soft-wrap folding removes trailing horizontal whitespace", () => {
 
   assert.match(normalizeMarkdownForInvariant(markdown), /connector for GitHub/);
 });
+
+test("a literal greater-than sign in a lazy continuation is preserved", () => {
+  const markdown = "> Prefer the connector for\n    > GitHub operations.";
+  const normalized = normalizeMarkdownForInvariant(markdown);
+
+  assert.match(normalized, /connector for > GitHub/);
+  assert.doesNotMatch(normalized, /connector for GitHub/);
+});
