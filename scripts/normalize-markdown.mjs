@@ -51,8 +51,12 @@ const literalQuotePrefixes = (block, source) => {
     const literal = typeof node.value === "string" ? node.value : node.alt;
     if (typeof literal === "string") {
       const raw = source.slice(node.position.start.offset, node.position.end.offset);
-      if (literal.split("\n").length !== raw.split("\n").length) return;
-      for (const [index, line] of literal.split("\n").entries()) {
+      const newlineEvents = [...raw.matchAll(/\n|&#(?:0*10|x0*a);|&NewLine;/gi)]
+        .map((match) => match[0] === "\n");
+      let event = 0;
+      const physicalLiteral = literal.replace(/\n/g, () => newlineEvents[event++] ? "\n" : " ");
+      if (event !== newlineEvents.length) return;
+      for (const [index, line] of physicalLiteral.split("\n").entries()) {
         const prefix = line.match(/^[ \t]*((?:>[ \t]*)+)/)?.[1];
         if (prefix && !prefixes.has(node.position.start.line + index)) {
           prefixes.set(node.position.start.line + index, {
@@ -127,6 +131,16 @@ const normalizeParsedMarkdown = (source) => {
     const htmlNodes = inlineNodes(node, "html");
     const linkNodes = inlineNodes(node, "link");
     const imageNodes = inlineNodes(node, "image");
+    const rawTextRanges = htmlNodes.flatMap((html) => {
+      const tag = html.value.match(/^<(script|style|title|textarea)(?=[\s>])/i)?.[1];
+      if (!tag) return [];
+      const tail = normalized.slice(html.position.end.offset);
+      const closing = new RegExp(`<\\/${tag}[ \\t]*>`, "i").exec(tail);
+      return closing ? [{
+        start: html.position.start.offset,
+        end: html.position.end.offset + closing.index + closing[0].length,
+      }] : [];
+    });
     const original = normalized.slice(start.offset, end.offset);
     const edits = codeNodes.map((code) => {
       const raw = normalized.slice(code.position.start.offset, code.position.end.offset);
@@ -143,6 +157,7 @@ const normalizeParsedMarkdown = (source) => {
       const newlineOffset = start.offset + match.index + match[0].indexOf("\n");
       const isInside = (child) => newlineOffset >= child.position.start.offset &&
         newlineOffset < child.position.end.offset;
+      const isInsideRange = (range) => newlineOffset >= range.start && newlineOffset < range.end;
       const isLinkMetadata = linkNodes.some((link) => isInside(link) &&
         !link.children.some(isInside));
       const isImageMetadata = imageNodes.some((image) => {
@@ -153,6 +168,7 @@ const normalizeParsedMarkdown = (source) => {
           newlineOffset >= image.position.start.offset + metadataOffset + 2;
       });
       if (codeNodes.some(isInside) || mathNodes.some(isInside) || htmlNodes.some(isInside) ||
+          rawTextRanges.some(isInsideRange) ||
           isLinkMetadata || isImageMetadata || preservedBreakLines.has(line)) {
         continue;
       }

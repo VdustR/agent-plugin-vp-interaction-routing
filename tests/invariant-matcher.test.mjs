@@ -318,6 +318,21 @@ test("decoded entity newlines do not shift quote-prefix metadata", () => {
   assert.doesNotMatch(normalizeMarkdownForInvariant(markdown), /note > GitHub/);
 });
 
+test("physical quote prefixes survive earlier decoded entity newlines", () => {
+  const markdown = "> connector for &#10; note\n>     > GitHub";
+  const normalized = normalizeMarkdownForInvariant(markdown);
+
+  assert.match(normalized, /note > GitHub/);
+  assert.doesNotMatch(normalized, /note GitHub/);
+});
+
+test("raw-text HTML element bodies remain line-bounded", () => {
+  for (const tag of ["script", "style", "title", "textarea"]) {
+    const markdown = `Visible<${tag}>\nconnector\nGitHub\n</${tag}>`;
+    assert.doesNotMatch(normalizeMarkdownForInvariant(markdown), /connector GitHub/);
+  }
+});
+
 test("inline-code newlines retain their adjacent whitespace", () => {
   assert.equal(
     normalizeMarkdownForInvariant("`connector  \nGitHub`"),
