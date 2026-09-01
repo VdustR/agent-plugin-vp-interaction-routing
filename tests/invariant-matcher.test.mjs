@@ -739,6 +739,20 @@ test("visible prose inside ordinary HTML blocks is normalized", () => {
     normalizeMarkdownForInvariant("<div>\nconnector\nGitHub"),
     /connector GitHub/,
   );
+  assert.doesNotMatch(
+    normalizeMarkdownForInvariant("<div>\nconnector\n\nGitHub\n</div>"),
+    /connector.*GitHub/,
+  );
+  assert.doesNotMatch(
+    normalizeMarkdownForInvariant(
+      '<div><span title="connector\nGitHub">visible</span></div>',
+    ),
+    /connector GitHub/,
+  );
+  assert.match(
+    normalizeMarkdownForInvariant("<div>connector</section>\nGitHub</div>"),
+    /connector.*GitHub/,
+  );
 });
 
 test("cross-tag implicit closures end hidden HTML ranges", () => {

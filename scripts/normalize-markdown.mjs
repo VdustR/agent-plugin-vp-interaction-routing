@@ -223,6 +223,8 @@ const inlineNodes = (block, type) => {
 const htmlTokens = (tree) => inlineNodes(tree, "html").flatMap((node) =>
   [...node.value.matchAll(HTML_TOKEN_PATTERN)].map((token) => ({
     block: node.value.includes("\n"),
+    nodeEnd: node.position.end.offset,
+    nodeStart: node.position.start.offset,
     value: token[0],
     start: node.position.start.offset + token.index,
     end: node.position.start.offset + token.index + token[0].length,
@@ -426,11 +428,15 @@ const normalizeConditionalContainers = (tree, source) => {
     const tail = source.slice(html.end);
     const closingEnd = protectedHtmlClosingEnd(parsed.tag, tail, true);
     if (closingEnd < 0 && !isVisibleBlockContainer) continue;
-    const rangeEnd = closingEnd < 0 ? source.length : html.end + closingEnd;
+    let rangeEnd = closingEnd < 0 ? source.length : html.end + closingEnd;
     const relativeClosingStart = closingEnd < 0 ? tail.length :
       closingTagStart(parsed.tag, tail, closingEnd);
     if (relativeClosingStart < 0) continue;
-    const closingStart = html.end + relativeClosingStart;
+    let closingStart = html.end + relativeClosingStart;
+    if (isVisibleBlockContainer && html.nodeEnd < closingStart) {
+      closingStart = html.nodeEnd;
+      rangeEnd = html.nodeEnd;
+    }
     const body = source.slice(html.end, closingStart);
     const detailsName = parsed.tag === "details" ? parsed.attributes.get("name") : null;
     const isGroupedOpen = parsed.attributes.has("open") && detailsName &&
@@ -533,17 +539,30 @@ const normalizeRawHtmlText = (source) => {
     mdastExtensions: [gfmFromMarkdown(), mathFromMarkdown()],
   });
   const protectedRanges = hiddenHtmlRanges(tree, source);
+  const tokens = htmlTokens(tree);
   const isProtected = (offset) => protectedRanges.some((range) =>
     offset >= range.start && offset < range.end);
+  const isMarkup = (offset) => tokens.some((token) =>
+    offset >= token.start && offset < token.end);
   const edits = [...source.matchAll(/[ \t]*\n[ \t]*/g)]
-    .filter((match) => !isProtected(match.index + match[0].indexOf("\n")))
+    .filter((match) => {
+      const newline = match.index + match[0].indexOf("\n");
+      return !isProtected(newline) && !isMarkup(newline);
+    })
     .map((match) => ({ start: match.index, end: match.index + match[0].length, value: " " }));
-  for (const token of htmlTokens(tree)) {
+  const openBlockTags = new Map();
+  for (const token of tokens) {
     const parsed = parseHtmlTag(token.value);
     if (!parsed || isProtected(token.start) || parsed.attributes.has("hidden")) continue;
-    if (parsed.tag === "br" || RENDERED_BLOCK_HTML.has(parsed.tag)) {
+    const depth = openBlockTags.get(parsed.tag) ?? 0;
+    const isActiveClosing = !parsed.isClosing || parsed.tag === "p" || depth > 0;
+    if (parsed.tag === "br" || (RENDERED_BLOCK_HTML.has(parsed.tag) && isActiveClosing)) {
       edits.push({ start: token.start, end: token.start, value: "\n" });
       edits.push({ start: token.end, end: token.end, value: "\n" });
+    }
+    if (RENDERED_BLOCK_HTML.has(parsed.tag) && parsed.tag !== "p") {
+      if (parsed.isClosing) openBlockTags.set(parsed.tag, Math.max(0, depth - 1));
+      else if (!VOID_HTML.has(parsed.tag)) openBlockTags.set(parsed.tag, depth + 1);
     }
   }
   let normalized = source;
