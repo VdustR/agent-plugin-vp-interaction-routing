@@ -25,6 +25,18 @@ const labelRange = (node, source) => {
       index += 1;
       continue;
     }
+    if (raw[index] === "`") {
+      const delimiter = raw.slice(index).match(/^`+/)[0];
+      const closing = raw.indexOf(delimiter, index + delimiter.length);
+      if (closing >= 0) index = closing + delimiter.length - 1;
+      continue;
+    }
+    if (raw[index] === "<") {
+      const isComment = raw.startsWith("<!--", index);
+      const closing = raw.indexOf(isComment ? "-->" : ">", index + 1);
+      if (closing >= 0) index = closing + (isComment ? 2 : 0);
+      continue;
+    }
     if (raw[index] === "[") depth += 1;
     if (raw[index] !== "]" || --depth !== 0) continue;
     return {
@@ -95,22 +107,18 @@ const literalQuotePrefixes = (block, source) => {
 
 const explicitBreakLines = (block, source) => {
   const lines = new Set();
-  const htmlNodes = inlineNodes(block, "html");
+  const visibleNodes = ["text", "inlineCode", "inlineMath", "image", "imageReference"]
+    .flatMap((type) => inlineNodes(block, type));
   const visit = (node) => {
     if (node.type === "break") lines.add(node.position.end.line);
     if (node.type === "html") {
       const tag = node.value.match(/^<\/?([a-z][\w-]*)(?=[\s/>])/i)?.[1].toLowerCase();
       const newlineOffset = source.indexOf("\n", node.position.end.offset);
       if ((tag === "br" || RENDERED_BLOCK_HTML.has(tag)) && newlineOffset >= 0) {
-        let intervening = source.slice(node.position.end.offset, newlineOffset);
-        for (const html of htmlNodes) {
-          if (html.position.start.offset < node.position.end.offset ||
-              html.position.end.offset > newlineOffset) continue;
-          const start = html.position.start.offset - node.position.end.offset;
-          const end = html.position.end.offset - node.position.end.offset;
-          intervening = intervening.slice(0, start) + " ".repeat(end - start) + intervening.slice(end);
-        }
-        if (/^[ \t]*$/.test(intervening)) lines.add(node.position.end.line + 1);
+        const hasVisibleContent = visibleNodes.some((visible) =>
+          visible.position.start.offset < newlineOffset &&
+          visible.position.end.offset > node.position.end.offset);
+        if (!hasVisibleContent) lines.add(node.position.end.line + 1);
       }
     }
     for (const child of node.children ?? []) visit(child);

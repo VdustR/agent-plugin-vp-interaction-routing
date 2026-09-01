@@ -291,6 +291,13 @@ test("visible prose after an HTML break still folds its soft wrap", () => {
   );
 });
 
+test("Markdown closing syntax after an HTML break does not hide the boundary", () => {
+  assert.doesNotMatch(
+    normalizeMarkdownForInvariant("connector *<br>*\nGitHub"),
+    /connector.*GitHub/,
+  );
+});
+
 test("multiline inline HTML contents are not folded as prose", () => {
   const markdown = "Visible <!-- connector\nGitHub -->";
 
@@ -308,6 +315,7 @@ test("image destination and title metadata remain line-bounded", () => {
   for (const markdown of [
     '![alt](connector\n"GitHub")',
     '![alt](connector\n"title ]( GitHub")',
+    '![alt `[`](connector\n"GitHub")',
   ]) {
     assert.doesNotMatch(normalizeMarkdownForInvariant(markdown), /connector.*GitHub/);
   }
