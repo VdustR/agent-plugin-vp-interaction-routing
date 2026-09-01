@@ -17,8 +17,11 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: npm
 
-      # No dependencies: the checks and suites use only Node built-ins. Suites
-      # that need macOS Computer Use skip themselves with a reason.
+      - name: Install test dependencies
+        run: npm ci
+
+      # Suites that need macOS Computer Use skip themselves with a reason.
       - name: Validate
         run: npm run validate

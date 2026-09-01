@@ -8,6 +8,7 @@ Coverage for `skills/vp-interaction-routing/scripts/codex-cua-bridge.mjs`.
 | `codex-cua-bridge-approvals.test.mjs` | Node only, via a fake upstream | `npm run validate`, including CI |
 | `codex-cua-bridge-runtime.test.mjs` | Node only, via a fake upstream | `npm run validate`, including CI |
 | `codex-cua-bridge-live.test.mjs` | macOS, ChatGPT.app with the Computer Use component | `npm run validate` on a capable host; skips elsewhere |
+| `invariant-matcher.test.mjs` | Node only | `npm run validate`, including CI |
 
 `helpers/fake-app-server.mjs` stands in for the Codex binary. The bridge spawns
 it as `<bin> app-server --stdio`, so behavior that needs a live upstream can be

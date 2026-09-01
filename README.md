@@ -12,7 +12,7 @@ Plugin name: `vp-interaction-routing`.
 |-----------|---------|
 | `skills/vp-interaction-routing/` | Routing guidance: connectors and CLIs first, then browser surfaces, then native UI, then coordinates as a last resort |
 | `skills/vp-interaction-routing/scripts/codex-cua-bridge.mjs` | An MCP stdio server exposing macOS Codex Computer Use, so a non-Codex harness can call it as ordinary tools |
-| `tests/` | 39 checks; the ones needing macOS with Computer Use skip themselves elsewhere |
+| `tests/` | Repository checks; the ones needing macOS with Computer Use skip themselves elsewhere |
 | `.claude-plugin/marketplace.json` | Makes the repository installable by `claude plugin install`; Claude Code requires a marketplace manifest, not just a plugin manifest |
 
 The bridge needs macOS with the ChatGPT desktop app and its Computer Use
@@ -120,6 +120,7 @@ against Peekaboo.
 ## Develop
 
 ```bash
+npm ci             # install the lockfile-pinned validation dependencies
 npm run validate   # manifest consistency checks, then every test suite serially
 ```
 
