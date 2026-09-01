@@ -255,8 +255,21 @@ test("only a mixed quote prefix's literal suffix is restored", () => {
   assert.match(normalizeMarkdownForInvariant(markdown), /connector for > GitHub/);
 });
 
+test("a literal quote prefix after inline markup is not inserted early", () => {
+  const markdown = "> connector for\n> *> GitHub*";
+
+  assert.equal(normalizeMarkdownForInvariant(markdown), "> connector for *> GitHub*");
+});
+
 test("line-breaking inline HTML elements preserve following newlines", () => {
-  for (const markdown of ["connector<div>\nGitHub", "connector</p>\nGitHub", "connector<hr>\nGitHub"]) {
+  for (const markdown of [
+    "connector<div>\nGitHub",
+    "connector</p>\nGitHub",
+    "connector<hr>\nGitHub",
+    "connector<script>\nGitHub</script>",
+    "connector<style>\nGitHub</style>",
+    "connector<textarea>\nGitHub</textarea>",
+  ]) {
     assert.doesNotMatch(normalizeMarkdownForInvariant(markdown), /connector.*GitHub/);
   }
 });
@@ -266,4 +279,8 @@ test("inline-code newlines retain their adjacent whitespace", () => {
     normalizeMarkdownForInvariant("`connector  \nGitHub`"),
     "`connector   GitHub`",
   );
+});
+
+test("inline-math newlines remain line boundaries", () => {
+  assert.doesNotMatch(normalizeMarkdownForInvariant("$connector\nGitHub$"), /connector GitHub/);
 });

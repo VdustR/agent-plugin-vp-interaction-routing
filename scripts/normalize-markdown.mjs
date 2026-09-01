@@ -10,8 +10,8 @@ const LINE_BREAKING_HTML = new Set([
   "address", "article", "aside", "blockquote", "caption", "center", "dd", "details",
   "dialog", "dir", "div", "dl", "dt", "fieldset", "figcaption", "figure", "footer",
   "form", "h1", "h2", "h3", "h4", "h5", "h6", "header", "hr", "li", "main",
-  "menu", "nav", "ol", "p", "pre", "section", "summary", "table", "tbody", "td",
-  "tfoot", "th", "thead", "tr", "ul",
+  "menu", "nav", "ol", "p", "pre", "script", "section", "style", "summary", "table",
+  "tbody", "td", "textarea", "tfoot", "th", "thead", "title", "tr", "ul",
 ]);
 
 const splitFrontmatter = (source) => {
@@ -49,7 +49,13 @@ const literalQuotePrefixes = (block) => {
     if (typeof literal === "string") {
       for (const [index, line] of literal.split("\n").entries()) {
         const prefix = line.match(/^[ \t]*((?:>[ \t]*)+)/)?.[1];
-        if (prefix) prefixes.set(node.position.start.line + index, prefix);
+        if (prefix) {
+          prefixes.set(node.position.start.line + index, {
+            prefix,
+            startLine: node.position.start.line,
+            startOffset: node.position.start.offset,
+          });
+        }
       }
     }
     for (const child of node.children ?? []) visit(child);
@@ -72,10 +78,10 @@ const explicitBreakLines = (block, source) => {
   return lines;
 };
 
-const inlineCodeLines = (block, source) => {
+const inlineNodeLines = (block, source, type) => {
   const lines = new Set();
   const visit = (node) => {
-    if (node.type === "inlineCode") {
+    if (node.type === type) {
       const raw = source.slice(node.position.start.offset, node.position.end.offset);
       for (let index = raw.indexOf("\n"), line = node.position.start.line;
         index >= 0;
@@ -106,15 +112,20 @@ const normalizeParsedMarkdown = (source) => {
       (node.children.at(-1)?.position.end ?? node.position.end) : node.position.end;
     const literalPrefixes = literalQuotePrefixes(node);
     const preservedBreakLines = explicitBreakLines(node, normalized);
-    const codeLines = inlineCodeLines(node, normalized);
+    const codeLines = inlineNodeLines(node, normalized, "inlineCode");
+    const mathLines = inlineNodeLines(node, normalized, "inlineMath");
     let line = start.line;
     const block = normalized.slice(start.offset, end.offset)
-      .replace(/[ \t]*\n[ \t]*(?:>[ \t]*)*/g, (match) => {
+      .replace(/[ \t]*\n[ \t]*(?:>[ \t]*)*/g, (match, offset) => {
         line += 1;
         if (preservedBreakLines.has(line)) return match;
+        if (mathLines.has(line)) return match;
         if (codeLines.has(line)) return match.replace("\n", " ");
         const consumedPrefix = match.match(/\n[ \t]*((?:>[ \t]*)+)$/)?.[1];
-        return ` ${consumedPrefix ? (literalPrefixes.get(line) ?? "") : ""}`;
+        const literal = literalPrefixes.get(line);
+        const matchEnd = start.offset + offset + match.length;
+        const beginsAfterMatch = literal?.startLine === line && literal.startOffset >= matchEnd;
+        return ` ${consumedPrefix && !beginsAfterMatch ? (literal?.prefix ?? "") : ""}`;
       });
     normalized = normalized.slice(0, start.offset) + block + normalized.slice(end.offset);
   }
