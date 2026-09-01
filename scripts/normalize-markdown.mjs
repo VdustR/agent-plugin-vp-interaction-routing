@@ -366,7 +366,7 @@ const scriptClosingEnd = (tail) => {
 
 const PROTECTED_HTML_TAGS = new Set([
   "audio", "canvas", "datalist", "iframe", "listing", "noembed", "noframes", "noscript", "plaintext", "pre", "script",
-  "style", "template", "textarea", "title", "video", "xmp",
+  "rp", "style", "template", "textarea", "title", "video", "xmp",
 ]);
 const BALANCED_HTML_TAGS = new Set(["details", "listing", "pre", "template"]);
 
@@ -585,8 +585,24 @@ const normalizeConditionalContainers = (tree, source) => {
 
 const hiddenHtmlRanges = (tree, source, containerTag = null) => {
   const ranges = [];
+  for (const select of source.matchAll(/<select(?=[\t\n\f\r />])[^>]*>([\s\S]*?)<\/select\s*>/gi)) {
+    const bodyOffset = select.index + select[0].indexOf(select[1]);
+    const options = [...select[1].matchAll(/<option(?=[\t\n\f\r />])[^>]*>[\s\S]*?<\/option\s*>/gi)];
+    const selected = options.findIndex((option) => /<option\b[^>]*\bselected(?:[\s=>]|$)/i.test(option[0]));
+    const visible = selected >= 0 ? selected : 0;
+    for (const [index, option] of options.entries()) {
+      if (index !== visible) ranges.push({
+        start: bodyOffset + option.index,
+        end: bodyOffset + option.index + option[0].length,
+        tag: "option",
+      });
+    }
+  }
   const openDetailsGroups = new Set();
   const tokens = htmlTokens(tree);
+  const paragraphs = inlineNodes(tree, "paragraph");
+  const integrationRanges = [...source.matchAll(/<foreignObject(?=[\t\n\f\r />])[^>]*>[\s\S]*?<\/foreignObject\s*>/gi)]
+    .map((match) => ({ start: match.index, end: match.index + match[0].length }));
   const ancestorsBefore = (offset) => {
     const stack = [];
     for (const token of tokens) {
@@ -598,6 +614,8 @@ const hiddenHtmlRanges = (tree, source, containerTag = null) => {
         if (match >= 0) stack.splice(match);
       } else stack.push(parsed.tag);
     }
+    if (paragraphs.some((paragraph) => offset > paragraph.position.start.offset &&
+        offset < paragraph.position.end.offset)) stack.unshift("p");
     return new Set(stack);
   };
   for (const html of tokens) {
@@ -610,7 +628,8 @@ const hiddenHtmlRanges = (tree, source, containerTag = null) => {
     if (!parsed.isClosing && parsed.attributes.has("open") && detailsName) {
       openDetailsGroups.add(detailsName);
     }
-    const isForeign = ["math", "svg"].includes(containerTag);
+    const isForeign = ["math", "svg"].includes(containerTag) &&
+      !integrationRanges.some((range) => html.start >= range.start && html.start < range.end);
     if (!isProtectedOpening(parsed, isForeign) && !isLaterGroupedOpen) continue;
 
     const tail = source.slice(html.end);
@@ -672,6 +691,18 @@ const normalizeRawHtmlText = (source, containerTag = null) => {
     mdastExtensions: [gfmFromMarkdown(), mathFromMarkdown()],
   });
   const protectedRanges = hiddenHtmlRanges(tree, source, containerTag);
+  if (containerTag === "select") {
+    const options = [...source.matchAll(/<option(?=[\t\n\f\r />])[^>]*>[\s\S]*?<\/option\s*>/gi)];
+    const selected = options.findIndex((option) => /<option\b[^>]*\bselected(?:[\s=>]|$)/i.test(option[0]));
+    const visible = selected >= 0 ? selected : 0;
+    for (const [index, option] of options.entries()) {
+      if (index !== visible) protectedRanges.push({
+        start: option.index,
+        end: option.index + option[0].length,
+        tag: "option",
+      });
+    }
+  }
   const tokens = htmlTokens(tree);
   const cdataRanges = [...source.matchAll(/<!\[CDATA\[[\s\S]*?(?:\]\]>|$)/gi)]
     .map((match) => ({ start: match.index, end: match.index + match[0].length }));

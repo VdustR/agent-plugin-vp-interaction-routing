@@ -957,6 +957,18 @@ test("HTML recovery and foreign self-closing syntax preserve visibility", () => 
   );
 });
 
+test("implicit ancestors and control fallback content preserve visibility", () => {
+  assert.match(
+    normalizeMarkdownForInvariant('Visible <span hidden>secret</p>connector\nGitHub'),
+    /connector GitHub/,
+  );
+  for (const markdown of [
+    '<svg><foreignObject><script/>connector\nGitHub</script></foreignObject></svg>',
+    '<ruby><rp>connector\nGitHub</rp></ruby>',
+    '<select><option>first</option><option>connector\nGitHub</option></select>',
+  ]) assert.doesNotMatch(normalizeMarkdownForInvariant(markdown), /connector GitHub/);
+});
+
 test("unreferenced footnote definitions remain metadata", () => {
   assert.doesNotMatch(
     normalizeMarkdownForInvariant("[^route]: connector\n    GitHub"),
