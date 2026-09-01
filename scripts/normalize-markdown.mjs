@@ -126,6 +126,7 @@ const normalizeParsedMarkdown = (source) => {
     const mathNodes = inlineNodes(node, "inlineMath");
     const htmlNodes = inlineNodes(node, "html");
     const linkNodes = inlineNodes(node, "link");
+    const imageNodes = inlineNodes(node, "image");
     const original = normalized.slice(start.offset, end.offset);
     const edits = codeNodes.map((code) => {
       const raw = normalized.slice(code.position.start.offset, code.position.end.offset);
@@ -144,8 +145,15 @@ const normalizeParsedMarkdown = (source) => {
         newlineOffset < child.position.end.offset;
       const isLinkMetadata = linkNodes.some((link) => isInside(link) &&
         !link.children.some(isInside));
+      const isImageMetadata = imageNodes.some((image) => {
+        if (!isInside(image)) return false;
+        const raw = normalized.slice(image.position.start.offset, image.position.end.offset);
+        const metadataOffset = raw.lastIndexOf("](");
+        return metadataOffset >= 0 &&
+          newlineOffset >= image.position.start.offset + metadataOffset + 2;
+      });
       if (codeNodes.some(isInside) || mathNodes.some(isInside) || htmlNodes.some(isInside) ||
-          isLinkMetadata || preservedBreakLines.has(line)) {
+          isLinkMetadata || isImageMetadata || preservedBreakLines.has(line)) {
         continue;
       }
       const consumedPrefix = match[0].match(/\n[ \t]*((?:>[ \t]*)+)$/)?.[1];

@@ -304,6 +304,13 @@ test("link destination and title metadata remain line-bounded", () => {
   );
 });
 
+test("image destination and title metadata remain line-bounded", () => {
+  assert.doesNotMatch(
+    normalizeMarkdownForInvariant('![alt](connector\n"GitHub")'),
+    /connector.*GitHub/,
+  );
+});
+
 test("decoded entity newlines do not shift quote-prefix metadata", () => {
   const markdown = "> connector for &#10;> note\n> GitHub";
 
