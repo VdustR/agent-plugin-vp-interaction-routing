@@ -350,6 +350,15 @@ test("inline math brackets do not shift link metadata boundaries", () => {
   );
 });
 
+test("opaque inline HTML brackets do not shift link metadata boundaries", () => {
+  for (const html of ["<?meta [?>", "<!NOTICE [>", "<![CDATA[[]]]>"]) {
+    assert.doesNotMatch(
+      normalizeMarkdownForInvariant(`[visible ${html}](connector\n"GitHub")`),
+      /connector.*GitHub/,
+    );
+  }
+});
+
 test("image destination and title metadata remain line-bounded", () => {
   for (const markdown of [
     '![alt](connector\n"GitHub")',
