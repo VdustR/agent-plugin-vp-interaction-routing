@@ -183,8 +183,46 @@ const inlineNodes = (block, type) => {
   return nodes;
 };
 
+const htmlTokens = (tree) => inlineNodes(tree, "html").flatMap((node) =>
+  [...node.value.matchAll(HTML_TOKEN_PATTERN)].map((token) => ({
+    value: token[0],
+    start: node.position.start.offset + token.index,
+    end: node.position.start.offset + token.index + token[0].length,
+  })));
+
+const parseHtmlTag = (token) => {
+  const opening = token.match(/^<(\/)?([A-Za-z][A-Za-z0-9-]*)/);
+  if (!opening) return null;
+  const attributes = new Set();
+  let index = opening[0].length;
+  while (!opening[1] && index < token.length) {
+    const whitespace = token.slice(index).match(/^[\t\n\f\r ]+/)?.[0].length ?? 0;
+    index += whitespace;
+    if (/^\/?>/.test(token.slice(index))) break;
+    const name = token.slice(index).match(/^[A-Za-z_:][\w:.-]*/)?.[0];
+    if (!name) break;
+    attributes.add(name.toLowerCase());
+    index += name.length;
+    index += token.slice(index).match(/^[\t\n\f\r ]*/)[0].length;
+    if (token[index] !== "=") continue;
+    index += 1;
+    index += token.slice(index).match(/^[\t\n\f\r ]*/)[0].length;
+    const value = token.slice(index).match(/^(?:"[^"]*"|'[^']*'|[^\t\n\f\r "'=<>`]+)/)?.[0];
+    if (value) index += value.length;
+  }
+  return { tag: opening[2].toLowerCase(), isClosing: Boolean(opening[1]), attributes };
+};
+
+const rawClosingEnd = (tag, tail) => {
+  const closing = new RegExp(
+    `<\\/${tag}(?=[\\t\\n\\f\\r />])(?:"[^"]*"|'[^']*'|[^>])*>`,
+    "i",
+  ).exec(tail);
+  return closing ? closing.index + closing[0].length : -1;
+};
+
 const scriptClosingEnd = (tail) => {
-  const tokens = /<!--|-->|<script(?=[\t\n\f\r />])|<\/script[\t\n\f\r ]*>/gi;
+  const tokens = /<!--|-->|<script(?=[\t\n\f\r />])|<\/script(?=[\t\n\f\r />])(?:"[^"]*"|'[^']*'|[^>])*>/gi;
   let state = "normal";
   for (const token of tail.matchAll(tokens)) {
     if (token[0] === "<!--" && state === "normal") state = "escaped";
@@ -199,82 +237,110 @@ const scriptClosingEnd = (tail) => {
 };
 
 const PROTECTED_HTML_TAGS = new Set([
-  "details", "iframe", "listing", "noembed", "noframes", "noscript", "plaintext", "pre",
-  "script", "style", "template", "textarea", "title", "xmp",
+  "iframe", "listing", "noembed", "noframes", "noscript", "plaintext", "pre", "script",
+  "style", "template", "textarea", "title", "xmp",
 ]);
 const BALANCED_HTML_TAGS = new Set(["details", "listing", "pre", "template"]);
 
-const protectedHtmlClosingEnd = (tag, tail) => {
+const isProtectedOpening = (parsed) => !parsed.isClosing && (
+  PROTECTED_HTML_TAGS.has(parsed.tag) || parsed.attributes.has("hidden") ||
+  (["details", "dialog"].includes(parsed.tag) && !parsed.attributes.has("open"))
+);
+
+const protectedHtmlClosingEnd = (tag, tail, forceBalanced = false) => {
   if (tag === "plaintext") return tail.length;
   if (tag === "script") return scriptClosingEnd(tail);
-  if (tag === "noscript" || !BALANCED_HTML_TAGS.has(tag)) {
-    const closing = new RegExp(`<\\/${tag}[\\t\\n\\f\\r ]*>`, "i").exec(tail);
-    return closing ? closing.index + closing[0].length : -1;
+  if (tag === "noscript" || (!forceBalanced && !BALANCED_HTML_TAGS.has(tag))) {
+    return rawClosingEnd(tag, tail);
   }
 
   let depth = 1;
   let skipUntil = 0;
   for (const token of tail.matchAll(HTML_TOKEN_PATTERN)) {
     if (token.index < skipUntil) continue;
-    const tokenMatch = token[0].match(/^<(\/)?([A-Za-z][A-Za-z0-9-]*)/);
-    const tokenTag = tokenMatch?.[2].toLowerCase();
-    if (!tokenTag) continue;
-    const isClosing = Boolean(tokenMatch[1]);
-    if (!isClosing && tokenTag !== tag && PROTECTED_HTML_TAGS.has(tokenTag)) {
+    const parsed = parseHtmlTag(token[0]);
+    if (!parsed) continue;
+    if (parsed.tag !== tag && isProtectedOpening(parsed)) {
       const childStart = token.index + token[0].length;
-      const childEnd = protectedHtmlClosingEnd(tokenTag, tail.slice(childStart));
+      const childEnd = protectedHtmlClosingEnd(
+        parsed.tag,
+        tail.slice(childStart),
+        parsed.attributes.has("hidden") || ["details", "dialog"].includes(parsed.tag),
+      );
       if (childEnd < 0) return -1;
       skipUntil = childStart + childEnd;
       continue;
     }
-    if (tokenTag !== tag) continue;
-    if (isClosing) depth -= 1;
+    if (parsed.tag !== tag) continue;
+    if (parsed.isClosing) depth -= 1;
     else depth += 1;
     if (depth === 0) return token.index + token[0].length;
   }
   return -1;
 };
 
-const normalizeVisibleHtmlGaps = (source) => {
-  let normalized = "";
-  let cursor = 0;
-  for (const token of source.matchAll(HTML_TOKEN_PATTERN)) {
-    if (token.index < cursor) continue;
-    normalized += normalizeParsedMarkdown(source.slice(cursor, token.index), false);
-    const tokenMatch = token[0].match(/^<(\/)?([A-Za-z][A-Za-z0-9-]*)/);
-    const tag = tokenMatch?.[2].toLowerCase();
-    const isClosing = Boolean(tokenMatch?.[1]);
-    const isOpenDetails = tag === "details" &&
-      /[\t\n\f\r ]open(?:[\t\n\f\r />]|=)/i.test(token[0]);
-    if (!isClosing && PROTECTED_HTML_TAGS.has(tag) && !isOpenDetails) {
-      const childStart = token.index + token[0].length;
-      const childEnd = protectedHtmlClosingEnd(tag, source.slice(childStart));
-      const end = childEnd < 0 ? source.length : childStart + childEnd;
-      normalized += source.slice(token.index, end);
-      cursor = end;
-    } else {
-      normalized += token[0];
-      cursor = token.index + token[0].length;
-    }
-  }
-  return normalized + normalizeParsedMarkdown(source.slice(cursor), false);
+const summaryParts = (body) => {
+  const tokens = [...body.matchAll(HTML_TOKEN_PATTERN)];
+  const opening = tokens.find((token) => {
+    const parsed = parseHtmlTag(token[0]);
+    return parsed?.tag === "summary" && !parsed.isClosing;
+  });
+  if (!opening) return null;
+  const closing = tokens.find((token) => {
+    const parsed = parseHtmlTag(token[0]);
+    return token.index > opening.index && parsed?.tag === "summary" && parsed.isClosing;
+  });
+  if (!closing) return null;
+  const contentStart = opening.index + opening[0].length;
+  return {
+    prefix: body.slice(0, opening.index),
+    opening: opening[0],
+    content: body.slice(contentStart, closing.index),
+    closing: closing[0],
+    suffix: body.slice(closing.index + closing[0].length),
+    bodyStart: closing.index + closing[0].length,
+  };
 };
 
-const normalizeOpenDetails = (tree, source) => {
-  const edits = [];
-  for (const html of inlineNodes(tree, "html")) {
-    if (!/^<details(?=[\t\n\f\r />])/i.test(html.value) ||
-        !/[\t\n\f\r ]open(?:[\t\n\f\r />]|=)/i.test(html.value)) continue;
-    const tail = source.slice(html.position.end.offset);
-    const closingEnd = protectedHtmlClosingEnd("details", tail);
-    if (closingEnd < 0) continue;
-    const rangeEnd = html.position.end.offset + closingEnd;
-    const closingStart = source.lastIndexOf("</details", rangeEnd);
-    edits.push({
-      start: html.position.end.offset,
-      end: closingStart,
-      replacement: normalizeVisibleHtmlGaps(source.slice(html.position.end.offset, closingStart)),
+const closingTagStart = (tag, tail, closingEnd) => {
+  const closing = [...tail.slice(0, closingEnd).matchAll(HTML_TOKEN_PATTERN)].reverse()
+    .find((token) => {
+      const parsed = parseHtmlTag(token[0]);
+      return parsed?.tag === tag && parsed.isClosing;
     });
+  return closing?.index ?? -1;
+};
+
+const normalizeConditionalContainers = (tree, source) => {
+  const edits = [];
+  let claimedEnd = -1;
+  for (const html of htmlTokens(tree)) {
+    if (html.start < claimedEnd) continue;
+    const parsed = parseHtmlTag(html.value);
+    if (!parsed || parsed.isClosing || !["details", "dialog"].includes(parsed.tag)) continue;
+    const tail = source.slice(html.end);
+    const closingEnd = protectedHtmlClosingEnd(parsed.tag, tail, true);
+    if (closingEnd < 0) continue;
+    const rangeEnd = html.end + closingEnd;
+    const relativeClosingStart = closingTagStart(parsed.tag, tail, closingEnd);
+    if (relativeClosingStart < 0) continue;
+    const closingStart = html.end + relativeClosingStart;
+    const body = source.slice(html.end, closingStart);
+    let replacement = body;
+    if (parsed.tag === "details") {
+      const summary = summaryParts(body);
+      if (summary) {
+        replacement = normalizeParsedMarkdown(summary.prefix, true) + summary.opening +
+          normalizeParsedMarkdown(summary.content, true) + summary.closing +
+          (parsed.attributes.has("open") ? normalizeParsedMarkdown(summary.suffix, true) : summary.suffix);
+      } else if (parsed.attributes.has("open")) replacement = normalizeParsedMarkdown(body, true);
+    } else if (parsed.attributes.has("open")) replacement = normalizeParsedMarkdown(body, true);
+    edits.push({
+      start: html.end,
+      end: closingStart,
+      replacement,
+    });
+    claimedEnd = rangeEnd;
   }
   let normalized = source;
   for (const edit of edits.sort((a, b) => b.start - a.start)) {
@@ -285,19 +351,26 @@ const normalizeOpenDetails = (tree, source) => {
 
 const hiddenHtmlRanges = (tree, source) => {
   const ranges = [];
-  for (const html of inlineNodes(tree, "html")) {
-    if (ranges.some((range) => html.position.start.offset < range.end)) continue;
-    const tag = html.value.match(
-      /^<(details|iframe|listing|noembed|noframes|noscript|plaintext|pre|script|style|template|textarea|title|xmp)(?=[\t\n\f\r />])/i,
-    )?.[1].toLowerCase();
-    if (!tag) continue;
-    if (tag === "details" && /[\t\n\f\r ]open(?:[\t\n\f\r />]|=)/i.test(html.value)) continue;
+  for (const html of htmlTokens(tree)) {
+    if (ranges.some((range) => html.start < range.end)) continue;
+    const parsed = parseHtmlTag(html.value);
+    if (!parsed || !isProtectedOpening(parsed)) continue;
 
-    const tail = source.slice(html.position.end.offset);
-    const closingEnd = protectedHtmlClosingEnd(tag, tail);
+    const tail = source.slice(html.end);
+    const closingEnd = protectedHtmlClosingEnd(
+      parsed.tag,
+      tail,
+      parsed.attributes.has("hidden") || ["details", "dialog"].includes(parsed.tag),
+    );
+    let start = html.start;
+    if (parsed.tag === "details") {
+      const closingStart = closingEnd < 0 ? source.length : html.end + closingEnd;
+      const summary = summaryParts(source.slice(html.end, closingStart));
+      if (summary) start = html.end + summary.bodyStart;
+    }
     ranges.push({
-      start: html.position.start.offset,
-      end: closingEnd >= 0 ? html.position.end.offset + closingEnd : source.length,
+      start,
+      end: closingEnd >= 0 ? html.end + closingEnd : source.length,
     });
   }
   return ranges;
@@ -310,7 +383,7 @@ const normalizeParsedMarkdown = (source, normalizeDetails = true) => {
     mdastExtensions: [gfmFromMarkdown(), mathFromMarkdown()],
   });
   if (normalizeDetails) {
-    const detailsNormalized = normalizeOpenDetails(tree, source);
+    const detailsNormalized = normalizeConditionalContainers(tree, source);
     if (detailsNormalized !== source) return normalizeParsedMarkdown(detailsNormalized, false);
   }
   let normalized = source;

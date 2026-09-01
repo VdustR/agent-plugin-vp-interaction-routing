@@ -573,6 +573,49 @@ test("collapsed details bodies remain line-bounded", () => {
     normalizeMarkdownForInvariant(`Visible<details open>\n${body}`),
     /connector GitHub/,
   );
+  assert.doesNotMatch(
+    normalizeMarkdownForInvariant('Visible<details title=" open ">\nconnector\nGitHub\n</details>'),
+    /connector GitHub/,
+  );
+  assert.match(
+    normalizeMarkdownForInvariant(
+      "Visible<details><summary>connector\nGitHub</summary>hidden</details>",
+    ),
+    /connector GitHub/,
+  );
+  assert.match(
+    normalizeMarkdownForInvariant(
+      "Visible<details open><summary>Note</summary>connector<em> route</em>\nGitHub</details>",
+    ),
+    /connector.*GitHub/,
+  );
+  const nested = normalizeMarkdownForInvariant(
+    "<details open>outer\n<details open>inner\nwrap</details>\nafter</details>",
+  );
+  assert.match(nested, /inner wrap/);
+  assert.match(nested, /<\/details>\s+after<\/details>/);
+});
+
+test("hidden HTML container bodies remain line-bounded", () => {
+  for (const markdown of [
+    "Visible<div hidden>\nconnector\nGitHub\n</div>",
+    "Visible<dialog>\nconnector\nGitHub\n</dialog>",
+  ]) {
+    assert.doesNotMatch(normalizeMarkdownForInvariant(markdown), /connector GitHub/);
+  }
+  assert.match(
+    normalizeMarkdownForInvariant("Visible<dialog open>\nconnector\nGitHub\n</dialog>"),
+    /connector GitHub/,
+  );
+});
+
+test("raw-text elements accept complete parser-recognized end tags", () => {
+  for (const markdown of [
+    "Visible<script>x</script/>\nconnector\nGitHub",
+    "Visible<style>x</style data-note=x>\nconnector\nGitHub",
+  ]) {
+    assert.match(normalizeMarkdownForInvariant(markdown), /connector GitHub/);
+  }
 });
 
 test("non-rendering HTML tags do not preserve soft wraps", () => {
