@@ -311,6 +311,14 @@ test("image destination and title metadata remain line-bounded", () => {
   );
 });
 
+test("image alt prefixes ignore destination metadata newlines", () => {
+  const markdown = '![connector for\n    > GitHub](x\n"title")';
+  const normalized = normalizeMarkdownForInvariant(markdown);
+
+  assert.match(normalized, /connector for > GitHub/);
+  assert.doesNotMatch(normalized, /connector for GitHub/);
+});
+
 test("decoded entity newlines do not shift quote-prefix metadata", () => {
   const markdown = "> connector for &#10;> note\n> GitHub";
 
@@ -331,6 +339,10 @@ test("raw-text HTML element bodies remain line-bounded", () => {
     const markdown = `Visible<${tag}>\nconnector\nGitHub\n</${tag}>`;
     assert.doesNotMatch(normalizeMarkdownForInvariant(markdown), /connector GitHub/);
   }
+  assert.doesNotMatch(
+    normalizeMarkdownForInvariant("Visible<script>\nconnector\nGitHub\n</script\n>"),
+    /connector GitHub/,
+  );
 });
 
 test("inline-code newlines retain their adjacent whitespace", () => {

@@ -50,7 +50,9 @@ const literalQuotePrefixes = (block, source) => {
   const visit = (node) => {
     const literal = typeof node.value === "string" ? node.value : node.alt;
     if (typeof literal === "string") {
-      const raw = source.slice(node.position.start.offset, node.position.end.offset);
+      const nodeRaw = source.slice(node.position.start.offset, node.position.end.offset);
+      const imageLabelEnd = node.type === "image" ? nodeRaw.lastIndexOf("](") : -1;
+      const raw = imageLabelEnd >= 0 ? nodeRaw.slice(2, imageLabelEnd) : nodeRaw;
       const newlineEvents = [...raw.matchAll(/\n|&#(?:0*10|x0*a);|&NewLine;/gi)]
         .map((match) => match[0] === "\n");
       let event = 0;
@@ -135,7 +137,7 @@ const normalizeParsedMarkdown = (source) => {
       const tag = html.value.match(/^<(script|style|title|textarea)(?=[\s>])/i)?.[1];
       if (!tag) return [];
       const tail = normalized.slice(html.position.end.offset);
-      const closing = new RegExp(`<\\/${tag}[ \\t]*>`, "i").exec(tail);
+      const closing = new RegExp(`<\\/${tag}\\s*>`, "i").exec(tail);
       return closing ? [{
         start: html.position.start.offset,
         end: html.position.end.offset + closing.index + closing[0].length,
