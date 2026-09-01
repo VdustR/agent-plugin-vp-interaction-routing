@@ -234,6 +234,10 @@ test("explicit HTML breaks at line endings remain line boundaries", () => {
   ]) {
     assert.doesNotMatch(normalizeMarkdownForInvariant(markdown), /connector.*GitHub/);
   }
+  assert.doesNotMatch(
+    normalizeMarkdownForInvariant("connector<br>GitHub"),
+    /connector.*GitHub/,
+  );
 });
 
 test("a literal greater-than sign in image alt text is preserved", () => {
@@ -595,6 +599,12 @@ test("collapsed details bodies remain line-bounded", () => {
     ),
     /connector GitHub/,
   );
+  assert.doesNotMatch(
+    normalizeMarkdownForInvariant(
+      "<details><div><summary>connector\nGitHub</summary></div></details>",
+    ),
+    /connector GitHub/,
+  );
   const nested = normalizeMarkdownForInvariant(
     "<details open>outer\n<details open>inner\nwrap</details>\nafter</details>",
   );
@@ -606,6 +616,7 @@ test("hidden HTML container bodies remain line-bounded", () => {
   for (const markdown of [
     "Visible<div hidden>\nconnector\nGitHub\n</div>",
     "Visible<dialog>\nconnector\nGitHub\n</dialog>",
+    "Visible<dialog open hidden>\nconnector\nGitHub\n</dialog>",
   ]) {
     assert.doesNotMatch(normalizeMarkdownForInvariant(markdown), /connector GitHub/);
   }
@@ -615,6 +626,10 @@ test("hidden HTML container bodies remain line-bounded", () => {
   );
   assert.match(
     normalizeMarkdownForInvariant("Visible<img hidden>\nconnector\nGitHub"),
+    /connector GitHub/,
+  );
+  assert.match(
+    normalizeMarkdownForInvariant("Visible<p hidden>secret<p>connector\nGitHub"),
     /connector GitHub/,
   );
 });

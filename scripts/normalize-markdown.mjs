@@ -17,6 +17,10 @@ const VOID_HTML = new Set([
   "area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta",
   "param", "source", "track", "wbr",
 ]);
+const IMPLICIT_SAME_TAG_CLOSE = new Set([
+  "dd", "dt", "li", "optgroup", "option", "p", "rp", "rt", "tbody", "td",
+  "tfoot", "th", "thead", "tr",
+]);
 
 const HTML_COMMENT_SOURCE = String.raw`<!--(?!>|->)(?:(?!--)[\s\S])*?(?<!-)-->`;
 const HTML_TAG_SOURCE = String.raw`<\/?[A-Za-z][A-Za-z0-9-]*(?:[\t\n\f\r ]+[A-Za-z_:][\w:.-]*(?:[\t\n\f\r ]*=[\t\n\f\r ]*(?:"[^"]*"|'[^']*'|[^\t\n\f\r "'=<>\x60]+))?)*[\t\n\f\r ]*\/?>`;
@@ -154,12 +158,13 @@ const explicitBreaks = (block, source) => {
       const isActiveClosing = (!isClosing && isApplicableOpening) || tag === "p" ||
         (openBlockTags.get(tag) ?? 0) > 0;
       const newlineOffset = source.indexOf("\n", node.position.end.offset);
-      if ((tag === "br" || (RENDERED_BLOCK_HTML.has(tag) && isActiveClosing)) && newlineOffset >= 0) {
+      if (tag === "br" || (RENDERED_BLOCK_HTML.has(tag) && isActiveClosing)) {
+        const visibleLimit = newlineOffset >= 0 ? newlineOffset : block.position.end.offset + 1;
         const hasVisibleContent = visibleNodes.some((visible) =>
-          visible.position.start.offset < newlineOffset &&
+          visible.position.start.offset < visibleLimit &&
           visible.position.end.offset > node.position.end.offset);
         if (hasVisibleContent) offsets.add(node.position.end.offset);
-        else lines.add(node.position.end.line + 1);
+        else if (newlineOffset >= 0) lines.add(node.position.end.line + 1);
       }
       if (RENDERED_BLOCK_HTML.has(tag) && tag !== "p") {
         const depth = openBlockTags.get(tag) ?? 0;
@@ -274,6 +279,7 @@ const protectedHtmlClosingEnd = (tag, tail, forceBalanced = false) => {
     }
     if (parsed.tag !== tag) continue;
     if (parsed.isClosing) depth -= 1;
+    else if (forceBalanced && IMPLICIT_SAME_TAG_CLOSE.has(tag)) return token.index;
     else depth += 1;
     if (depth === 0) return token.index + token[0].length;
   }
@@ -282,10 +288,20 @@ const protectedHtmlClosingEnd = (tag, tail, forceBalanced = false) => {
 
 const summaryParts = (body) => {
   const tokens = [...body.matchAll(HTML_TOKEN_PATTERN)];
-  const opening = tokens.find((token) => {
+  const stack = [];
+  let opening = null;
+  for (const token of tokens) {
     const parsed = parseHtmlTag(token[0]);
-    return parsed?.tag === "summary" && !parsed.isClosing;
-  });
+    if (!parsed) continue;
+    if (parsed.tag === "summary" && !parsed.isClosing && stack.length === 0) {
+      opening = token;
+      break;
+    }
+    if (parsed.isClosing) {
+      const match = stack.lastIndexOf(parsed.tag);
+      if (match >= 0) stack.splice(match);
+    } else if (!VOID_HTML.has(parsed.tag)) stack.push(parsed.tag);
+  }
   if (!opening) return null;
   const closing = tokens.find((token) => {
     const parsed = parseHtmlTag(token[0]);
@@ -328,7 +344,8 @@ const normalizeConditionalContainers = (tree, source) => {
     const closingStart = html.end + relativeClosingStart;
     const body = source.slice(html.end, closingStart);
     let replacement = body;
-    if (parsed.tag === "details") {
+    if (parsed.attributes.has("hidden")) replacement = body;
+    else if (parsed.tag === "details") {
       const summary = summaryParts(body);
       if (summary) {
         replacement = (parsed.attributes.has("open") ?
