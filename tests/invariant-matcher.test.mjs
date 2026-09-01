@@ -220,6 +220,12 @@ test("explicit Markdown hard breaks remain line boundaries", () => {
   }
 });
 
+test("explicit HTML breaks at line endings remain line boundaries", () => {
+  for (const markdown of ["connector<br>\nGitHub", "connector<BR />  \nGitHub"]) {
+    assert.doesNotMatch(normalizeMarkdownForInvariant(markdown), /connector.*GitHub/);
+  }
+});
+
 test("a literal greater-than sign in image alt text is preserved", () => {
   const markdown = "![connector for\n    > GitHub](x)";
   const normalized = normalizeMarkdownForInvariant(markdown);

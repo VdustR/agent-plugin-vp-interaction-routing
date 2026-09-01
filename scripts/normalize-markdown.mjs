@@ -51,10 +51,14 @@ const literalQuotePrefixes = (block) => {
   return prefixes;
 };
 
-const hardBreakLines = (block) => {
+const explicitBreakLines = (block, source) => {
   const lines = new Set();
   const visit = (node) => {
     if (node.type === "break") lines.add(node.position.end.line);
+    if (node.type === "html" && /^<br\s*\/?>$/i.test(node.value) &&
+        /^[ \t]*\n/.test(source.slice(node.position.end.offset))) {
+      lines.add(node.position.end.line + 1);
+    }
     for (const child of node.children ?? []) visit(child);
   };
   visit(block);
@@ -77,7 +81,7 @@ const normalizeParsedMarkdown = (source) => {
     const end = node.type === "heading" ?
       (node.children.at(-1)?.position.end ?? node.position.end) : node.position.end;
     const literalPrefixes = literalQuotePrefixes(node);
-    const preservedBreakLines = hardBreakLines(node);
+    const preservedBreakLines = explicitBreakLines(node, normalized);
     let line = start.line;
     const block = normalized.slice(start.offset, end.offset)
       .replace(/[ \t]*\n[ \t]*(?:>[ \t]*)*/g, (match) => {
