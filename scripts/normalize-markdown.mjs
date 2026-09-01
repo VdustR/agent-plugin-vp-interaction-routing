@@ -38,8 +38,9 @@ const normalizableBlocks = (tree) => {
 const literalQuotePrefixes = (block) => {
   const prefixes = new Map();
   const visit = (node) => {
-    if (node.type === "text" || node.type === "inlineCode") {
-      for (const [index, line] of node.value.split("\n").entries()) {
+    const literal = typeof node.value === "string" ? node.value : node.alt;
+    if (typeof literal === "string") {
+      for (const [index, line] of literal.split("\n").entries()) {
         const prefix = line.match(/^[ \t]*((?:>[ \t]*)+)/)?.[1];
         if (prefix) prefixes.set(node.position.start.line + index, prefix);
       }
@@ -48,6 +49,16 @@ const literalQuotePrefixes = (block) => {
   };
   visit(block);
   return prefixes;
+};
+
+const hardBreakLines = (block) => {
+  const lines = new Set();
+  const visit = (node) => {
+    if (node.type === "break") lines.add(node.position.end.line);
+    for (const child of node.children ?? []) visit(child);
+  };
+  visit(block);
+  return lines;
 };
 
 const normalizeParsedMarkdown = (source) => {
@@ -66,10 +77,12 @@ const normalizeParsedMarkdown = (source) => {
     const end = node.type === "heading" ?
       (node.children.at(-1)?.position.end ?? node.position.end) : node.position.end;
     const literalPrefixes = literalQuotePrefixes(node);
+    const preservedBreakLines = hardBreakLines(node);
     let line = start.line;
     const block = normalized.slice(start.offset, end.offset)
-      .replace(/[ \t]*\n[ \t]*(?:>[ \t]*)*/g, () => {
+      .replace(/[ \t]*\n[ \t]*(?:>[ \t]*)*/g, (match) => {
         line += 1;
+        if (preservedBreakLines.has(line)) return match;
         return ` ${literalPrefixes.get(line) ?? ""}`;
       });
     normalized = normalized.slice(0, start.offset) + block + normalized.slice(end.offset);

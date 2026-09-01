@@ -213,3 +213,17 @@ test("BOM-prefixed frontmatter remains opaque", () => {
 
   assert.doesNotMatch(normalizeMarkdownForInvariant(markdown), CROSS_BLOCK_PATTERN);
 });
+
+test("explicit Markdown hard breaks remain line boundaries", () => {
+  for (const markdown of ["connector for  \nGitHub", "connector for\\\nGitHub"]) {
+    assert.doesNotMatch(normalizeMarkdownForInvariant(markdown), /connector for GitHub/);
+  }
+});
+
+test("a literal greater-than sign in image alt text is preserved", () => {
+  const markdown = "![connector for\n    > GitHub](x)";
+  const normalized = normalizeMarkdownForInvariant(markdown);
+
+  assert.match(normalized, /connector for > GitHub/);
+  assert.doesNotMatch(normalized, /connector for GitHub/);
+});
