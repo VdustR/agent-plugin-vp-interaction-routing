@@ -30,6 +30,8 @@ const renderedText = (node) => {
       return `\`${node.value.replace(/\n/g, " ")}\``;
     case "break":
       return "\n";
+    case "html":
+      return /^<br\s*\/?>$/i.test(node.value.trim()) ? "\n" : "";
     case "image":
     case "imageReference":
       return (node.alt ?? "").replace(/\n/g, " ");
