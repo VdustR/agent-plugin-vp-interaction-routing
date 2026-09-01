@@ -42,8 +42,22 @@ const P_CLOSING_START_TAGS = new Set([
 const TABLE_CONTEXT_TAGS = new Set([
   "caption", "colgroup", "table", "tbody", "td", "tfoot", "th", "thead", "tr",
 ]);
+const TABLE_IN_BODY_CONTEXT_TAGS = new Set(["caption", "td", "th"]);
+const ANCESTOR_END_CLOSES = new Map([
+  ["dd", new Set(["dl"])],
+  ["dt", new Set(["dl"])],
+  ["li", new Set(["menu", "ol", "ul"])],
+  ["option", new Set(["datalist", "select"])],
+  ["optgroup", new Set(["select"])],
+  ["td", new Set(["table", "tbody", "tfoot", "thead", "tr"])],
+  ["th", new Set(["table", "tbody", "tfoot", "thead", "tr"])],
+  ["tr", new Set(["table", "tbody", "tfoot", "thead"])],
+  ["tbody", new Set(["table"])],
+  ["tfoot", new Set(["table"])],
+  ["thead", new Set(["table"])],
+]);
 
-const HTML_COMMENT_SOURCE = String.raw`<!--(?!>|->)(?:(?!--)[\s\S])*?(?<!-)-->`;
+const HTML_COMMENT_SOURCE = String.raw`<!--(?!>|->)(?:(?!--)[\s\S])*?(?<!-)--!?>`;
 const HTML_TAG_SOURCE = String.raw`<\/?[A-Za-z][A-Za-z0-9-]*(?:[\t\n\f\r ]+[A-Za-z_:][\w:.-]*(?:[\t\n\f\r ]*=[\t\n\f\r ]*(?:"[^"]*"|'[^']*'|[^\t\n\f\r "'=<>\x60]+))?)*[\t\n\f\r ]*\/?>`;
 const HTML_TOKEN_PATTERN = new RegExp(
   `${HTML_COMMENT_SOURCE}|<\\?[\\s\\S]*?\\?>|<![A-Z][^>]*>|<!\\[CDATA\\[[\\s\\S]*?\\]\\]>|${HTML_TAG_SOURCE}`,
@@ -189,6 +203,10 @@ const explicitBreaks = (block, source) => {
           hiddenElements.pop();
         }
       }
+      if (isClosing && hiddenElements.length > 0 &&
+          ANCESTOR_END_CLOSES.get(hiddenElements.at(-1))?.has(tag)) {
+        hiddenElements.pop();
+      }
       const hiddenMatch = isClosing ? hiddenElements.findLastIndex((item) => item === tag) : -1;
       const opensHidden = !isClosing && (parsed?.attributes.has("hidden") ||
         (tag === "dialog" && !parsed?.attributes.has("open")));
@@ -246,7 +264,7 @@ const parseHtmlTag = (token) => {
   if (!opening) return null;
   const attributes = new Map();
   let index = opening[0].length;
-  while (!opening[1] && index < token.length) {
+  while ((!opening[1] || opening[2].toLowerCase() === "br") && index < token.length) {
     const whitespace = token.slice(index).match(/^[\t\n\f\r ]+/)?.[0].length ?? 0;
     index += whitespace;
     if (/^\/?>/.test(token.slice(index))) break;
@@ -266,21 +284,23 @@ const parseHtmlTag = (token) => {
       index += value.length;
       const rawValue = /^['"]/.test(value) ? value.slice(1, -1) : value;
       if (!attributes.has(normalizedName)) attributes.set(normalizedName, rawValue.replace(
-        /&(#(?:[xX][0-9A-Fa-f]+|[0-9]+)|[A-Za-z][A-Za-z0-9]+);/g,
+        /&(#(?:[xX][0-9A-Fa-f]+|[0-9]+);?|[A-Za-z][A-Za-z0-9]+;)/g,
         (reference, name) => {
           if (name.startsWith("#")) {
-            const value = /^#x/i.test(name) ? Number.parseInt(name.slice(2), 16) :
-              Number.parseInt(name.slice(1), 10);
+            const numericName = name.endsWith(";") ? name.slice(0, -1) : name;
+            const value = /^#x/i.test(numericName) ? Number.parseInt(numericName.slice(2), 16) :
+              Number.parseInt(numericName.slice(1), 10);
             const codePoint = !Number.isFinite(value) || value === 0 || value > 0x10FFFF ||
               (value >= 0xD800 && value <= 0xDFFF) ? 0xFFFD : value;
             return String.fromCodePoint(codePoint);
           }
-          return decodeNamedCharacterReference(name) || reference;
+          return decodeNamedCharacterReference(name.slice(0, -1)) || reference;
         },
       ));
     } else if (!attributes.has(normalizedName)) attributes.set(normalizedName, "");
   }
-  return { tag: opening[2].toLowerCase(), isClosing: Boolean(opening[1]), attributes };
+  const tag = opening[2].toLowerCase();
+  return { tag, isClosing: Boolean(opening[1]) && tag !== "br", attributes };
 };
 
 const rawClosingEnd = (tag, tail) => {
@@ -308,7 +328,7 @@ const scriptClosingEnd = (tail) => {
 };
 
 const PROTECTED_HTML_TAGS = new Set([
-  "iframe", "listing", "noembed", "noframes", "noscript", "plaintext", "pre", "script",
+  "canvas", "iframe", "listing", "noembed", "noframes", "noscript", "plaintext", "pre", "script",
   "style", "template", "textarea", "title", "xmp",
 ]);
 const BALANCED_HTML_TAGS = new Set(["details", "listing", "pre", "template"]);
@@ -347,6 +367,8 @@ const protectedHtmlClosingEnd = (tag, tail, forceBalanced = false) => {
         P_CLOSING_START_TAGS.has(parsed.tag)) return token.index;
     if (forceBalanced && !parsed.isClosing &&
         IMPLICIT_CROSS_TAG_CLOSE.get(tag)?.has(parsed.tag)) return token.index;
+    if (forceBalanced && parsed.isClosing &&
+        ANCESTOR_END_CLOSES.get(tag)?.has(parsed.tag)) return token.index + token[0].length;
     if (parsed.tag !== tag) continue;
     if (parsed.isClosing) depth -= 1;
     else if (forceBalanced && IMPLICIT_SAME_TAG_CLOSE.has(tag)) return token.index;
@@ -366,7 +388,8 @@ const summaryParts = (body) => {
     if (!parsed.isClosing && stack.at(-1) === "p" &&
         P_CLOSING_START_TAGS.has(parsed.tag)) stack.pop();
     const isDirectSummary = stack.length === 0 ||
-      stack.every((tag) => TABLE_CONTEXT_TAGS.has(tag));
+      (stack.every((tag) => TABLE_CONTEXT_TAGS.has(tag)) &&
+        !stack.some((tag) => TABLE_IN_BODY_CONTEXT_TAGS.has(tag)));
     if (parsed.tag === "summary" && !parsed.isClosing && isDirectSummary) {
       opening = token;
       break;

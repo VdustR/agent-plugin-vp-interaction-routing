@@ -783,6 +783,38 @@ test("cross-tag implicit closures end hidden HTML ranges", () => {
     normalizeMarkdownForInvariant("<dl><dt hidden>secret<dd>connector\nGitHub</dl>"),
     /connector GitHub/,
   );
+  assert.match(
+    normalizeMarkdownForInvariant("<ul><li hidden>secret</ul>\n\nconnector\nGitHub"),
+    /connector GitHub/,
+  );
+});
+
+test("HTML tokenizer visibility edge cases follow browser rendering", () => {
+  assert.doesNotMatch(
+    normalizeMarkdownForInvariant(
+      "<details><table><tr><td><summary>connector\nGitHub</summary></td></tr></table></details>",
+    ),
+    /connector GitHub/,
+  );
+  assert.doesNotMatch(
+    normalizeMarkdownForInvariant(
+      '<details name="route" open>first</details>\n' +
+      '<details name="r&#111ute" open>connector\nGitHub</details>',
+    ),
+    /connector GitHub/,
+  );
+  assert.doesNotMatch(
+    normalizeMarkdownForInvariant("<div><!-- connector\nGitHub --!></div>"),
+    /connector GitHub/,
+  );
+  assert.doesNotMatch(
+    normalizeMarkdownForInvariant("<canvas>connector\nGitHub</canvas>"),
+    /connector GitHub/,
+  );
+  assert.equal(
+    normalizeMarkdownForInvariant("connector</br hidden>\nGitHub"),
+    "connector</br hidden> GitHub",
+  );
 });
 
 test("unreferenced footnote definitions remain metadata", () => {
