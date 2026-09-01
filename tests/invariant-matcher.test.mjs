@@ -589,6 +589,12 @@ test("collapsed details bodies remain line-bounded", () => {
     ),
     /connector.*GitHub/,
   );
+  assert.doesNotMatch(
+    normalizeMarkdownForInvariant(
+      "<details>connector\nGitHub<summary>Note</summary></details>",
+    ),
+    /connector GitHub/,
+  );
   const nested = normalizeMarkdownForInvariant(
     "<details open>outer\n<details open>inner\nwrap</details>\nafter</details>",
   );
@@ -607,6 +613,19 @@ test("hidden HTML container bodies remain line-bounded", () => {
     normalizeMarkdownForInvariant("Visible<dialog open>\nconnector\nGitHub\n</dialog>"),
     /connector GitHub/,
   );
+  assert.match(
+    normalizeMarkdownForInvariant("Visible<img hidden>\nconnector\nGitHub"),
+    /connector GitHub/,
+  );
+});
+
+test("legacy preformatted elements remain rendered block boundaries", () => {
+  for (const tag of ["listing", "xmp"]) {
+    assert.doesNotMatch(
+      normalizeMarkdownForInvariant(`connector<${tag}>aside</${tag}>\nGitHub`),
+      /connector.*GitHub/,
+    );
+  }
 });
 
 test("raw-text elements accept complete parser-recognized end tags", () => {

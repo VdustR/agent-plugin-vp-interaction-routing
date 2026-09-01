@@ -11,7 +11,7 @@ const RENDERED_BLOCK_HTML = new Set([
   "details", "dialog", "dir", "div", "dl", "dt", "fieldset", "figcaption", "figure",
   "footer", "form", "frameset", "h1", "h2", "h3", "h4", "h5", "h6", "header",
   "hgroup", "hr", "legend", "li", "main", "menu", "nav", "noframes", "ol",
-  "p", "pre", "search", "section", "summary", "table", "ul",
+  "listing", "p", "pre", "search", "section", "summary", "table", "ul", "xmp",
 ]);
 const VOID_HTML = new Set([
   "area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta",
@@ -243,7 +243,8 @@ const PROTECTED_HTML_TAGS = new Set([
 const BALANCED_HTML_TAGS = new Set(["details", "listing", "pre", "template"]);
 
 const isProtectedOpening = (parsed) => !parsed.isClosing && (
-  PROTECTED_HTML_TAGS.has(parsed.tag) || parsed.attributes.has("hidden") ||
+  PROTECTED_HTML_TAGS.has(parsed.tag) ||
+  (parsed.attributes.has("hidden") && !VOID_HTML.has(parsed.tag)) ||
   (["details", "dialog"].includes(parsed.tag) && !parsed.attributes.has("open"))
 );
 
@@ -330,7 +331,8 @@ const normalizeConditionalContainers = (tree, source) => {
     if (parsed.tag === "details") {
       const summary = summaryParts(body);
       if (summary) {
-        replacement = normalizeParsedMarkdown(summary.prefix, true) + summary.opening +
+        replacement = (parsed.attributes.has("open") ?
+          normalizeParsedMarkdown(summary.prefix, true) : summary.prefix) + summary.opening +
           normalizeParsedMarkdown(summary.content, true) + summary.closing +
           (parsed.attributes.has("open") ? normalizeParsedMarkdown(summary.suffix, true) : summary.suffix);
       } else if (parsed.attributes.has("open")) replacement = normalizeParsedMarkdown(body, true);
@@ -366,7 +368,10 @@ const hiddenHtmlRanges = (tree, source) => {
     if (parsed.tag === "details") {
       const closingStart = closingEnd < 0 ? source.length : html.end + closingEnd;
       const summary = summaryParts(source.slice(html.end, closingStart));
-      if (summary) start = html.end + summary.bodyStart;
+      if (summary) {
+        if (summary.prefix) ranges.push({ start: html.start, end: html.end + summary.prefix.length });
+        start = html.end + summary.bodyStart;
+      }
     }
     ranges.push({
       start,
