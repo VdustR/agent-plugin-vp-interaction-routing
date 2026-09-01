@@ -66,7 +66,7 @@ const ANCESTOR_END_CLOSES = new Map([
   ["thead", new Set(["table"])],
 ]);
 
-const HTML_COMMENT_SOURCE = String.raw`<!--(?!>|->)(?:(?!--)[\s\S])*?(?:(?<!-)--!?>|$)`;
+const HTML_COMMENT_SOURCE = String.raw`<!--(?!>|->)[\s\S]*?(?:(?<!-)--!?>|$)`;
 const HTML_TAG_SOURCE = String.raw`<\/?[A-Za-z][A-Za-z0-9-]*(?:[\t\n\f\r ]+[A-Za-z_:][\w:.-]*(?:[\t\n\f\r ]*=[\t\n\f\r ]*(?:"[^"]*"|'[^']*'|[^\t\n\f\r "'=<>\x60]+))?)*[\t\n\f\r ]*\/?>`;
 const HTML_TOKEN_PATTERN = new RegExp(
   `${HTML_COMMENT_SOURCE}|<\\?[\\s\\S]*?>|<![A-Z][^>]*>|<!\\[CDATA\\[[\\s\\S]*?\\]\\]>|${HTML_TAG_SOURCE}`,
@@ -229,6 +229,7 @@ const explicitBreaks = (block, source) => {
       }
       const hiddenMatch = isClosing ? hiddenElements.findLastIndex((item) => item === tag) : -1;
       const opensHidden = !isClosing && (parsed?.attributes.has("hidden") ||
+        parsed?.attributes.has("popover") ||
         (tag === "dialog" && !parsed?.attributes.has("open")));
       const isHidden = hiddenElements.length > 0 || opensHidden || hiddenMatch >= 0;
       const hasVisibleBefore = visibleNodes.some((visible) =>
@@ -356,11 +357,12 @@ const BALANCED_HTML_TAGS = new Set(["details", "listing", "pre", "template"]);
 
 const isProtectedOpening = (parsed) => !parsed.isClosing && (
   PROTECTED_HTML_TAGS.has(parsed.tag) ||
-  (parsed.attributes.has("hidden") && !VOID_HTML.has(parsed.tag)) ||
+  ((parsed.attributes.has("hidden") || parsed.attributes.has("popover")) &&
+    !VOID_HTML.has(parsed.tag)) ||
   (["details", "dialog"].includes(parsed.tag) && !parsed.attributes.has("open"))
 );
 
-const protectedHtmlClosingEnd = (tag, tail, forceBalanced = false) => {
+const protectedHtmlClosingEnd = (tag, tail, forceBalanced = false, ancestorTags = new Set()) => {
   if (tag === "plaintext") return tail.length;
   if (tag === "script") return scriptClosingEnd(tail);
   if (tag === "noscript" || (!forceBalanced && !BALANCED_HTML_TAGS.has(tag))) {
@@ -379,6 +381,7 @@ const protectedHtmlClosingEnd = (tag, tail, forceBalanced = false) => {
         parsed.tag,
         tail.slice(childStart),
         parsed.attributes.has("hidden") || ["details", "dialog"].includes(parsed.tag),
+        new Set([...ancestorTags, tag]),
       );
       if (childEnd < 0) return -1;
       skipUntil = childStart + childEnd;
@@ -393,8 +396,9 @@ const protectedHtmlClosingEnd = (tag, tail, forceBalanced = false) => {
         IMPLICIT_CROSS_TAG_CLOSE.get(tag)?.has(parsed.tag)) return token.index;
     if (forceBalanced && parsed.isClosing &&
         ANCESTOR_END_CLOSES.get(tag)?.has(parsed.tag)) return token.index + token[0].length;
-    if (forceBalanced && parsed.isClosing && !RENDERED_BLOCK_HTML.has(tag) &&
-        RENDERED_BLOCK_HTML.has(parsed.tag)) return token.index + token[0].length;
+    if (forceBalanced && parsed.isClosing && ancestorTags.has(parsed.tag)) {
+      return token.index + token[0].length;
+    }
     if (parsed.tag !== tag) continue;
     if (parsed.isClosing) depth -= 1;
     else if (forceBalanced && IMPLICIT_SAME_TAG_CLOSE.has(tag)) return token.index;
@@ -483,7 +487,7 @@ const normalizeConditionalContainers = (tree, source) => {
     const parentRange = parentProtectedRanges.find((range) =>
       nested.start > range.start && nested.start < range.end);
     const name = parsed?.tag === "details" ? parsed.attributes.get("name") : null;
-    if (parentRange && ["details", "dialog"].includes(parentRange.tag) &&
+    if (parentRange && !PROTECTED_HTML_TAGS.has(parentRange.tag) &&
         !parsed.isClosing && parsed.attributes.has("open") && name) {
       if (!firstDetailsGroupStart.has(name)) firstDetailsGroupStart.set(name, nested.start);
     } else if (!parentRange && parsed?.tag === "details" && !parsed.isClosing &&
@@ -499,7 +503,7 @@ const normalizeConditionalContainers = (tree, source) => {
       html.start > range.start && html.start < range.end);
     if (parentRange) {
       const nestedName = parsed.tag === "details" ? parsed.attributes.get("name") : null;
-      if (["details", "dialog"].includes(parentRange.tag) &&
+      if (!PROTECTED_HTML_TAGS.has(parentRange.tag) &&
           parsed.tag === "details" && parsed.attributes.has("open") && nestedName) {
       }
       continue;
@@ -507,7 +511,8 @@ const normalizeConditionalContainers = (tree, source) => {
     const isConditional = ["details", "dialog"].includes(parsed.tag);
     const isVisibleBlockContainer = (html.block || ["math", "svg"].includes(parsed.tag)) &&
       !VOID_HTML.has(parsed.tag) &&
-      !PROTECTED_HTML_TAGS.has(parsed.tag) && !parsed.attributes.has("hidden");
+      !PROTECTED_HTML_TAGS.has(parsed.tag) && !parsed.attributes.has("hidden") &&
+      !parsed.attributes.has("popover");
     if (!isConditional && !isVisibleBlockContainer) continue;
     const tail = source.slice(html.end);
     const closingEnd = protectedHtmlClosingEnd(parsed.tag, tail, true);
@@ -539,7 +544,7 @@ const normalizeConditionalContainers = (tree, source) => {
           (isEffectivelyOpen ? normalizeRawHtmlText(summary.suffix) : summary.suffix);
       } else if (isEffectivelyOpen) replacement = normalizeRawHtmlText(body);
     } else if (parsed.tag === "dialog") {
-      if (isEffectivelyOpen) replacement = normalizeVisibleRegion(body);
+      if (isEffectivelyOpen) replacement = normalizeRawHtmlText(body);
     } else replacement = normalizeRawHtmlText(body, parsed.tag);
     edits.push({
       start: html.end,
@@ -565,7 +570,21 @@ const normalizeConditionalContainers = (tree, source) => {
 const hiddenHtmlRanges = (tree, source) => {
   const ranges = [];
   const openDetailsGroups = new Set();
-  for (const html of htmlTokens(tree)) {
+  const tokens = htmlTokens(tree);
+  const ancestorsBefore = (offset) => {
+    const stack = [];
+    for (const token of tokens) {
+      if (token.start >= offset) break;
+      const parsed = parseHtmlTag(token.value);
+      if (!parsed || VOID_HTML.has(parsed.tag)) continue;
+      if (parsed.isClosing) {
+        const match = stack.lastIndexOf(parsed.tag);
+        if (match >= 0) stack.splice(match);
+      } else stack.push(parsed.tag);
+    }
+    return new Set(stack);
+  };
+  for (const html of tokens) {
     const parsed = parseHtmlTag(html.value);
     if (!parsed) continue;
     if (ranges.some((range) => html.start >= range.start && html.start < range.end)) continue;
@@ -582,6 +601,7 @@ const hiddenHtmlRanges = (tree, source) => {
       parsed.tag,
       tail,
       parsed.attributes.has("hidden") || ["details", "dialog"].includes(parsed.tag),
+      ancestorsBefore(html.start),
     );
     let start = html.start;
     if (parsed.tag === "details" && !parsed.attributes.has("hidden")) {
@@ -624,8 +644,11 @@ const normalizeVisibleRegion = (source) => {
 const normalizeRawHtmlText = (source, containerTag = null) => {
   if (!source) return source;
   if (["math", "svg"].includes(containerTag)) {
-    source = source.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/gi, (section, content) =>
-      section.replace(content, content.replace(/[ \t]*\n[ \t]*/g, " ")));
+    const integrationRanges = [...source.matchAll(/<foreignObject(?=[\t\n\f\r />])[^>]*>[\s\S]*?<\/foreignObject\s*>/gi)]
+      .map((match) => ({ start: match.index, end: match.index + match[0].length }));
+    source = source.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/gi, (section, content, offset) =>
+      integrationRanges.some((range) => offset >= range.start && offset < range.end) ? section :
+        section.replace(content, content.replace(/[ \t]*\n[ \t]*/g, " ")));
   }
   const tree = fromMarkdown(source, {
     extensions: [gfm(), math()],
@@ -648,14 +671,20 @@ const normalizeRawHtmlText = (source, containerTag = null) => {
     .map((match) => ({ start: match.index, end: match.index + match[0].length, value: " " }));
   const openBlockTags = new Map();
   let tableDepth = containerTag === "table" ? 1 : 0;
+  const tableScopes = new Map([["td", 0], ["th", 0], ["tr", 0]]);
   for (const token of tokens) {
     const parsed = parseHtmlTag(token.value);
     if (!parsed || isProtected(token.start) || parsed.attributes.has("hidden")) continue;
     const depth = openBlockTags.get(parsed.tag) ?? 0;
     const isActiveClosing = !parsed.isClosing || parsed.tag === "p" || depth > 0;
-    const isActiveTableBoundary = tableDepth > 0 && ["td", "th", "tr"].includes(parsed.tag);
+    const tableScope = tableScopes.get(parsed.tag);
+    const isActiveTableBoundary = tableDepth > 0 && tableScope !== undefined &&
+      (!parsed.isClosing || tableScope > 0);
+    const hasVisibleBefore = source.slice(0, token.start)
+      .replace(HTML_TOKEN_PATTERN, "").trim().length > 0;
+    const isApplicableFrameset = parsed.tag !== "frameset" || !hasVisibleBefore;
     if (parsed.tag === "br" || isActiveTableBoundary ||
-        (RENDERED_BLOCK_HTML.has(parsed.tag) && isActiveClosing)) {
+        (RENDERED_BLOCK_HTML.has(parsed.tag) && isActiveClosing && isApplicableFrameset)) {
       edits.push({ start: token.start, end: token.start, value: "\n" });
       edits.push({ start: token.end, end: token.end, value: "\n" });
     }
@@ -664,6 +693,9 @@ const normalizeRawHtmlText = (source, containerTag = null) => {
       else if (!VOID_HTML.has(parsed.tag)) openBlockTags.set(parsed.tag, depth + 1);
     }
     if (parsed.tag === "table") tableDepth += parsed.isClosing ? -1 : 1;
+    if (tableScope !== undefined) {
+      tableScopes.set(parsed.tag, Math.max(0, tableScope + (parsed.isClosing ? -1 : 1)));
+    }
     tableDepth = Math.max(0, tableDepth);
   }
   let normalized = source;
@@ -718,6 +750,20 @@ const normalizeParsedMarkdown = (source, normalizeDetails = true) => {
         replacement: `${delimiter}${code.value.replace(/\n/g, " ")}${delimiter}`,
       };
     });
+    const visibleTextNodes = inlineNodes(node, "text");
+    for (const html of htmlNodes) {
+      const raw = normalized.slice(html.position.start.offset, html.position.end.offset);
+      const bridgesVisibleText = visibleTextNodes.some((text) =>
+        text.position.end.offset === html.position.start.offset) && visibleTextNodes.some((text) =>
+        text.position.start.offset === html.position.end.offset);
+      if (bridgesVisibleText && raw.includes("\n")) {
+        edits.push({
+          start: html.position.start.offset - start.offset,
+          end: html.position.end.offset - start.offset,
+          replacement: raw.replace(/[ \t]*\n[ \t]*/g, ""),
+        });
+      }
+    }
     for (const offset of insertedBreakOffsets) {
       edits.push({ start: offset - start.offset, end: offset - start.offset, replacement: "\n" });
     }

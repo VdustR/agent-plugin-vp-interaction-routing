@@ -896,6 +896,34 @@ test("protected and conditional HTML contexts remain isolated", () => {
   );
 });
 
+test("HTML parser scope controls visibility boundaries", () => {
+  for (const markdown of [
+    '<div><span hidden>secret</section>connector\nGitHub</div>',
+    '<svg><foreignObject><div><![CDATA[connector\nGitHub]]></div></foreignObject></svg>',
+    '<div><!-- connector\nGitHub -- ></div>',
+    '<div popover>connector\nGitHub</div>',
+  ]) assert.doesNotMatch(normalizeMarkdownForInvariant(markdown), /connector GitHub/);
+  assert.doesNotMatch(
+    normalizeMarkdownForInvariant(
+      '<div hidden><details name="route" open>first</details></div>' +
+      '<details name="route" open>connector\nGitHub</details>',
+    ),
+    /connector GitHub/,
+  );
+  assert.match(
+    normalizeMarkdownForInvariant('<dialog open>\nconnector\n# GitHub\n</dialog>'),
+    /connector # GitHub/,
+  );
+  for (const markdown of [
+    '<table>connector </td>\n GitHub</table>',
+    '<div>connector<frameset>\nGitHub</div>',
+  ]) assert.match(normalizeMarkdownForInvariant(markdown), /connector.*GitHub/);
+  assert.match(
+    normalizeMarkdownForInvariant('connector<span\nclass="note">GitHub</span>'),
+    /connector.*GitHub/,
+  );
+});
+
 test("unreferenced footnote definitions remain metadata", () => {
   assert.doesNotMatch(
     normalizeMarkdownForInvariant("[^route]: connector\n    GitHub"),
