@@ -636,6 +636,12 @@ test("collapsed details bodies remain line-bounded", () => {
     ),
     /connector GitHub/,
   );
+  assert.match(
+    normalizeMarkdownForInvariant(
+      "<details><p>prefix<summary>connector\nGitHub</summary>hidden</details>",
+    ),
+    /connector GitHub/,
+  );
   const nested = normalizeMarkdownForInvariant(
     "<details open>outer\n<details open>inner\nwrap</details>\nafter</details>",
   );
@@ -719,6 +725,11 @@ test("non-rendering HTML tags do not preserve soft wraps", () => {
     normalizeMarkdownForInvariant('connector<link rel="stylesheet" href="x">\nGitHub'),
     /connector.*GitHub/,
   );
+});
+
+test("invalid numeric HTML character references do not abort normalization", () => {
+  assert.doesNotThrow(() =>
+    normalizeMarkdownForInvariant('<div title="&#999999999999;">connector\nGitHub</div>'));
 });
 
 test("inline-code newlines retain their adjacent whitespace", () => {

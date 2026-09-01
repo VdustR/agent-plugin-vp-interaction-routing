@@ -237,8 +237,13 @@ const parseHtmlTag = (token) => {
       attributes.set(normalizedName, rawValue.replace(
         /&(#(?:[xX][0-9A-Fa-f]+|[0-9]+)|[A-Za-z][A-Za-z0-9]+);/g,
         (reference, name) => {
-          if (/^#x/i.test(name)) return String.fromCodePoint(Number.parseInt(name.slice(2), 16));
-          if (name.startsWith("#")) return String.fromCodePoint(Number.parseInt(name.slice(1), 10));
+          if (name.startsWith("#")) {
+            const value = /^#x/i.test(name) ? Number.parseInt(name.slice(2), 16) :
+              Number.parseInt(name.slice(1), 10);
+            const codePoint = !Number.isFinite(value) || value === 0 || value > 0x10FFFF ||
+              (value >= 0xD800 && value <= 0xDFFF) ? 0xFFFD : value;
+            return String.fromCodePoint(codePoint);
+          }
           return decodeNamedCharacterReference(name) || reference;
         },
       ));
@@ -325,6 +330,8 @@ const summaryParts = (body) => {
   for (const token of tokens) {
     const parsed = parseHtmlTag(token[0]);
     if (!parsed) continue;
+    if (!parsed.isClosing && stack.at(-1) === "p" &&
+        P_CLOSING_START_TAGS.has(parsed.tag)) stack.pop();
     if (parsed.tag === "summary" && !parsed.isClosing && stack.length === 0) {
       opening = token;
       break;
