@@ -238,6 +238,10 @@ test("explicit HTML breaks at line endings remain line boundaries", () => {
     normalizeMarkdownForInvariant("connector<br>GitHub"),
     /connector.*GitHub/,
   );
+  assert.match(
+    normalizeMarkdownForInvariant("connector<br hidden>\nGitHub"),
+    /connector.*GitHub/,
+  );
 });
 
 test("a literal greater-than sign in image alt text is preserved", () => {
@@ -602,6 +606,19 @@ test("collapsed details bodies remain line-bounded", () => {
   assert.doesNotMatch(
     normalizeMarkdownForInvariant(
       "<details><div><summary>connector\nGitHub</summary></div></details>",
+    ),
+    /connector GitHub/,
+  );
+  for (const markdown of [
+    "<details hidden><summary>connector\nGitHub</summary></details>",
+    "<details><summary hidden>connector\nGitHub</summary>body</details>",
+  ]) {
+    assert.doesNotMatch(normalizeMarkdownForInvariant(markdown), /connector GitHub/);
+  }
+  assert.doesNotMatch(
+    normalizeMarkdownForInvariant(
+      '<details name="route" open>first</details>\n' +
+      '<details name="route" open>connector\nGitHub</details>',
     ),
     /connector GitHub/,
   );

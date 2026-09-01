@@ -149,16 +149,17 @@ const explicitBreaks = (block, source) => {
   const visit = (node) => {
     if (node.type === "break") lines.add(node.position.end.line);
     if (node.type === "html") {
-      const tagMatch = node.value.match(/^<(\/)?([a-z][\w-]*)(?=[\s/>])/i);
-      const tag = tagMatch?.[2].toLowerCase();
-      const isClosing = Boolean(tagMatch?.[1]);
+      const parsed = parseHtmlTag(node.value);
+      const tag = parsed?.tag;
+      const isClosing = Boolean(parsed?.isClosing);
+      const isHidden = parsed?.attributes.has("hidden");
       const hasVisibleBefore = visibleNodes.some((visible) =>
         visible.position.end.offset <= node.position.start.offset);
       const isApplicableOpening = !(tag === "frameset" && hasVisibleBefore);
       const isActiveClosing = (!isClosing && isApplicableOpening) || tag === "p" ||
         (openBlockTags.get(tag) ?? 0) > 0;
       const newlineOffset = source.indexOf("\n", node.position.end.offset);
-      if (tag === "br" || (RENDERED_BLOCK_HTML.has(tag) && isActiveClosing)) {
+      if (!isHidden && (tag === "br" || (RENDERED_BLOCK_HTML.has(tag) && isActiveClosing))) {
         const visibleLimit = newlineOffset >= 0 ? newlineOffset : block.position.end.offset + 1;
         const hasVisibleContent = visibleNodes.some((visible) =>
           visible.position.start.offset < visibleLimit &&
@@ -198,7 +199,7 @@ const htmlTokens = (tree) => inlineNodes(tree, "html").flatMap((node) =>
 const parseHtmlTag = (token) => {
   const opening = token.match(/^<(\/)?([A-Za-z][A-Za-z0-9-]*)/);
   if (!opening) return null;
-  const attributes = new Set();
+  const attributes = new Map();
   let index = opening[0].length;
   while (!opening[1] && index < token.length) {
     const whitespace = token.slice(index).match(/^[\t\n\f\r ]+/)?.[0].length ?? 0;
@@ -206,14 +207,21 @@ const parseHtmlTag = (token) => {
     if (/^\/?>/.test(token.slice(index))) break;
     const name = token.slice(index).match(/^[A-Za-z_:][\w:.-]*/)?.[0];
     if (!name) break;
-    attributes.add(name.toLowerCase());
+    const normalizedName = name.toLowerCase();
     index += name.length;
     index += token.slice(index).match(/^[\t\n\f\r ]*/)[0].length;
-    if (token[index] !== "=") continue;
+    if (token[index] !== "=") {
+      attributes.set(normalizedName, "");
+      continue;
+    }
     index += 1;
     index += token.slice(index).match(/^[\t\n\f\r ]*/)[0].length;
     const value = token.slice(index).match(/^(?:"[^"]*"|'[^']*'|[^\t\n\f\r "'=<>`]+)/)?.[0];
-    if (value) index += value.length;
+    if (value) {
+      index += value.length;
+      attributes.set(normalizedName,
+        /^['"]/.test(value) ? value.slice(1, -1) : value);
+    } else attributes.set(normalizedName, "");
   }
   return { tag: opening[2].toLowerCase(), isClosing: Boolean(opening[1]), attributes };
 };
@@ -313,6 +321,7 @@ const summaryParts = (body) => {
     prefix: body.slice(0, opening.index),
     opening: opening[0],
     content: body.slice(contentStart, closing.index),
+    isHidden: parseHtmlTag(opening[0]).attributes.has("hidden"),
     closing: closing[0],
     suffix: body.slice(closing.index + closing[0].length),
     bodyStart: closing.index + closing[0].length,
@@ -331,6 +340,7 @@ const closingTagStart = (tag, tail, closingEnd) => {
 const normalizeConditionalContainers = (tree, source) => {
   const edits = [];
   let claimedEnd = -1;
+  const openDetailsGroups = new Set();
   for (const html of htmlTokens(tree)) {
     if (html.start < claimedEnd) continue;
     const parsed = parseHtmlTag(html.value);
@@ -343,17 +353,26 @@ const normalizeConditionalContainers = (tree, source) => {
     if (relativeClosingStart < 0) continue;
     const closingStart = html.end + relativeClosingStart;
     const body = source.slice(html.end, closingStart);
+    const detailsName = parsed.tag === "details" ? parsed.attributes.get("name") : null;
+    const isGroupedOpen = parsed.attributes.has("open") && detailsName &&
+      !openDetailsGroups.has(detailsName);
+    if (parsed.tag === "details" && parsed.attributes.has("open") && detailsName) {
+      openDetailsGroups.add(detailsName);
+    }
+    const isEffectivelyOpen = parsed.attributes.has("open") &&
+      (!detailsName || isGroupedOpen);
     let replacement = body;
     if (parsed.attributes.has("hidden")) replacement = body;
     else if (parsed.tag === "details") {
       const summary = summaryParts(body);
       if (summary) {
-        replacement = (parsed.attributes.has("open") ?
+        replacement = (isEffectivelyOpen ?
           normalizeParsedMarkdown(summary.prefix, true) : summary.prefix) + summary.opening +
-          normalizeParsedMarkdown(summary.content, true) + summary.closing +
-          (parsed.attributes.has("open") ? normalizeParsedMarkdown(summary.suffix, true) : summary.suffix);
-      } else if (parsed.attributes.has("open")) replacement = normalizeParsedMarkdown(body, true);
-    } else if (parsed.attributes.has("open")) replacement = normalizeParsedMarkdown(body, true);
+          (summary.isHidden ? summary.content : normalizeParsedMarkdown(summary.content, true)) +
+          summary.closing +
+          (isEffectivelyOpen ? normalizeParsedMarkdown(summary.suffix, true) : summary.suffix);
+      } else if (isEffectivelyOpen) replacement = normalizeParsedMarkdown(body, true);
+    } else if (isEffectivelyOpen) replacement = normalizeParsedMarkdown(body, true);
     edits.push({
       start: html.end,
       end: closingStart,
@@ -370,10 +389,18 @@ const normalizeConditionalContainers = (tree, source) => {
 
 const hiddenHtmlRanges = (tree, source) => {
   const ranges = [];
+  const openDetailsGroups = new Set();
   for (const html of htmlTokens(tree)) {
-    if (ranges.some((range) => html.start < range.end)) continue;
     const parsed = parseHtmlTag(html.value);
-    if (!parsed || !isProtectedOpening(parsed)) continue;
+    if (!parsed) continue;
+    const detailsName = parsed.tag === "details" ? parsed.attributes.get("name") : null;
+    const isLaterGroupedOpen = !parsed.isClosing && parsed.attributes.has("open") &&
+      detailsName && openDetailsGroups.has(detailsName);
+    if (!parsed.isClosing && parsed.attributes.has("open") && detailsName) {
+      openDetailsGroups.add(detailsName);
+    }
+    if (ranges.some((range) => html.start >= range.start && html.start < range.end)) continue;
+    if (!isProtectedOpening(parsed) && !isLaterGroupedOpen) continue;
 
     const tail = source.slice(html.end);
     const closingEnd = protectedHtmlClosingEnd(
@@ -382,7 +409,7 @@ const hiddenHtmlRanges = (tree, source) => {
       parsed.attributes.has("hidden") || ["details", "dialog"].includes(parsed.tag),
     );
     let start = html.start;
-    if (parsed.tag === "details") {
+    if (parsed.tag === "details" && !parsed.attributes.has("hidden")) {
       const closingStart = closingEnd < 0 ? source.length : html.end + closingEnd;
       const summary = summaryParts(source.slice(html.end, closingStart));
       if (summary) {
