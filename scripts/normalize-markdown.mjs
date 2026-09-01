@@ -87,7 +87,8 @@ const normalizeParsedMarkdown = (source) => {
       .replace(/[ \t]*\n[ \t]*(?:>[ \t]*)*/g, (match) => {
         line += 1;
         if (preservedBreakLines.has(line)) return match;
-        return ` ${literalPrefixes.get(line) ?? ""}`;
+        const consumedPrefix = match.match(/\n[ \t]*((?:>[ \t]*)+)$/)?.[1];
+        return ` ${literalPrefixes.has(line) ? (consumedPrefix ?? "") : ""}`;
       });
     normalized = normalized.slice(0, start.offset) + block + normalized.slice(end.offset);
   }

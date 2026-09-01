@@ -237,3 +237,14 @@ test("a literal greater-than sign in image alt text is preserved", () => {
   assert.match(normalized, /connector for > GitHub/);
   assert.doesNotMatch(normalized, /connector for GitHub/);
 });
+
+test("decoded greater-than signs are not inserted into normalized source", () => {
+  assert.equal(
+    normalizeMarkdownForInvariant("connector for\n\\> GitHub"),
+    "connector for \\> GitHub",
+  );
+  assert.equal(
+    normalizeMarkdownForInvariant("connector for\n&gt; GitHub"),
+    "connector for &gt; GitHub",
+  );
+});
