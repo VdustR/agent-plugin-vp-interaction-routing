@@ -76,3 +76,19 @@ test("raw HTML remains opaque", () => {
     CROSS_BLOCK_PATTERN,
   );
 });
+
+test("inline HTML does not disable surrounding prose normalization", () => {
+  assert.match(
+    normalizeMarkdownForInvariant(
+      "Prefer the connector <kbd>CLI</kbd> for the\nGitHub operation.",
+    ),
+    /connector CLI for the GitHub/,
+  );
+});
+
+test("image alt text normalizes soft wraps", () => {
+  assert.match(
+    normalizeMarkdownForInvariant("![authenticated connector for\nGitHub](route.png)"),
+    /connector for GitHub/,
+  );
+});

@@ -22,9 +22,6 @@ const splitFrontmatter = (source) => {
   };
 };
 
-const hasRawHtml = (node) =>
-  node.type === "html" || (node.children ?? []).some(hasRawHtml);
-
 const renderedText = (node) => {
   switch (node.type) {
     case "text":
@@ -35,7 +32,7 @@ const renderedText = (node) => {
       return "\n";
     case "image":
     case "imageReference":
-      return node.alt ?? "";
+      return (node.alt ?? "").replace(/\n/g, " ");
     default:
       return (node.children ?? []).map(renderedText).join("");
   }
@@ -64,7 +61,7 @@ export const normalizeMarkdownForInvariant = (text) => {
   });
 
   const blocks = collectBlocks(tree).map((block) => {
-    if (OPAQUE_BLOCKS.has(block.type) || hasRawHtml(block)) {
+    if (OPAQUE_BLOCKS.has(block.type)) {
       return markdown.slice(block.position.start.offset, block.position.end.offset);
     }
     return renderedText(block).trim();
