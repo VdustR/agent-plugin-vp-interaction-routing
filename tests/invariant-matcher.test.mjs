@@ -186,6 +186,12 @@ test("frontmatter openers accept trailing horizontal whitespace", () => {
   assert.doesNotMatch(normalizeMarkdownForInvariant(markdown), CROSS_BLOCK_PATTERN);
 });
 
+test("GitHub frontmatter requires a triple-dash closer", () => {
+  const markdown = "---\nPrefer the connector for\nGitHub operations.\n...";
+
+  assert.match(normalizeMarkdownForInvariant(markdown), /connector for GitHub/);
+});
+
 test("soft-wrap folding removes trailing horizontal whitespace", () => {
   const markdown = "Prefer the connector for \nGitHub operations.";
 
@@ -284,12 +290,25 @@ test("line-breaking inline HTML elements preserve following newlines", () => {
   }
 });
 
+test("HTML breaks remain at the tag while later prose wraps", () => {
+  const normalized = normalizeMarkdownForInvariant("connector<br>aside\nGitHub");
+
+  assert.doesNotMatch(normalized, /connector.*GitHub/);
+  assert.match(normalized, /aside GitHub/);
+});
+
 test("visible prose after an HTML break still folds its soft wrap", () => {
   assert.match(
     normalizeMarkdownForInvariant("intro<br>connector for\nGitHub"),
     /connector for GitHub/,
   );
   for (const tag of ["body", "html"]) {
+    assert.match(
+      normalizeMarkdownForInvariant(`connector<${tag}>\nGitHub`),
+      /connector.*GitHub/,
+    );
+  }
+  for (const tag of ["caption", "tbody", "td", "tfoot", "th", "thead", "tr"]) {
     assert.match(
       normalizeMarkdownForInvariant(`connector<${tag}>\nGitHub`),
       /connector.*GitHub/,
@@ -324,6 +343,13 @@ test("visible link-label wraps between inline children are folded", () => {
   );
 });
 
+test("inline math brackets do not shift link metadata boundaries", () => {
+  assert.doesNotMatch(
+    normalizeMarkdownForInvariant('[visible $[$](connector\n"GitHub")'),
+    /connector.*GitHub/,
+  );
+});
+
 test("image destination and title metadata remain line-bounded", () => {
   for (const markdown of [
     '![alt](connector\n"GitHub")',
@@ -341,6 +367,12 @@ test("reference identifiers remain line-bounded", () => {
   ]) {
     assert.doesNotMatch(normalizeMarkdownForInvariant(markdown), /connector.*GitHub/);
   }
+});
+
+test("resolved footnote reference identifiers remain line-bounded", () => {
+  const markdown = "visible[^connector\nGitHub]\n\n[^connector github]: note";
+
+  assert.doesNotMatch(normalizeMarkdownForInvariant(markdown), /connector.*GitHub/);
 });
 
 test("image alt prefixes ignore destination metadata newlines", () => {
@@ -395,6 +427,28 @@ test("raw-text HTML element bodies remain line-bounded", () => {
   );
   assert.doesNotMatch(
     normalizeMarkdownForInvariant("Visible<template>\nconnector\nGitHub\n</template>"),
+    /connector GitHub/,
+  );
+  for (const tag of ["iframe", "noembed", "noframes", "xmp"]) {
+    assert.doesNotMatch(
+      normalizeMarkdownForInvariant(`Visible<${tag}>\nconnector\nGitHub\n</${tag}>`),
+      /connector GitHub/,
+    );
+  }
+  assert.doesNotMatch(
+    normalizeMarkdownForInvariant(
+      "Visible<template>\n<template>\nx\n</template>\nconnector\nGitHub\n</template>",
+    ),
+    /connector GitHub/,
+  );
+  assert.doesNotMatch(
+    normalizeMarkdownForInvariant(
+      "Visible<script>\nx\n</script\u00a0>\nconnector\nGitHub\n</script>",
+    ),
+    /connector GitHub/,
+  );
+  assert.doesNotMatch(
+    normalizeMarkdownForInvariant("Visible<script>\nfoo\n\nconnector\nGitHub\n</script>"),
     /connector GitHub/,
   );
 });

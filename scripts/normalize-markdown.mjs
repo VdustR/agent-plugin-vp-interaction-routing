@@ -5,14 +5,13 @@ import { gfm } from "micromark-extension-gfm";
 import { math } from "micromark-extension-math";
 
 const NORMALIZABLE_BLOCKS = new Set(["heading", "paragraph"]);
-const FRONTMATTER_DELIMITER = /^(?:---|\.\.\.)[ \t]*$/;
+const FRONTMATTER_DELIMITER = /^---[ \t]*$/;
 const RENDERED_BLOCK_HTML = new Set([
-  "address", "article", "aside", "blockquote", "caption", "center", "dd",
+  "address", "article", "aside", "blockquote", "center", "dd",
   "details", "dialog", "dir", "div", "dl", "dt", "fieldset", "figcaption", "figure",
   "footer", "form", "frameset", "h1", "h2", "h3", "h4", "h5", "h6", "header",
   "hgroup", "hr", "legend", "li", "main", "menu", "nav", "noframes", "ol",
-  "p", "pre", "search", "section", "summary", "table", "tbody", "td", "tfoot", "th",
-  "thead", "tr", "ul",
+  "p", "pre", "search", "section", "summary", "table", "ul",
 ]);
 
 const labelRange = (node, source) => {
@@ -29,6 +28,12 @@ const labelRange = (node, source) => {
     }
     if (raw[index] === "`") {
       const delimiter = raw.slice(index).match(/^`+/)[0];
+      const closing = raw.indexOf(delimiter, index + delimiter.length);
+      if (closing >= 0) index = closing + delimiter.length - 1;
+      continue;
+    }
+    if (raw[index] === "$") {
+      const delimiter = raw.slice(index).match(/^\$+/)[0];
       const closing = raw.indexOf(delimiter, index + delimiter.length);
       if (closing >= 0) index = closing + delimiter.length - 1;
       continue;
@@ -110,8 +115,9 @@ const literalQuotePrefixes = (block, source) => {
   return prefixes;
 };
 
-const explicitBreakLines = (block, source) => {
+const explicitBreaks = (block, source) => {
   const lines = new Set();
+  const offsets = new Set();
   const visibleNodes = ["text", "inlineCode", "inlineMath", "image", "imageReference"]
     .flatMap((type) => inlineNodes(block, type));
   const visit = (node) => {
@@ -123,13 +129,14 @@ const explicitBreakLines = (block, source) => {
         const hasVisibleContent = visibleNodes.some((visible) =>
           visible.position.start.offset < newlineOffset &&
           visible.position.end.offset > node.position.end.offset);
-        if (!hasVisibleContent) lines.add(node.position.end.line + 1);
+        if (hasVisibleContent) offsets.add(node.position.end.offset);
+        else lines.add(node.position.end.line + 1);
       }
     }
     for (const child of node.children ?? []) visit(child);
   };
   visit(block);
-  return lines;
+  return { lines, offsets };
 };
 
 const inlineNodes = (block, type) => {
@@ -142,6 +149,37 @@ const inlineNodes = (block, type) => {
   return nodes;
 };
 
+const hiddenHtmlRanges = (tree, source) => inlineNodes(tree, "html").flatMap((html) => {
+  const tag = html.value.match(
+    /^<(iframe|noembed|noframes|script|style|template|textarea|title|xmp)(?=[\t\n\f\r />])/i,
+  )?.[1].toLowerCase();
+  if (!tag) return [];
+
+  const tail = source.slice(html.position.end.offset);
+  if (tag !== "template") {
+    const closing = new RegExp(`<\\/${tag}[\\t\\n\\f\\r ]*>`, "i").exec(tail);
+    return closing ? [{
+      start: html.position.start.offset,
+      end: html.position.end.offset + closing.index + closing[0].length,
+    }] : [];
+  }
+
+  const tokenPattern = /<!--[\s\S]*?-->|<\/?template(?=[\t\n\f\r />])[^>]*>/gi;
+  let depth = 1;
+  for (const token of tail.matchAll(tokenPattern)) {
+    if (token[0].startsWith("<!--")) continue;
+    if (/^<\/template/i.test(token[0])) depth -= 1;
+    else depth += 1;
+    if (depth === 0) {
+      return [{
+        start: html.position.start.offset,
+        end: html.position.end.offset + token.index + token[0].length,
+      }];
+    }
+  }
+  return [];
+});
+
 const normalizeParsedMarkdown = (source) => {
   if (source === "") return source;
   const tree = fromMarkdown(source, {
@@ -149,6 +187,7 @@ const normalizeParsedMarkdown = (source) => {
     mdastExtensions: [gfmFromMarkdown(), mathFromMarkdown()],
   });
   let normalized = source;
+  const protectedHtmlRanges = hiddenHtmlRanges(tree, source);
 
   // Work backwards so replacing a soft wrap does not invalidate the source
   // offsets of blocks that precede it. Container prefixes are part of the raw
@@ -158,7 +197,8 @@ const normalizeParsedMarkdown = (source) => {
     const end = node.type === "heading" ?
       (node.children.at(-1)?.position.end ?? node.position.end) : node.position.end;
     const literalPrefixes = literalQuotePrefixes(node, normalized);
-    const preservedBreakLines = explicitBreakLines(node, normalized);
+    const { lines: preservedBreakLines, offsets: insertedBreakOffsets } =
+      explicitBreaks(node, normalized);
     const codeNodes = inlineNodes(node, "inlineCode");
     const mathNodes = inlineNodes(node, "inlineMath");
     const htmlNodes = inlineNodes(node, "html");
@@ -170,16 +210,6 @@ const normalizeParsedMarkdown = (source) => {
       ...inlineNodes(node, "image"),
       ...inlineNodes(node, "imageReference"),
     ];
-    const rawTextRanges = htmlNodes.flatMap((html) => {
-      const tag = html.value.match(/^<(script|style|template|title|textarea)(?=[\s/>])/i)?.[1];
-      if (!tag) return [];
-      const tail = normalized.slice(html.position.end.offset);
-      const closing = new RegExp(`<\\/${tag}\\s*>`, "i").exec(tail);
-      return closing ? [{
-        start: html.position.start.offset,
-        end: html.position.end.offset + closing.index + closing[0].length,
-      }] : [];
-    });
     const original = normalized.slice(start.offset, end.offset);
     const edits = codeNodes.map((code) => {
       const raw = normalized.slice(code.position.start.offset, code.position.end.offset);
@@ -190,6 +220,9 @@ const normalizeParsedMarkdown = (source) => {
         replacement: `${delimiter}${code.value.replace(/\n/g, " ")}${delimiter}`,
       };
     });
+    for (const offset of insertedBreakOffsets) {
+      edits.push({ start: offset - start.offset, end: offset - start.offset, replacement: "\n" });
+    }
     let line = start.line;
     for (const match of original.matchAll(/[ \t]*\n[ \t]*(?:>[ \t]*)*/g)) {
       line += 1;
@@ -199,6 +232,7 @@ const normalizeParsedMarkdown = (source) => {
       const isInsideRange = (range) => newlineOffset >= range.start && newlineOffset < range.end;
       const isLinkMetadata = linkNodes.some((link) => {
         if (!isInside(link)) return false;
+        if (link.type === "linkReference" && link.identifier.startsWith("^")) return true;
         const label = labelRange(link, normalized);
         return label && newlineOffset >= label.end;
       });
@@ -208,7 +242,7 @@ const normalizeParsedMarkdown = (source) => {
         return label && newlineOffset >= label.end;
       });
       if (codeNodes.some(isInside) || mathNodes.some(isInside) || htmlNodes.some(isInside) ||
-          rawTextRanges.some(isInsideRange) ||
+          protectedHtmlRanges.some(isInsideRange) ||
           isLinkMetadata || isImageMetadata || preservedBreakLines.has(line)) {
         continue;
       }
