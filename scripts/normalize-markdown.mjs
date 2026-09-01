@@ -49,7 +49,7 @@ const literalQuotePrefixes = (block) => {
     if (typeof literal === "string") {
       for (const [index, line] of literal.split("\n").entries()) {
         const prefix = line.match(/^[ \t]*((?:>[ \t]*)+)/)?.[1];
-        if (prefix) {
+        if (prefix && !prefixes.has(node.position.start.line + index)) {
           prefixes.set(node.position.start.line + index, {
             prefix,
             startLine: node.position.start.line,

@@ -261,6 +261,14 @@ test("a literal quote prefix after inline markup is not inserted early", () => {
   assert.equal(normalizeMarkdownForInvariant(markdown), "> connector for *> GitHub*");
 });
 
+test("the earliest literal quote prefix on a line is retained", () => {
+  const markdown = "> connector for\n>     > GitHub `> later`";
+  const normalized = normalizeMarkdownForInvariant(markdown);
+
+  assert.match(normalized, /connector for > GitHub/);
+  assert.doesNotMatch(normalized, /connector for GitHub/);
+});
+
 test("line-breaking inline HTML elements preserve following newlines", () => {
   for (const markdown of [
     "connector<div>\nGitHub",
