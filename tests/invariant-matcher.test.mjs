@@ -46,11 +46,11 @@ const separateBlocks = {
   "a deeply nested list item":
     "- Prefer the authenticated connector.\n    - GitHub is elsewhere.",
   "a table row followed by prose":
-    "| connector | yes |\nGitHub is elsewhere.",
+    "| connector | yes |\n| --------- | --- |\nGitHub is elsewhere.",
   "a pipe-less table followed by prose":
     "connector | policy\n--------- | ------\nGitHub is elsewhere.",
   "a block quote followed by prose":
-    "> Prefer the connector.\nGitHub is elsewhere.",
+    "> Prefer the connector.\n>\nGitHub is elsewhere.",
   "an ATX heading inside a block quote":
     "> Prefer the connector.\n> # GitHub is elsewhere.",
   "a list item inside a block quote":
@@ -63,6 +63,10 @@ const separateBlocks = {
     "---\ndescription: connector\n---\nGitHub is elsewhere.",
   "an indented code block followed by prose":
     "    connector\nGitHub is elsewhere.",
+  "an HTML block followed by prose":
+    "<!-- connector -->\nGitHub is elsewhere.",
+  "a link-reference definition followed by prose":
+    "[connector]: /target\nGitHub is elsewhere.",
 };
 
 test("the blanket whitespace collapse reproduces the cross-list leak", () => {
@@ -70,13 +74,15 @@ test("the blanket whitespace collapse reproduces the cross-list leak", () => {
     CROSS_BLOCK_PATTERN);
 });
 
-for (const shape of [
-  "an ATX heading followed by prose",
-  "a table row followed by prose",
-  "a block quote followed by prose",
-]) {
+const legacyStartLeaks = {
+  "an ATX heading followed by prose": separateBlocks["an ATX heading followed by prose"],
+  "a table-looking row followed by prose": "| connector | yes |\nGitHub is elsewhere.",
+  "a quote marker followed by unmarked prose": "> Prefer the connector.\nGitHub is elsewhere.",
+};
+
+for (const [shape, sample] of Object.entries(legacyStartLeaks)) {
   test(`the current-line classifier reproduces the ${shape} leak`, () => {
-    assert.match(legacyReflow(separateBlocks[shape]), CROSS_BLOCK_PATTERN);
+    assert.match(legacyReflow(sample), CROSS_BLOCK_PATTERN);
   });
 }
 
@@ -114,7 +120,7 @@ test("paragraph and list-item continuation lines are normalized", () => {
 });
 
 test("block-quote continuations normalize without joining following prose", () => {
-  const markdown = "> A connector wraps\n> onto GitHub.\nFollowing prose.";
+  const markdown = "> A connector wraps\n> onto GitHub.\n>\nFollowing prose.";
   const normalized = normalizeMarkdownForInvariant(markdown);
 
   assert.match(normalized, /connector wraps.*GitHub/);
@@ -139,4 +145,22 @@ test("soft-wrapped Setext heading text is normalized within its block", () => {
 
   assert.match(normalized, /connector for the GitHub/);
   assert.doesNotMatch(normalized, /GitHub.*Following/);
+});
+
+test("list-relative indentation remains a paragraph continuation", () => {
+  const markdown = "- Prefer the connector for\n    GitHub operations.";
+
+  assert.match(normalizeMarkdownForInvariant(markdown), /connector for GitHub/);
+});
+
+test("a lazy block-quote continuation remains in its paragraph", () => {
+  const markdown = "> Prefer the connector for\nGitHub operations.";
+
+  assert.match(normalizeMarkdownForInvariant(markdown), /connector for GitHub/);
+});
+
+test("pipe syntax without a delimiter remains paragraph prose", () => {
+  const markdown = "| Prefer the connector for |\nGitHub operations.";
+
+  assert.match(normalizeMarkdownForInvariant(markdown), /connector for \| GitHub/);
 });
