@@ -278,15 +278,37 @@ test("line-breaking inline HTML elements preserve following newlines", () => {
     "connector<style>\nGitHub</style>",
     "connector<textarea>\nGitHub</textarea>",
     "connector<br><!-- note -->\nGitHub",
+    "connector<hgroup>\nGitHub",
   ]) {
     assert.doesNotMatch(normalizeMarkdownForInvariant(markdown), /connector.*GitHub/);
   }
+});
+
+test("visible prose after an HTML break still folds its soft wrap", () => {
+  assert.match(
+    normalizeMarkdownForInvariant("intro<br>connector for\nGitHub"),
+    /connector for GitHub/,
+  );
 });
 
 test("multiline inline HTML contents are not folded as prose", () => {
   const markdown = "Visible <!-- connector\nGitHub -->";
 
   assert.doesNotMatch(normalizeMarkdownForInvariant(markdown), /connector GitHub/);
+});
+
+test("link destination and title metadata remain line-bounded", () => {
+  assert.doesNotMatch(
+    normalizeMarkdownForInvariant('[visible](connector\n"GitHub")'),
+    /connector.*GitHub/,
+  );
+});
+
+test("decoded entity newlines do not shift quote-prefix metadata", () => {
+  const markdown = "> connector for &#10;> note\n> GitHub";
+
+  assert.match(normalizeMarkdownForInvariant(markdown), /note GitHub/);
+  assert.doesNotMatch(normalizeMarkdownForInvariant(markdown), /note > GitHub/);
 });
 
 test("inline-code newlines retain their adjacent whitespace", () => {

@@ -7,11 +7,14 @@ import { math } from "micromark-extension-math";
 const NORMALIZABLE_BLOCKS = new Set(["heading", "paragraph"]);
 const FRONTMATTER_DELIMITER = /^(?:---|\.\.\.)[ \t]*$/;
 const LINE_BREAKING_HTML = new Set([
-  "address", "article", "aside", "blockquote", "caption", "center", "dd", "details",
-  "dialog", "dir", "div", "dl", "dt", "fieldset", "figcaption", "figure", "footer",
-  "form", "h1", "h2", "h3", "h4", "h5", "h6", "header", "hr", "li", "main",
-  "menu", "nav", "ol", "p", "pre", "script", "section", "style", "summary", "table",
-  "tbody", "td", "textarea", "tfoot", "th", "thead", "title", "tr", "ul",
+  "address", "article", "aside", "base", "basefont", "blockquote", "body", "caption",
+  "center", "col", "colgroup", "dd", "details", "dialog", "dir", "div", "dl", "dt",
+  "fieldset", "figcaption", "figure", "footer", "form", "frame", "frameset", "h1", "h2",
+  "h3", "h4", "h5", "h6", "head", "header", "hgroup", "hr", "html", "iframe",
+  "legend", "li", "link", "main", "menu", "menuitem", "nav", "noframes", "ol",
+  "optgroup", "option", "p", "param", "pre", "script", "search", "section", "style",
+  "summary", "table", "tbody", "td", "textarea", "tfoot", "th", "thead", "title", "tr",
+  "track", "ul",
 ]);
 
 const splitFrontmatter = (source) => {
@@ -42,11 +45,13 @@ const normalizableBlocks = (tree) => {
   return blocks;
 };
 
-const literalQuotePrefixes = (block) => {
+const literalQuotePrefixes = (block, source) => {
   const prefixes = new Map();
   const visit = (node) => {
     const literal = typeof node.value === "string" ? node.value : node.alt;
     if (typeof literal === "string") {
+      const raw = source.slice(node.position.start.offset, node.position.end.offset);
+      if (literal.split("\n").length !== raw.split("\n").length) return;
       for (const [index, line] of literal.split("\n").entries()) {
         const prefix = line.match(/^[ \t]*((?:>[ \t]*)+)/)?.[1];
         if (prefix && !prefixes.has(node.position.start.line + index)) {
@@ -66,11 +71,23 @@ const literalQuotePrefixes = (block) => {
 
 const explicitBreakLines = (block, source) => {
   const lines = new Set();
+  const htmlNodes = inlineNodes(block, "html");
   const visit = (node) => {
     if (node.type === "break") lines.add(node.position.end.line);
-    if (node.type === "html" && /^[^\n]*\n/.test(source.slice(node.position.end.offset))) {
+    if (node.type === "html") {
       const tag = node.value.match(/^<\/?([a-z][\w-]*)(?=[\s/>])/i)?.[1].toLowerCase();
-      if (tag === "br" || LINE_BREAKING_HTML.has(tag)) lines.add(node.position.end.line + 1);
+      const newlineOffset = source.indexOf("\n", node.position.end.offset);
+      if ((tag === "br" || LINE_BREAKING_HTML.has(tag)) && newlineOffset >= 0) {
+        let intervening = source.slice(node.position.end.offset, newlineOffset);
+        for (const html of htmlNodes) {
+          if (html.position.start.offset < node.position.end.offset ||
+              html.position.end.offset > newlineOffset) continue;
+          const start = html.position.start.offset - node.position.end.offset;
+          const end = html.position.end.offset - node.position.end.offset;
+          intervening = intervening.slice(0, start) + " ".repeat(end - start) + intervening.slice(end);
+        }
+        if (/^[ \t]*$/.test(intervening)) lines.add(node.position.end.line + 1);
+      }
     }
     for (const child of node.children ?? []) visit(child);
   };
@@ -103,11 +120,12 @@ const normalizeParsedMarkdown = (source) => {
     const { start } = node.position;
     const end = node.type === "heading" ?
       (node.children.at(-1)?.position.end ?? node.position.end) : node.position.end;
-    const literalPrefixes = literalQuotePrefixes(node);
+    const literalPrefixes = literalQuotePrefixes(node, normalized);
     const preservedBreakLines = explicitBreakLines(node, normalized);
     const codeNodes = inlineNodes(node, "inlineCode");
     const mathNodes = inlineNodes(node, "inlineMath");
     const htmlNodes = inlineNodes(node, "html");
+    const linkNodes = inlineNodes(node, "link");
     const original = normalized.slice(start.offset, end.offset);
     const edits = codeNodes.map((code) => {
       const raw = normalized.slice(code.position.start.offset, code.position.end.offset);
@@ -124,8 +142,10 @@ const normalizeParsedMarkdown = (source) => {
       const newlineOffset = start.offset + match.index + match[0].indexOf("\n");
       const isInside = (child) => newlineOffset >= child.position.start.offset &&
         newlineOffset < child.position.end.offset;
+      const isLinkMetadata = linkNodes.some((link) => isInside(link) &&
+        !link.children.some(isInside));
       if (codeNodes.some(isInside) || mathNodes.some(isInside) || htmlNodes.some(isInside) ||
-          preservedBreakLines.has(line)) {
+          isLinkMetadata || preservedBreakLines.has(line)) {
         continue;
       }
       const consumedPrefix = match[0].match(/\n[ \t]*((?:>[ \t]*)+)$/)?.[1];
