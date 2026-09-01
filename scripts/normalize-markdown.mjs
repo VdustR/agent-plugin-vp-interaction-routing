@@ -43,6 +43,15 @@ const TABLE_CONTEXT_TAGS = new Set([
   "caption", "colgroup", "table", "tbody", "td", "tfoot", "th", "thead", "tr",
 ]);
 const TABLE_IN_BODY_CONTEXT_TAGS = new Set(["caption", "td", "th"]);
+const C1_NUMERIC_REPLACEMENTS = new Map([
+  [0x80, 0x20AC], [0x82, 0x201A], [0x83, 0x0192], [0x84, 0x201E],
+  [0x85, 0x2026], [0x86, 0x2020], [0x87, 0x2021], [0x88, 0x02C6],
+  [0x89, 0x2030], [0x8A, 0x0160], [0x8B, 0x2039], [0x8C, 0x0152],
+  [0x8E, 0x017D], [0x91, 0x2018], [0x92, 0x2019], [0x93, 0x201C],
+  [0x94, 0x201D], [0x95, 0x2022], [0x96, 0x2013], [0x97, 0x2014],
+  [0x98, 0x02DC], [0x99, 0x2122], [0x9A, 0x0161], [0x9B, 0x203A],
+  [0x9C, 0x0153], [0x9E, 0x017E], [0x9F, 0x0178],
+]);
 const ANCESTOR_END_CLOSES = new Map([
   ["dd", new Set(["dl"])],
   ["dt", new Set(["dl"])],
@@ -134,12 +143,23 @@ const splitFrontmatter = (source) => {
 
 const normalizableBlocks = (tree) => {
   const blocks = [];
+  const definitions = new Map();
   const referencedFootnotes = new Set();
-  const collectReferences = (node) => {
+  const collectReferences = (node, includeDefinitions = false) => {
+    if (node.type === "footnoteDefinition" && !includeDefinitions) return;
     if (node.type === "footnoteReference") referencedFootnotes.add(node.identifier);
-    for (const child of node.children ?? []) collectReferences(child);
+    for (const child of node.children ?? []) collectReferences(child, includeDefinitions);
   };
+  const collectDefinitions = (node) => {
+    if (node.type === "footnoteDefinition") definitions.set(node.identifier, node);
+    for (const child of node.children ?? []) collectDefinitions(child);
+  };
+  collectDefinitions(tree);
   collectReferences(tree);
+  for (const identifier of referencedFootnotes) {
+    const definition = definitions.get(identifier);
+    if (definition) collectReferences(definition, true);
+  }
   const visit = (node) => {
     if (node.type === "footnoteDefinition" && !referencedFootnotes.has(node.identifier)) return;
     if (NORMALIZABLE_BLOCKS.has(node.type)) {
@@ -292,7 +312,7 @@ const parseHtmlTag = (token) => {
               Number.parseInt(numericName.slice(1), 10);
             const codePoint = !Number.isFinite(value) || value === 0 || value > 0x10FFFF ||
               (value >= 0xD800 && value <= 0xDFFF) ? 0xFFFD : value;
-            return String.fromCodePoint(codePoint);
+            return String.fromCodePoint(C1_NUMERIC_REPLACEMENTS.get(codePoint) ?? codePoint);
           }
           return decodeNamedCharacterReference(name.slice(0, -1)) || reference;
         },
@@ -361,6 +381,9 @@ const protectedHtmlClosingEnd = (tag, tail, forceBalanced = false) => {
       );
       if (childEnd < 0) return -1;
       skipUntil = childStart + childEnd;
+      const consumedToken = [...tail.slice(0, skipUntil).matchAll(HTML_TOKEN_PATTERN)].at(-1);
+      const consumedParsed = consumedToken && parseHtmlTag(consumedToken[0]);
+      if (consumedParsed?.isClosing && consumedParsed.tag === tag) return skipUntil;
       continue;
     }
     if (forceBalanced && tag === "p" && !parsed.isClosing &&
@@ -490,7 +513,7 @@ const normalizeConditionalContainers = (tree, source) => {
         replacement = (isEffectivelyOpen ?
           normalizeVisibleRegion(summary.prefix) : summary.prefix) + summary.opening +
           (summary.isHidden ? summary.content : normalizeRawHtmlText(summary.content)) +
-          summary.closing +
+          summary.closing + (isEffectivelyOpen && summary.suffix ? "\n" : "") +
           (isEffectivelyOpen ? normalizeVisibleRegion(summary.suffix) : summary.suffix);
       } else if (isEffectivelyOpen) replacement = normalizeVisibleRegion(body);
     } else if (parsed.tag === "dialog") {
@@ -501,7 +524,14 @@ const normalizeConditionalContainers = (tree, source) => {
       end: closingStart,
       replacement,
     });
-    claimedEnd = rangeEnd;
+    if (isVisibleBlockContainer && !isConditional && html.nodeEnd > rangeEnd) {
+      edits.push({
+        start: rangeEnd,
+        end: html.nodeEnd,
+        replacement: normalizeRawHtmlText(source.slice(rangeEnd, html.nodeEnd)),
+      });
+      claimedEnd = html.nodeEnd;
+    } else claimedEnd = rangeEnd;
   }
   let normalized = source;
   for (const edit of edits.sort((a, b) => b.start - a.start)) {

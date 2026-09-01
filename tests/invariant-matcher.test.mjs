@@ -817,6 +817,37 @@ test("HTML tokenizer visibility edge cases follow browser rendering", () => {
   );
 });
 
+test("nested HTML visibility state remains bounded", () => {
+  assert.match(
+    normalizeMarkdownForInvariant("<ul hidden><li hidden>secret</ul>\n\nconnector\nGitHub"),
+    /connector GitHub/,
+  );
+  assert.doesNotMatch(
+    normalizeMarkdownForInvariant(
+      '<details name="€" open>first</details>\n' +
+      '<details name="&#128;" open>connector\nGitHub</details>',
+    ),
+    /connector GitHub/,
+  );
+  assert.doesNotMatch(
+    normalizeMarkdownForInvariant(
+      "<details open><summary>connector</summary>GitHub</details>",
+    ),
+    /connector.*GitHub/,
+  );
+  assert.match(
+    normalizeMarkdownForInvariant("<div></div>connector\nGitHub"),
+    /connector GitHub/,
+  );
+});
+
+test("footnote references are followed only from visible content", () => {
+  assert.doesNotMatch(
+    normalizeMarkdownForInvariant("[^route]: connector\n    GitHub [^route]"),
+    /connector GitHub/,
+  );
+});
+
 test("unreferenced footnote definitions remain metadata", () => {
   assert.doesNotMatch(
     normalizeMarkdownForInvariant("[^route]: connector\n    GitHub"),
