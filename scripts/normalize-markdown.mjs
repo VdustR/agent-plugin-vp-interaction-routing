@@ -66,7 +66,7 @@ const ANCESTOR_END_CLOSES = new Map([
   ["thead", new Set(["table"])],
 ]);
 
-const HTML_COMMENT_SOURCE = String.raw`<!--(?!>|->)(?:(?!--)[\s\S])*?(?<!-)--!?>`;
+const HTML_COMMENT_SOURCE = String.raw`<!--(?!>|->)(?:(?!--)[\s\S])*?(?:(?<!-)--!?>|$)`;
 const HTML_TAG_SOURCE = String.raw`<\/?[A-Za-z][A-Za-z0-9-]*(?:[\t\n\f\r ]+[A-Za-z_:][\w:.-]*(?:[\t\n\f\r ]*=[\t\n\f\r ]*(?:"[^"]*"|'[^']*'|[^\t\n\f\r "'=<>\x60]+))?)*[\t\n\f\r ]*\/?>`;
 const HTML_TOKEN_PATTERN = new RegExp(
   `${HTML_COMMENT_SOURCE}|<\\?[\\s\\S]*?\\?>|<![A-Z][^>]*>|<!\\[CDATA\\[[\\s\\S]*?\\]\\]>|${HTML_TAG_SOURCE}`,
@@ -304,7 +304,7 @@ const parseHtmlTag = (token) => {
       index += value.length;
       const rawValue = /^['"]/.test(value) ? value.slice(1, -1) : value;
       if (!attributes.has(normalizedName)) attributes.set(normalizedName, rawValue.replace(
-        /&(#(?:[xX][0-9A-Fa-f]+|[0-9]+);?|[A-Za-z][A-Za-z0-9]+;)/g,
+        /&(#(?:[xX][0-9A-Fa-f]+|[0-9]+);?|[A-Za-z][A-Za-z0-9]+(?:;|(?=[^A-Za-z0-9=]|$)))/g,
         (reference, name) => {
           if (name.startsWith("#")) {
             const numericName = name.endsWith(";") ? name.slice(0, -1) : name;
@@ -314,7 +314,8 @@ const parseHtmlTag = (token) => {
               (value >= 0xD800 && value <= 0xDFFF) ? 0xFFFD : value;
             return String.fromCodePoint(C1_NUMERIC_REPLACEMENTS.get(codePoint) ?? codePoint);
           }
-          return decodeNamedCharacterReference(name.slice(0, -1)) || reference;
+          const namedName = name.endsWith(";") ? name.slice(0, -1) : name;
+          return decodeNamedCharacterReference(namedName) || reference;
         },
       ));
     } else if (!attributes.has(normalizedName)) attributes.set(normalizedName, "");
@@ -348,7 +349,7 @@ const scriptClosingEnd = (tail) => {
 };
 
 const PROTECTED_HTML_TAGS = new Set([
-  "canvas", "iframe", "listing", "noembed", "noframes", "noscript", "plaintext", "pre", "script",
+  "canvas", "datalist", "iframe", "listing", "noembed", "noframes", "noscript", "plaintext", "pre", "script",
   "style", "template", "textarea", "title", "xmp",
 ]);
 const BALANCED_HTML_TAGS = new Set(["details", "listing", "pre", "template"]);
@@ -606,10 +607,21 @@ const normalizeRawHtmlText = (source, containerTag = null) => {
   });
   const protectedRanges = hiddenHtmlRanges(tree, source);
   const tokens = htmlTokens(tree);
+  const visibleCdataTokens = new Set();
+  let foreignDepth = ["math", "svg"].includes(containerTag) ? 1 : 0;
+  for (const token of tokens) {
+    const parsed = parseHtmlTag(token.value);
+    if (parsed && ["math", "svg"].includes(parsed.tag)) {
+      if (parsed.isClosing) foreignDepth = Math.max(0, foreignDepth - 1);
+      else foreignDepth += 1;
+    } else if (foreignDepth > 0 && /^<!\[CDATA\[/i.test(token.value)) {
+      visibleCdataTokens.add(token.start);
+    }
+  }
   const isProtected = (offset) => protectedRanges.some((range) =>
     offset >= range.start && offset < range.end);
   const isMarkup = (offset) => tokens.some((token) =>
-    offset >= token.start && offset < token.end);
+    !visibleCdataTokens.has(token.start) && offset >= token.start && offset < token.end);
   const edits = [...source.matchAll(/[ \t]*\n[ \t]*/g)]
     .filter((match) => {
       const newline = match.index + match[0].indexOf("\n");
@@ -643,8 +655,16 @@ const normalizeRawHtmlText = (source, containerTag = null) => {
   return normalized;
 };
 
+const normalizeForeignCdata = (source) => source.replace(
+  /<(svg|math)(?=[\t\n\f\r />])(?:"[^"]*"|'[^']*'|[^>])*?>[\s\S]*?<\/\1\s*>/gi,
+  (foreign) => foreign.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/gi, (section, content) =>
+    section.replace(content, content.replace(/[ \t]*\n[ \t]*/g, " "))),
+);
+
 const normalizeParsedMarkdown = (source, normalizeDetails = true) => {
   if (source === "") return source;
+  const foreignNormalized = normalizeForeignCdata(source);
+  if (foreignNormalized !== source) return normalizeParsedMarkdown(foreignNormalized, normalizeDetails);
   const tree = fromMarkdown(source, {
     extensions: [gfm(), math()],
     mdastExtensions: [gfmFromMarkdown(), mathFromMarkdown()],

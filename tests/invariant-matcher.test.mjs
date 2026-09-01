@@ -848,6 +848,30 @@ test("footnote references are followed only from visible content", () => {
   );
 });
 
+test("HTML comments, entities, and foreign text follow tokenizer context", () => {
+  assert.doesNotMatch(
+    normalizeMarkdownForInvariant("<div><!-- connector\nGitHub"),
+    /connector GitHub/,
+  );
+  assert.doesNotMatch(
+    normalizeMarkdownForInvariant(
+      '<details name="rö-ute" open>first</details>\n' +
+      '<details name="r&ouml-ute" open>connector\nGitHub</details>',
+    ),
+    /connector GitHub/,
+  );
+  assert.match(
+    normalizeMarkdownForInvariant(
+      "<svg><text><![CDATA[connector\nGitHub]]></text></svg>",
+    ),
+    /connector GitHub/,
+  );
+  assert.doesNotMatch(
+    normalizeMarkdownForInvariant("<datalist>connector\nGitHub</datalist>"),
+    /connector GitHub/,
+  );
+});
+
 test("unreferenced footnote definitions remain metadata", () => {
   assert.doesNotMatch(
     normalizeMarkdownForInvariant("[^route]: connector\n    GitHub"),
