@@ -622,6 +622,19 @@ test("collapsed details bodies remain line-bounded", () => {
     ),
     /connector GitHub/,
   );
+  assert.match(
+    normalizeMarkdownForInvariant(
+      '<div><script>const x="<details name=route open>"</script>' +
+      '<details name=route open>connector\nGitHub</details></div>',
+    ),
+    /connector GitHub/,
+  );
+  assert.match(
+    normalizeMarkdownForInvariant(
+      "<details><table><summary>connector\nGitHub</summary></table>hidden</details>",
+    ),
+    /connector GitHub/,
+  );
   assert.doesNotMatch(
     normalizeMarkdownForInvariant(
       '<details name="route" open>first</details>\n' +
@@ -685,6 +698,10 @@ test("hidden HTML container bodies remain line-bounded", () => {
   assert.match(
     normalizeMarkdownForInvariant("Visible<p hidden>secret<div>connector\nGitHub</div>"),
     /connector GitHub/,
+  );
+  assert.doesNotMatch(
+    normalizeMarkdownForInvariant("Visible<p hidden>secret<div>connector</div>\nGitHub"),
+    /connector.*GitHub/,
   );
   for (const markdown of [
     "Visible<div hidden>secret</div>\nconnector",
@@ -751,6 +768,12 @@ test("visible prose inside ordinary HTML blocks is normalized", () => {
   );
   assert.match(
     normalizeMarkdownForInvariant("<div>connector</section>\nGitHub</div>"),
+    /connector.*GitHub/,
+  );
+  assert.doesNotMatch(
+    normalizeMarkdownForInvariant(
+      "<table><tr><td>connector</td>\n<td>GitHub</td></tr></table>",
+    ),
     /connector.*GitHub/,
   );
 });

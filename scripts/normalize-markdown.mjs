@@ -39,6 +39,9 @@ const P_CLOSING_START_TAGS = new Set([
   "h5", "h6", "header", "hgroup", "hr", "main", "menu", "nav", "ol", "p", "pre",
   "search", "section", "summary", "table", "ul",
 ]);
+const TABLE_CONTEXT_TAGS = new Set([
+  "caption", "colgroup", "table", "tbody", "td", "tfoot", "th", "thead", "tr",
+]);
 
 const HTML_COMMENT_SOURCE = String.raw`<!--(?!>|->)(?:(?!--)[\s\S])*?(?<!-)-->`;
 const HTML_TAG_SOURCE = String.raw`<\/?[A-Za-z][A-Za-z0-9-]*(?:[\t\n\f\r ]+[A-Za-z_:][\w:.-]*(?:[\t\n\f\r ]*=[\t\n\f\r ]*(?:"[^"]*"|'[^']*'|[^\t\n\f\r "'=<>\x60]+))?)*[\t\n\f\r ]*\/?>`;
@@ -178,6 +181,14 @@ const explicitBreaks = (block, source) => {
       const parsed = parseHtmlTag(node.value);
       const tag = parsed?.tag;
       const isClosing = Boolean(parsed?.isClosing);
+      if (!isClosing && hiddenElements.length > 0) {
+        const hiddenTag = hiddenElements.at(-1);
+        if ((hiddenTag === "p" && P_CLOSING_START_TAGS.has(tag)) ||
+            IMPLICIT_CROSS_TAG_CLOSE.get(hiddenTag)?.has(tag) ||
+            (hiddenTag === tag && IMPLICIT_SAME_TAG_CLOSE.has(tag))) {
+          hiddenElements.pop();
+        }
+      }
       const hiddenMatch = isClosing ? hiddenElements.findLastIndex((item) => item === tag) : -1;
       const opensHidden = !isClosing && (parsed?.attributes.has("hidden") ||
         (tag === "dialog" && !parsed?.attributes.has("open")));
@@ -354,7 +365,9 @@ const summaryParts = (body) => {
     if (!parsed) continue;
     if (!parsed.isClosing && stack.at(-1) === "p" &&
         P_CLOSING_START_TAGS.has(parsed.tag)) stack.pop();
-    if (parsed.tag === "summary" && !parsed.isClosing && stack.length === 0) {
+    const isDirectSummary = stack.length === 0 ||
+      stack.every((tag) => TABLE_CONTEXT_TAGS.has(tag));
+    if (parsed.tag === "summary" && !parsed.isClosing && isDirectSummary) {
       opening = token;
       break;
     }
@@ -459,7 +472,7 @@ const normalizeConditionalContainers = (tree, source) => {
       } else if (isEffectivelyOpen) replacement = normalizeVisibleRegion(body);
     } else if (parsed.tag === "dialog") {
       if (isEffectivelyOpen) replacement = normalizeVisibleRegion(body);
-    } else replacement = normalizeRawHtmlText(body);
+    } else replacement = normalizeRawHtmlText(body, parsed.tag);
     edits.push({
       start: html.end,
       end: closingStart,
@@ -480,13 +493,13 @@ const hiddenHtmlRanges = (tree, source) => {
   for (const html of htmlTokens(tree)) {
     const parsed = parseHtmlTag(html.value);
     if (!parsed) continue;
+    if (ranges.some((range) => html.start >= range.start && html.start < range.end)) continue;
     const detailsName = parsed.tag === "details" ? parsed.attributes.get("name") : null;
     const isLaterGroupedOpen = !parsed.isClosing && parsed.attributes.has("open") &&
       detailsName && openDetailsGroups.has(detailsName);
     if (!parsed.isClosing && parsed.attributes.has("open") && detailsName) {
       openDetailsGroups.add(detailsName);
     }
-    if (ranges.some((range) => html.start >= range.start && html.start < range.end)) continue;
     if (!isProtectedOpening(parsed) && !isLaterGroupedOpen) continue;
 
     const tail = source.slice(html.end);
@@ -532,7 +545,7 @@ const normalizeVisibleRegion = (source) => {
   return normalized + normalizeParsedMarkdown(source.slice(cursor), true);
 };
 
-const normalizeRawHtmlText = (source) => {
+const normalizeRawHtmlText = (source, containerTag = null) => {
   if (!source) return source;
   const tree = fromMarkdown(source, {
     extensions: [gfm(), math()],
@@ -551,12 +564,15 @@ const normalizeRawHtmlText = (source) => {
     })
     .map((match) => ({ start: match.index, end: match.index + match[0].length, value: " " }));
   const openBlockTags = new Map();
+  let tableDepth = containerTag === "table" ? 1 : 0;
   for (const token of tokens) {
     const parsed = parseHtmlTag(token.value);
     if (!parsed || isProtected(token.start) || parsed.attributes.has("hidden")) continue;
     const depth = openBlockTags.get(parsed.tag) ?? 0;
     const isActiveClosing = !parsed.isClosing || parsed.tag === "p" || depth > 0;
-    if (parsed.tag === "br" || (RENDERED_BLOCK_HTML.has(parsed.tag) && isActiveClosing)) {
+    const isActiveTableBoundary = tableDepth > 0 && ["td", "th", "tr"].includes(parsed.tag);
+    if (parsed.tag === "br" || isActiveTableBoundary ||
+        (RENDERED_BLOCK_HTML.has(parsed.tag) && isActiveClosing)) {
       edits.push({ start: token.start, end: token.start, value: "\n" });
       edits.push({ start: token.end, end: token.end, value: "\n" });
     }
@@ -564,6 +580,8 @@ const normalizeRawHtmlText = (source) => {
       if (parsed.isClosing) openBlockTags.set(parsed.tag, Math.max(0, depth - 1));
       else if (!VOID_HTML.has(parsed.tag)) openBlockTags.set(parsed.tag, depth + 1);
     }
+    if (parsed.tag === "table") tableDepth += parsed.isClosing ? -1 : 1;
+    tableDepth = Math.max(0, tableDepth);
   }
   let normalized = source;
   for (const edit of edits.sort((a, b) => b.start - a.start || b.end - a.end)) {
