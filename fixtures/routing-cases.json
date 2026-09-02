@@ -114,5 +114,13 @@
     "expectedRoute": "report-capability-unavailable",
     "fallback": "none",
     "verification": "capability-inventory-readback"
+  },
+  {
+    "name": "current daily state with isolation",
+    "surface": "web-dom",
+    "requirements": ["current-browser-state", "isolation", "concurrency"],
+    "expectedRoute": "report-requirement-conflict",
+    "fallback": "none",
+    "verification": "requirements-conflict-readback"
   }
 ]

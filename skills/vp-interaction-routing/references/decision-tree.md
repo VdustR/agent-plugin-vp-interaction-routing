@@ -19,47 +19,60 @@ flowchart TD
   E -->|Yes| F[Use semantic interface]
   E -->|No| G{Target surface?}
 
-  G -->|Web-page DOM| H{Needs current browser state?}
+  G -->|Web-page DOM| HX{Needs both current daily-browser state<br/>and isolation or concurrency?}
+  HX -->|Yes| RC[Report incompatible requirements]
+  HX -->|No| H{Needs current browser state?}
   G -->|Browser chrome or native dialog| N0
   G -->|Native app or OS UI| N0
   G -->|Unclassified or no semantic surface| U0
 
   H -->|Tabs, login, SSO, passkey, extension,<br/>handoff, or actual browser behavior| H0{Shared-state DOM integration<br/>available and eligible?}
   H0 -->|Yes| H1{Required session state present?}
-  H0 -->|No| BL
+  H0 -->|No| U0
   H1 -->|Yes| I[Use verified shared-state DOM integration]
   H1 -->|No| IH[Hand the page to the user for authentication<br/>in the required browser, then verify the session]
-  IH --> I
+  IH --> H2{Required session state established?}
+  H2 -->|Yes| I
+  H2 -->|No| BL
   H -->|No| J{Needs isolation, concurrency,<br/>repeatability, headless execution,<br/>or managed identity?}
   J -->|Yes| J0{Managed agent-browser<br/>available and eligible?}
   J0 -->|Yes| K[Use agent-browser with dedicated or managed profile]
   J0 -->|No| J1{Managed Playwright route<br/>available and eligible?}
   J1 -->|Yes| L3
-  J1 -->|No| BL
+  J1 -->|No| U0
   J -->|No| LA{In-app DOM browser available<br/>and eligible under the constraint?}
   LA -->|Yes| L[Use in-app DOM browser]
   LA -->|No| LB{Managed agent-browser<br/>available and eligible?}
   LB -->|Yes| K
   LB -->|No| L4{Playwright route<br/>available and eligible?}
   L4 -->|Yes| L3
-  L4 -->|No| BL
+  L4 -->|No| U0
 
-  L --> M{Requires animation, video, canvas, transition,<br/>startup-only focus, or another real lifecycle?}
-  M -->|Yes: Tier C| M0{Playwright or background Chromium<br/>available and eligible?}
+  L --> LP{Page readiness predicate satisfied?}
+  LP -->|Yes| A1
+  LP -->|No| M{Requires animation, video, canvas, transition,<br/>startup-only focus, or another real lifecycle?}
+  M -->|Yes: Tier C| TC{Managed agent-browser<br/>available and eligible?}
+  TC -->|Yes| K
+  TC -->|No| M0{Playwright or background Chromium<br/>available and eligible?}
   M0 -->|Yes| L3[Use Playwright or background Chromium]
-  M0 -->|No| BL
+  M0 -->|No| U0
   M -->|No| M1{Requires a focus or visibility handler<br/>without real-frame semantics?}
   M1 -->|Yes: Tier B| L2[Install the post-navigation shim]
   M1 -->|No| M2{Frame-driven predicate is stalled?}
   M2 -->|Yes: Tier A| L1[Take one screenshot render pump]
-  M2 -->|No| A1
-  L1 --> RD{Page readiness predicate satisfied?}
-  L2 --> RD
+  M2 -->|No: rAF already running| AB
+  L1 --> IR{Page readiness predicate satisfied<br/>after the intervention?}
+  L2 --> IR
+  IR -->|Yes| A1
+  IR -->|No| R0{Evidence requires real lifecycle and an available,<br/>eligible Tier C route has not run?}
+  R0 -->|Yes| TC
+  R0 -->|No| AB
+
+  I --> RD{Page readiness predicate satisfied?}
+  K --> RD
   L3 --> RD
   RD -->|Yes| A1
-  RD -->|No| R0{Evidence requires real lifecycle and an available,<br/>eligible Tier C route has not run?}
-  R0 -->|Yes| M0
-  R0 -->|No| AB
+  RD -->|No| AB
 
   N0{Requires Peekaboo-specific macOS system,<br/>window, menu, Space, deep AX, or capture capability?}
   N0 -->|Yes| Q
@@ -81,8 +94,6 @@ flowchart TD
   BL -->|No| LU[Report capability unavailable]
 
   F --> A1[Act once]
-  I --> A1
-  K --> A1
   O --> A1
   S --> A1
   T --> A1
@@ -109,6 +120,7 @@ flowchart TD
   %% route-id: screenshot-coordinates
   %% route-id: report-constraint-conflict
   %% route-id: report-capability-unavailable
+  %% route-id: report-requirement-conflict
 ```
 
 The diagram expresses selection, not authorization. Preserve the user's current
