@@ -21,7 +21,9 @@ flowchart TD
 
   G -->|Web-page DOM| HX{Needs both current daily-browser state<br/>and isolation or concurrency?}
   HX -->|Yes| RC[Report incompatible requirements<br/><small>route: report-requirement-conflict</small>]
-  HX -->|No| H{Needs current browser state?}
+  HX -->|No| HC{Explicitly constrained to a<br/>shared-state DOM integration?}
+  HC -->|Yes| H0
+  HC -->|No| H{Needs current browser state?}
   G -->|Browser chrome or native dialog| N0
   G -->|Native app or OS UI| N0
   G -->|Unclassified or no semantic surface| U0
@@ -95,9 +97,9 @@ flowchart TD
   P -->|Yes| Q
   P -->|No| R{Registered and healthy Codex CUA bridge<br/>provides the capability and is eligible?}
   R -->|Yes| S[Use Codex CUA bridge<br/><small>route: healthy-codex-cua-bridge</small>]
-  R -->|No| RI{Bridge implementation available but<br/>registration is missing or unhealthy?}
+  R -->|No| RI{Bridge implementation is eligible under the constraint<br/>but registration is missing or unhealthy?}
   RI -->|Yes| RA[Offer the registration or repair command<br/>and request authorization]
-  RA --> RR{User authorized it and the bridge<br/>is now registered and healthy?}
+  RA --> RR{User authorized it and the bridge is now<br/>registered, healthy, capable, and eligible?}
   RR -->|Yes| S
   RR -->|No| Q
   RI -->|No| Q
