@@ -38,14 +38,7 @@ flowchart TD
   J -->|Yes| JT{Requires Tier C lifecycle or<br/>high-fidelity file capture?}
   JT -->|Yes| M0
   JT -->|No| J0{Managed agent-browser<br/>available and eligible?}
-  J0 -->|Yes| JA{Requires a signed-in<br/>managed identity?}
-  JA -->|No| K[Use agent-browser with dedicated or managed profile]
-  JA -->|Yes| JS{Required managed-profile<br/>session state present?}
-  JS -->|Yes| K
-  JS -->|No| JH[Hand the managed-profile page to the user<br/>for authentication, then verify the session]
-  JH --> JS2{Required managed-profile<br/>session state established?}
-  JS2 -->|Yes| K
-  JS2 -->|No| BL
+  J0 -->|Yes| K[Use agent-browser with dedicated or managed profile]
   J0 -->|No| J1{Managed Playwright route<br/>available and eligible?}
   J1 -->|Yes| L3
   J1 -->|No| U0
@@ -82,8 +75,15 @@ flowchart TD
   R0 -->|No| AB
 
   I --> RD{Page readiness predicate satisfied?}
-  K --> RD
-  L3 --> RD
+  K --> MS{Route requires a signed-in<br/>managed identity?}
+  L3 --> MS
+  MS -->|No| RD
+  MS -->|Yes| MS1{Required managed-profile<br/>session state present?}
+  MS1 -->|Yes| RD
+  MS1 -->|No| JH[Hand the managed-profile page to the user<br/>for authentication, then verify the session]
+  JH --> MS2{Required managed-profile<br/>session state established?}
+  MS2 -->|Yes| RD
+  MS2 -->|No| BL
   RD -->|Yes| A1
   RD -->|No| AB
 
@@ -113,7 +113,12 @@ flowchart TD
   U --> A1
   A1 --> V[Read back the intended predicate]
   V --> W{Predicate satisfied?}
-  W -->|Yes| X[Complete]
+  W -->|Yes| IV{Consequential action or acting interface<br/>reported an unverifiable effect?}
+  IV -->|No| X[Complete]
+  IV -->|Yes| IV1[Verify independently through a semantic<br/>or visual surface]
+  IV1 --> IV2{Independent predicate satisfied?}
+  IV2 -->|Yes| X
+  IV2 -->|No| AB
   W -->|No| Y[Refresh current state once without acting]
   Y --> Z{Evidence shows missing capability or context?}
   Z -->|No| AB[Report the unresolved result;<br/>continue readback only when safe and useful]

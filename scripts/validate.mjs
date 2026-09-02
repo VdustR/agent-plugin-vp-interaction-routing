@@ -180,8 +180,8 @@ check("routing cases cover every capability leaf with explicit verification", ()
     assert.equal(typeof routeCase.expectedRoute, "string",
       `${routeCase.name} needs an expectedRoute`);
     assert.equal(typeof routeCase.fallback, "string", `${routeCase.name} needs a fallback`);
-    assert.equal(typeof routeCase.verification, "string",
-      `${routeCase.name} needs an explicit verification predicate`);
+    assert.ok(typeof routeCase.verification === "string" && routeCase.verification.trim(),
+      `${routeCase.name} needs a non-empty explicit verification predicate`);
     coveredRoutes.add(routeCase.expectedRoute);
   }
 
