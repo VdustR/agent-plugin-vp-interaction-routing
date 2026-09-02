@@ -58,9 +58,9 @@ flowchart TD
   LA -->|Yes| L[Use in-app DOM browser<br/><small>route: in-app-dom-browser</small>]
   LA -->|No| LF{Requires Tier C lifecycle or<br/>high-fidelity file capture?}
   LF -->|Yes| M0
-  LF -->|No| LB{Managed agent-browser<br/>available and eligible?}
+  LF -->|No| LB{Managed agent-browser available, eligible,<br/>and satisfies every remaining binding requirement?}
   LB -->|Yes| K
-  LB -->|No| L4{Playwright route<br/>available and eligible?}
+  LB -->|No| L4{Playwright route available, eligible,<br/>and satisfies every remaining binding requirement?}
   L4 -->|Yes| L3
   L4 -->|No| U0
 
@@ -71,9 +71,9 @@ flowchart TD
   P0 -->|No| M0
   SP -->|No| M{Requires animation, video, canvas, transition,<br/>or another real lifecycle?}
   M -->|Yes: Tier C| M0
-  M0{Playwright or background Chromium available,<br/>eligible, satisfies every original binding requirement,<br/>and carries any required managed session?}
+  M0{Untried Playwright or background Chromium available,<br/>eligible, satisfies every original binding requirement,<br/>and carries any required managed session?}
   M0 -->|Yes| L3[Use Playwright or background Chromium<br/><small>route: playwright-or-background-chromium</small>]
-  M0 -->|No| TC{Managed agent-browser available, eligible,<br/>satisfies every original binding requirement,<br/>and carries any required managed session?}
+  M0 -->|No| TC{Untried managed agent-browser available, eligible,<br/>satisfies every original binding requirement,<br/>and carries any required managed session?}
   TC -->|Yes| K
   TC -->|No| MA{Managed identity required and an eligible<br/>Playwright route can host authentication?}
   MA -->|Yes| L3
@@ -92,7 +92,11 @@ flowchart TD
   A0 -->|No| M0
   M2 -->|No: rAF already running| AB
   L1 --> IR{Page readiness predicate satisfied<br/>after the intervention?}
-  L2 --> IR
+  L2 --> IRB{Page readiness predicate satisfied<br/>after Tier B?}
+  IRB -->|Yes| A1
+  IRB -->|No| RB0{Evidence requires Tier C and an untried<br/>eligible Tier C route exists?}
+  RB0 -->|Yes| M0
+  RB0 -->|No| M2
   IR -->|Yes| A1
   IR -->|No| R0{Evidence requires real lifecycle and an available,<br/>eligible Tier C route has not run?}
   R0 -->|Yes| M0
