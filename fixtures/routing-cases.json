@@ -40,6 +40,14 @@
     "verification": "dom-predicate"
   },
   {
+    "name": "public background page without in-app browser",
+    "surface": "web-dom",
+    "requirements": ["public", "background", "in-app-unavailable"],
+    "expectedRoute": "managed-agent-browser",
+    "fallback": "playwright-or-background-chromium",
+    "verification": "dom-predicate"
+  },
+  {
     "name": "explicit in-app browser constraint",
     "surface": "web-dom",
     "interfaceConstraint": "in-app-browser",

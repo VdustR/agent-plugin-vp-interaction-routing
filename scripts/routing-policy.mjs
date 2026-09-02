@@ -42,6 +42,10 @@ export function evaluateRoutingCase(routeCase) {
   const canInjectBeforeNavigation = requirements.has("pre-navigation-injection") &&
     requirements.has("safe-navigation-restart");
 
+  if (routeCase.interfaceConstraint === "in-app-browser" && needsTierC) {
+    return "report-constraint-conflict";
+  }
+
   if (needsDedicatedRoute) {
     return needsTierC ? "playwright-or-background-chromium" : "managed-agent-browser";
   }
@@ -56,5 +60,42 @@ export function evaluateRoutingCase(routeCase) {
   if (requirements.has("frame-driven-predicate") && requirements.has("stalled-raf")) {
     return "in-app-tier-a-render-pump";
   }
+  if (requirements.has("in-app-unavailable")) return "managed-agent-browser";
   return "in-app-dom-browser";
+}
+
+export function evaluateRoutingFallback(routeCase) {
+  const requirements = new Set(routeCase.requirements);
+  const primary = evaluateRoutingCase(routeCase);
+
+  if (primary.startsWith("report-")) return "none";
+  if (primary === "connector-api-cli") return "verified-shared-state-dom";
+  if (primary === "verified-shared-state-dom") return "user-authentication-handoff";
+  if (primary === "screenshot-coordinates") return "none";
+  if (primary === "host-first-party-computer-use") return "peekaboo";
+  if (primary === "healthy-codex-cua-bridge") return "peekaboo";
+  if (primary === "peekaboo") return "screenshot-coordinates";
+  if (primary === "in-app-dom-browser") {
+    return routeCase.interfaceConstraint === "in-app-browser"
+      ? "report-constraint-conflict"
+      : "managed-agent-browser";
+  }
+  if (primary === "managed-agent-browser") {
+    return requirements.has("required-session-absent")
+      ? "user-authentication-handoff-or-report-capability-unavailable"
+      : requirements.has("in-app-unavailable")
+        ? "playwright-or-background-chromium"
+        : "dedicated-playwright-profile";
+  }
+  if (primary === "in-app-pre-navigation-shim" ||
+      primary === "in-app-tier-a-render-pump" ||
+      primary === "in-app-tier-b-shim") {
+    return "playwright-or-background-chromium";
+  }
+  if (primary === "playwright-or-background-chromium") {
+    return requirements.has("in-app-unavailable") || requirements.has("startup-only-focus-check")
+      ? "managed-agent-browser"
+      : "managed-headed-chromium";
+  }
+  return "none";
 }

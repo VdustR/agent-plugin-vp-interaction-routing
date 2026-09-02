@@ -67,7 +67,8 @@ flowchart TD
   L --> SP{Requires a startup-only focus<br/>or visibility check?}
   SP -->|Yes| P0{Eligible pre-navigation injection available<br/>and navigation can be restarted safely?}
   P0 -->|Yes| P1[Install the override before navigation, then navigate<br/><small>route: in-app-pre-navigation-shim</small>]
-  P1 --> M
+  P1 --> PR[Reacquire every selector and DOM reference<br/>from the restarted document]
+  PR --> M
   P0 -->|No| M0
   SP -->|No| M{Requires animation, video, canvas, transition,<br/>or another real lifecycle?}
   M -->|Yes: Tier C| M0
@@ -90,7 +91,10 @@ flowchart TD
   M2 -->|Yes: Tier A| A0{Screenshot or compositor action<br/>available and eligible?}
   A0 -->|Yes| L1[Take one screenshot render pump<br/><small>route: in-app-tier-a-render-pump</small>]
   A0 -->|No| M0
-  M2 -->|No: rAF already running| AB
+  M2 -->|No: rAF already running| BW[Wait for the page predicate with a bounded<br/>timeout and read it again without acting]
+  BW --> BW1{Page readiness predicate satisfied?}
+  BW1 -->|Yes| A1
+  BW1 -->|No| AB
   L1 --> IR{Page readiness predicate satisfied<br/>after the intervention?}
   L2 --> IRB{Page readiness predicate satisfied<br/>after Tier B?}
   IRB -->|Yes| A1
@@ -153,7 +157,9 @@ flowchart TD
   V --> W{Predicate satisfied?}
   W -->|Yes| IV{Consequential action or acting interface<br/>reported an unverifiable effect?}
   IV -->|No| X[Complete]
-  IV -->|Yes| IV1[Verify independently through a semantic<br/>or visual surface]
+  IV -->|Yes| IVA{Independent semantic or visual verifier<br/>available, authorized, and eligible?}
+  IVA -->|Yes| IV1[Verify independently through that surface]
+  IVA -->|No| AB
   IV1 --> IV2{Independent predicate satisfied?}
   IV2 -->|Yes| X
   IV2 -->|No| IVR[Refresh the independent verifier once<br/>without acting]

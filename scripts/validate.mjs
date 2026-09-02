@@ -9,7 +9,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { normalizeMarkdownForInvariant } from "./normalize-markdown.mjs";
-import { evaluateRoutingCase } from "./routing-policy.mjs";
+import { evaluateRoutingCase, evaluateRoutingFallback } from "./routing-policy.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const read = (p) => JSON.parse(readFileSync(join(root, p), "utf8"));
@@ -185,6 +185,8 @@ check("routing cases cover every capability leaf with explicit verification", ()
       `${routeCase.name} needs a non-empty explicit verification predicate`);
     assert.equal(evaluateRoutingCase(routeCase), routeCase.expectedRoute,
       `${routeCase.name} input does not evaluate to its expected route`);
+    assert.equal(evaluateRoutingFallback(routeCase), routeCase.fallback,
+      `${routeCase.name} input does not evaluate to its expected fallback`);
     coveredRoutes.add(routeCase.expectedRoute);
   }
 
