@@ -98,13 +98,11 @@ flowchart TD
   L1 --> IR{Page readiness predicate satisfied<br/>after the intervention?}
   L2 --> IRB{Page readiness predicate satisfied<br/>after Tier B?}
   IRB -->|Yes| A1
-  IRB -->|No| RB0{Evidence requires Tier C and an untried<br/>eligible Tier C route exists?}
+  IRB -->|No| RB0{Evidence requires Tier C?}
   RB0 -->|Yes| M0
   RB0 -->|No| M2
   IR -->|Yes| A1
-  IR -->|No| R0{Evidence requires real lifecycle and an available,<br/>eligible Tier C route has not run?}
-  R0 -->|Yes| M0
-  R0 -->|No| AB
+  IR -->|No| M0
 
   I --> RD{Page readiness predicate satisfied?}
   K --> SW{Switching from a previously selected interface?}

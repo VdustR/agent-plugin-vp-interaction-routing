@@ -45,6 +45,9 @@ export function evaluateRoutingCase(routeCase) {
   if (routeCase.interfaceConstraint === "in-app-browser" && needsTierC) {
     return "report-constraint-conflict";
   }
+  if (routeCase.interfaceConstraint === "in-app-browser" && needsDedicatedRoute) {
+    return "report-constraint-conflict";
+  }
 
   if (needsDedicatedRoute) {
     return needsTierC ? "playwright-or-background-chromium" : "managed-agent-browser";
@@ -98,4 +101,36 @@ export function evaluateRoutingFallback(routeCase) {
       : "managed-headed-chromium";
   }
   return "none";
+}
+
+export function evaluateRoutingVerification(routeCase) {
+  const requirements = new Set(routeCase.requirements);
+  const primary = evaluateRoutingCase(routeCase);
+
+  if (primary === "connector-api-cli") return "semantic-readback";
+  if (primary === "verified-shared-state-dom" || primary === "in-app-dom-browser") {
+    return "dom-predicate";
+  }
+  if (primary === "managed-agent-browser") {
+    return requirements.has("required-session-absent")
+      ? "managed-profile-session-predicate-before-action"
+      : "dom-predicate";
+  }
+  if (primary === "in-app-pre-navigation-shim") {
+    return "page-readiness-predicate-after-navigation";
+  }
+  if (primary === "in-app-tier-a-render-pump" ||
+      primary === "in-app-tier-b-shim" ||
+      primary === "playwright-or-background-chromium") {
+    return "page-readiness-predicate";
+  }
+  if (primary === "host-first-party-computer-use" ||
+      primary === "healthy-codex-cua-bridge") {
+    return "accessibility-predicate";
+  }
+  if (primary === "peekaboo") return "accessibility-or-window-predicate";
+  if (primary === "screenshot-coordinates") return "visible-predicate-after-every-action";
+  if (primary === "report-requirement-conflict") return "requirements-conflict-readback";
+  if (primary === "report-constraint-conflict") return "capability-conflict-readback";
+  return "capability-inventory-readback";
 }

@@ -66,6 +66,15 @@
     "verification": "capability-conflict-readback"
   },
   {
+    "name": "in-app constraint with managed identity",
+    "surface": "web-dom",
+    "interfaceConstraint": "in-app-browser",
+    "requirements": ["managed-identity"],
+    "expectedRoute": "report-constraint-conflict",
+    "fallback": "none",
+    "verification": "capability-conflict-readback"
+  },
+  {
     "name": "frame-driven hidden page",
     "surface": "web-dom",
     "requirements": ["frame-driven-predicate", "stalled-raf"],
