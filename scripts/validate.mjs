@@ -9,6 +9,11 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { normalizeMarkdownForInvariant } from "./normalize-markdown.mjs";
+import {
+  evaluateRoutingCase,
+  evaluateRoutingFallback,
+  evaluateRoutingVerification,
+} from "./routing-policy.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const read = (p) => JSON.parse(readFileSync(join(root, p), "utf8"));
@@ -153,6 +158,69 @@ check("every reference file is linked from its SKILL.md", () => {
       assert.ok(md.includes(file), `references/${file} is not linked from ${dir}/SKILL.md`);
     }
   }
+});
+
+check("routing cases cover every capability leaf with explicit verification", () => {
+  const cases = read("fixtures/routing-cases.json");
+  assert.ok(Array.isArray(cases) && cases.length > 0, "routing cases must be a non-empty array");
+
+  const decisionTree = readFileSync(
+    join(root, "skills/vp-interaction-routing/references/decision-tree.md"), "utf8");
+  const routeMarkers = [...decisionTree.matchAll(/<small>route: ([a-z0-9-]+)<\/small>/g)]
+    .map((match) => match[1]);
+  assert.ok(routeMarkers.length > 0, "the decision tree needs route IDs on capability nodes");
+  assert.equal(new Set(routeMarkers).size, routeMarkers.length,
+    "decision-tree capability-node route IDs must be unique");
+  const requiredRoutes = new Set(routeMarkers);
+  const names = new Set();
+  const coveredRoutes = new Set();
+
+  for (const routeCase of cases) {
+    assert.equal(typeof routeCase.name, "string", "every case needs a name");
+    assert.ok(!names.has(routeCase.name), `duplicate routing case: ${routeCase.name}`);
+    names.add(routeCase.name);
+    assert.equal(typeof routeCase.surface, "string", `${routeCase.name} needs a surface`);
+    assert.ok(Array.isArray(routeCase.requirements) && routeCase.requirements.length > 0,
+      `${routeCase.name} needs at least one requirement`);
+    assert.equal(typeof routeCase.expectedRoute, "string",
+      `${routeCase.name} needs an expectedRoute`);
+    assert.equal(typeof routeCase.fallback, "string", `${routeCase.name} needs a fallback`);
+    assert.ok(typeof routeCase.verification === "string" && routeCase.verification.trim(),
+      `${routeCase.name} needs a non-empty explicit verification predicate`);
+    assert.equal(evaluateRoutingCase(routeCase), routeCase.expectedRoute,
+      `${routeCase.name} input does not evaluate to its expected route`);
+    assert.equal(evaluateRoutingFallback(routeCase), routeCase.fallback,
+      `${routeCase.name} input does not evaluate to its expected fallback`);
+    assert.equal(evaluateRoutingVerification(routeCase), routeCase.verification,
+      `${routeCase.name} input does not evaluate to its expected verification`);
+    coveredRoutes.add(routeCase.expectedRoute);
+  }
+
+  assert.deepEqual(
+    [...requiredRoutes].filter((route) => !coveredRoutes.has(route)),
+    [],
+    "every decision-tree capability leaf needs a routing case",
+  );
+  assert.deepEqual(
+    [...coveredRoutes].filter((route) => !requiredRoutes.has(route)),
+    [],
+    "routing cases must not name a leaf absent from the decision tree",
+  );
+  assert.ok(cases.some((routeCase) =>
+    routeCase.interfaceConstraint &&
+    routeCase.expectedRoute === "report-constraint-conflict" &&
+    routeCase.fallback === "none"),
+    "an incapable explicit interface needs a terminal conflict case");
+  assert.ok(cases.some((routeCase) =>
+    routeCase.requirements.includes("managed-identity") &&
+    routeCase.requirements.includes("required-session-absent") &&
+    routeCase.verification.includes("session-predicate-before-action")),
+    "a managed identity needs session verification before action");
+  assert.ok(cases.some((routeCase) =>
+    routeCase.requirements.includes("in-app-unavailable") &&
+    routeCase.requirements.includes("real-lifecycle") &&
+    routeCase.expectedRoute === "playwright-or-background-chromium"),
+    "Tier C must be evaluated before fallback browser selection");
 });
 
 // Content invariants carried over from the skills repository's smoke-fixture

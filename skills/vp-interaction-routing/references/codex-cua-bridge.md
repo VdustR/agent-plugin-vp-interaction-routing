@@ -16,9 +16,9 @@ open the capability to other harnesses.
 - **Claude Code, Antigravity, or another MCP client**: this bridge is the
   supported path.
 
-The bridge states this in its MCP `initialize` instructions and warns on stderr
-when the connecting client identifies as Codex. It does not block the call, so
-the rule still has to be followed by whoever configures the client.
+The bridge states this in its MCP `initialize` instructions, warns on stderr,
+and refuses tool calls when the connecting client identifies as Codex. The
+`CODEX_CUA_BRIDGE_ALLOW_CODEX=1` override exists only for testing the bridge.
 
 ## Requirements
 

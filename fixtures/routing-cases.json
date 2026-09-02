@@ -1,0 +1,192 @@
+[
+  {
+    "name": "authenticated semantic operation",
+    "surface": "service",
+    "requirements": ["authenticated", "structured-readback"],
+    "expectedRoute": "connector-api-cli",
+    "fallback": "verified-shared-state-dom",
+    "verification": "semantic-readback"
+  },
+  {
+    "name": "existing Chrome login",
+    "surface": "web-dom",
+    "requirements": ["current-login", "current-browser-state"],
+    "expectedRoute": "verified-shared-state-dom",
+    "fallback": "user-authentication-handoff",
+    "verification": "dom-predicate"
+  },
+  {
+    "name": "parallel signed-in worktrees",
+    "surface": "web-dom",
+    "requirements": ["isolation", "concurrency", "managed-identity"],
+    "expectedRoute": "managed-agent-browser",
+    "fallback": "dedicated-playwright-profile",
+    "verification": "dom-predicate"
+  },
+  {
+    "name": "managed profile missing required session",
+    "surface": "web-dom",
+    "requirements": ["isolation", "managed-identity", "required-session-absent"],
+    "expectedRoute": "managed-agent-browser",
+    "fallback": "user-authentication-handoff-or-report-capability-unavailable",
+    "verification": "managed-profile-session-predicate-before-action"
+  },
+  {
+    "name": "public background page",
+    "surface": "web-dom",
+    "requirements": ["public", "background"],
+    "expectedRoute": "in-app-dom-browser",
+    "fallback": "managed-agent-browser",
+    "verification": "dom-predicate"
+  },
+  {
+    "name": "public background page without in-app browser",
+    "surface": "web-dom",
+    "requirements": ["public", "background", "in-app-unavailable"],
+    "expectedRoute": "managed-agent-browser",
+    "fallback": "playwright-or-background-chromium",
+    "verification": "dom-predicate"
+  },
+  {
+    "name": "explicit in-app browser constraint",
+    "surface": "web-dom",
+    "interfaceConstraint": "in-app-browser",
+    "requirements": ["public", "background"],
+    "expectedRoute": "in-app-dom-browser",
+    "fallback": "report-constraint-conflict",
+    "verification": "dom-predicate"
+  },
+  {
+    "name": "incapable explicit interface constraint",
+    "surface": "web-dom",
+    "interfaceConstraint": "in-app-browser",
+    "requirements": ["startup-only-focus-check", "no-pre-navigation-injection", "real-lifecycle"],
+    "expectedRoute": "report-constraint-conflict",
+    "fallback": "none",
+    "verification": "capability-conflict-readback"
+  },
+  {
+    "name": "in-app constraint with managed identity",
+    "surface": "web-dom",
+    "interfaceConstraint": "in-app-browser",
+    "requirements": ["managed-identity"],
+    "expectedRoute": "report-constraint-conflict",
+    "fallback": "none",
+    "verification": "capability-conflict-readback"
+  },
+  {
+    "name": "frame-driven hidden page",
+    "surface": "web-dom",
+    "requirements": ["frame-driven-predicate", "stalled-raf"],
+    "expectedRoute": "in-app-tier-a-render-pump",
+    "fallback": "playwright-or-background-chromium",
+    "verification": "page-readiness-predicate"
+  },
+  {
+    "name": "focus-gated page handler",
+    "surface": "web-dom",
+    "requirements": ["focus-event-handler"],
+    "expectedRoute": "in-app-tier-b-shim",
+    "fallback": "playwright-or-background-chromium",
+    "verification": "page-readiness-predicate"
+  },
+  {
+    "name": "startup-only focus check with pre-navigation injection",
+    "surface": "web-dom",
+    "requirements": ["startup-only-focus-check", "pre-navigation-injection", "safe-navigation-restart"],
+    "expectedRoute": "in-app-pre-navigation-shim",
+    "fallback": "playwright-or-background-chromium",
+    "verification": "page-readiness-predicate-after-navigation"
+  },
+  {
+    "name": "startup shim plus real lifecycle",
+    "surface": "web-dom",
+    "requirements": ["startup-only-focus-check", "pre-navigation-injection", "animation", "real-lifecycle"],
+    "expectedRoute": "playwright-or-background-chromium",
+    "fallback": "managed-agent-browser",
+    "verification": "page-readiness-predicate"
+  },
+  {
+    "name": "real browser lifecycle",
+    "surface": "web-dom",
+    "requirements": ["animation", "real-lifecycle"],
+    "expectedRoute": "playwright-or-background-chromium",
+    "fallback": "managed-headed-chromium",
+    "verification": "page-readiness-predicate"
+  },
+  {
+    "name": "real lifecycle with in-app unavailable",
+    "surface": "web-dom",
+    "requirements": ["in-app-unavailable", "animation", "real-lifecycle"],
+    "expectedRoute": "playwright-or-background-chromium",
+    "fallback": "managed-agent-browser",
+    "verification": "page-readiness-predicate"
+  },
+  {
+    "name": "ordinary native app in Codex",
+    "surface": "native-ui",
+    "requirements": ["ordinary-accessibility"],
+    "host": "codex",
+    "expectedRoute": "host-first-party-computer-use",
+    "fallback": "peekaboo",
+    "verification": "accessibility-predicate"
+  },
+  {
+    "name": "native app in another harness",
+    "surface": "native-ui",
+    "requirements": ["no-first-party-computer-use", "background-accessibility"],
+    "host": "non-codex",
+    "expectedRoute": "healthy-codex-cua-bridge",
+    "fallback": "peekaboo",
+    "verification": "accessibility-predicate"
+  },
+  {
+    "name": "macOS system surface",
+    "surface": "native-ui",
+    "requirements": ["window-menu-space-or-dialog"],
+    "expectedRoute": "peekaboo",
+    "fallback": "screenshot-coordinates",
+    "verification": "accessibility-or-window-predicate"
+  },
+  {
+    "name": "no semantic surface",
+    "surface": "unknown-ui",
+    "requirements": ["no-semantic-dom-or-accessibility-route"],
+    "expectedRoute": "screenshot-coordinates",
+    "fallback": "none",
+    "verification": "visible-predicate-after-every-action"
+  },
+  {
+    "name": "no acting surface available",
+    "surface": "unknown-ui",
+    "requirements": ["no-coordinate-capable-interface"],
+    "expectedRoute": "report-capability-unavailable",
+    "fallback": "none",
+    "verification": "capability-inventory-readback"
+  },
+  {
+    "name": "current daily state with isolation",
+    "surface": "web-dom",
+    "requirements": ["current-browser-state", "isolation", "concurrency"],
+    "expectedRoute": "report-requirement-conflict",
+    "fallback": "none",
+    "verification": "requirements-conflict-readback"
+  },
+  {
+    "name": "shared-state constraint with isolation",
+    "surface": "web-dom",
+    "interfaceConstraint": "shared-state-dom",
+    "requirements": ["public", "isolation", "concurrency"],
+    "expectedRoute": "report-requirement-conflict",
+    "fallback": "none",
+    "verification": "requirements-conflict-readback"
+  },
+  {
+    "name": "current daily state with managed identity",
+    "surface": "web-dom",
+    "requirements": ["current-browser-state", "managed-identity"],
+    "expectedRoute": "report-requirement-conflict",
+    "fallback": "none",
+    "verification": "requirements-conflict-readback"
+  }
+]
