@@ -159,19 +159,14 @@ check("routing cases cover every capability leaf with explicit verification", ()
   const cases = read("fixtures/routing-cases.json");
   assert.ok(Array.isArray(cases) && cases.length > 0, "routing cases must be a non-empty array");
 
-  const requiredRoutes = new Set([
-    "connector-api-cli",
-    "verified-shared-state-dom",
-    "managed-agent-browser",
-    "in-app-dom-browser",
-    "in-app-tier-a-render-pump",
-    "in-app-tier-b-shim",
-    "playwright-or-background-chromium",
-    "host-first-party-computer-use",
-    "healthy-codex-cua-bridge",
-    "peekaboo",
-    "screenshot-coordinates",
-  ]);
+  const decisionTree = readFileSync(
+    join(root, "skills/vp-interaction-routing/references/decision-tree.md"), "utf8");
+  const routeMarkers = [...decisionTree.matchAll(/^\s*%% route-id: ([a-z0-9-]+)\s*$/gm)]
+    .map((match) => match[1]);
+  assert.ok(routeMarkers.length > 0, "the decision tree needs route-id markers");
+  assert.equal(new Set(routeMarkers).size, routeMarkers.length,
+    "decision-tree route-id markers must be unique");
+  const requiredRoutes = new Set(routeMarkers);
   const names = new Set();
   const coveredRoutes = new Set();
 
@@ -195,8 +190,16 @@ check("routing cases cover every capability leaf with explicit verification", ()
     [],
     "every decision-tree capability leaf needs a routing case",
   );
-  assert.ok(cases.some((routeCase) => routeCase.interfaceConstraint),
-    "an explicit interface constraint needs a routing case");
+  assert.deepEqual(
+    [...coveredRoutes].filter((route) => !requiredRoutes.has(route)),
+    [],
+    "routing cases must not name a leaf absent from the decision tree",
+  );
+  assert.ok(cases.some((routeCase) =>
+    routeCase.interfaceConstraint &&
+    routeCase.expectedRoute === "report-constraint-conflict" &&
+    routeCase.fallback === "none"),
+    "an incapable explicit interface needs a terminal conflict case");
 });
 
 // Content invariants carried over from the skills repository's smoke-fixture

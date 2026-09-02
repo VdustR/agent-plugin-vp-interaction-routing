@@ -41,6 +41,15 @@
     "verification": "dom-predicate"
   },
   {
+    "name": "incapable explicit interface constraint",
+    "surface": "web-dom",
+    "interfaceConstraint": "in-app-browser",
+    "requirements": ["startup-only-focus-check", "real-lifecycle"],
+    "expectedRoute": "report-constraint-conflict",
+    "fallback": "none",
+    "verification": "capability-conflict-readback"
+  },
+  {
     "name": "frame-driven hidden page",
     "surface": "web-dom",
     "requirements": ["frame-driven-predicate", "stalled-raf"],
