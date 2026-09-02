@@ -24,6 +24,14 @@
     "verification": "dom-predicate"
   },
   {
+    "name": "managed profile missing required session",
+    "surface": "web-dom",
+    "requirements": ["isolation", "managed-identity", "required-session-absent"],
+    "expectedRoute": "managed-agent-browser",
+    "fallback": "user-authentication-handoff-or-report-capability-unavailable",
+    "verification": "managed-profile-session-predicate-before-action"
+  },
+  {
     "name": "public background page",
     "surface": "web-dom",
     "requirements": ["public", "background"],
@@ -71,6 +79,14 @@
     "requirements": ["animation", "real-lifecycle"],
     "expectedRoute": "playwright-or-background-chromium",
     "fallback": "managed-headed-chromium",
+    "verification": "page-readiness-predicate"
+  },
+  {
+    "name": "real lifecycle with in-app unavailable",
+    "surface": "web-dom",
+    "requirements": ["in-app-unavailable", "animation", "real-lifecycle"],
+    "expectedRoute": "playwright-or-background-chromium",
+    "fallback": "managed-agent-browser",
     "verification": "page-readiness-predicate"
   },
   {

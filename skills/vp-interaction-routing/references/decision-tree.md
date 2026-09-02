@@ -35,8 +35,17 @@ flowchart TD
   H2 -->|Yes| I
   H2 -->|No| BL
   H -->|No| J{Needs isolation, concurrency,<br/>repeatability, headless execution,<br/>or managed identity?}
-  J -->|Yes| J0{Managed agent-browser<br/>available and eligible?}
-  J0 -->|Yes| K[Use agent-browser with dedicated or managed profile]
+  J -->|Yes| JT{Requires Tier C lifecycle or<br/>high-fidelity file capture?}
+  JT -->|Yes| M0
+  JT -->|No| J0{Managed agent-browser<br/>available and eligible?}
+  J0 -->|Yes| JA{Requires a signed-in<br/>managed identity?}
+  JA -->|No| K[Use agent-browser with dedicated or managed profile]
+  JA -->|Yes| JS{Required managed-profile<br/>session state present?}
+  JS -->|Yes| K
+  JS -->|No| JH[Hand the managed-profile page to the user<br/>for authentication, then verify the session]
+  JH --> JS2{Required managed-profile<br/>session state established?}
+  JS2 -->|Yes| K
+  JS2 -->|No| BL
   J0 -->|No| J1{Managed Playwright route<br/>available and eligible?}
   J1 -->|Yes| L3
   J1 -->|No| U0
@@ -44,7 +53,9 @@ flowchart TD
   JF -->|Yes| M0
   JF -->|No| LA{In-app DOM browser available<br/>and eligible under the constraint?}
   LA -->|Yes| L[Use in-app DOM browser]
-  LA -->|No| LB{Managed agent-browser<br/>available and eligible?}
+  LA -->|No| LF{Requires Tier C lifecycle or<br/>high-fidelity file capture?}
+  LF -->|Yes| M0
+  LF -->|No| LB{Managed agent-browser<br/>available and eligible?}
   LB -->|Yes| K
   LB -->|No| L4{Playwright route<br/>available and eligible?}
   L4 -->|Yes| L3

@@ -200,6 +200,16 @@ check("routing cases cover every capability leaf with explicit verification", ()
     routeCase.expectedRoute === "report-constraint-conflict" &&
     routeCase.fallback === "none"),
     "an incapable explicit interface needs a terminal conflict case");
+  assert.ok(cases.some((routeCase) =>
+    routeCase.requirements.includes("managed-identity") &&
+    routeCase.requirements.includes("required-session-absent") &&
+    routeCase.verification.includes("session-predicate-before-action")),
+    "a managed identity needs session verification before action");
+  assert.ok(cases.some((routeCase) =>
+    routeCase.requirements.includes("in-app-unavailable") &&
+    routeCase.requirements.includes("real-lifecycle") &&
+    routeCase.expectedRoute === "playwright-or-background-chromium"),
+    "Tier C must be evaluated before fallback browser selection");
 });
 
 // Content invariants carried over from the skills repository's smoke-fixture
