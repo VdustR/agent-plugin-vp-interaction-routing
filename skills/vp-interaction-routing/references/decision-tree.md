@@ -57,17 +57,26 @@ flowchart TD
   L4 -->|No| U0
 
   L --> M{Requires animation, video, canvas, transition,<br/>startup-only focus, or another real lifecycle?}
-  M -->|Yes: Tier C| M0{Playwright or background Chromium<br/>available and eligible?}
+  M -->|Yes: Tier C| M0
+  M0{Playwright or background Chromium available,<br/>eligible, and carrying any required managed session?}
   M0 -->|Yes| L3[Use Playwright or background Chromium<br/><small>route: playwright-or-background-chromium</small>]
-  M0 -->|No| TC{Managed agent-browser<br/>available and eligible?}
+  M0 -->|No| TC{Managed agent-browser available, eligible,<br/>and carrying any required managed session?}
   TC -->|Yes| K
-  TC -->|No| U0
+  TC -->|No| MA{Managed identity required and an eligible<br/>Playwright route can host authentication?}
+  MA -->|Yes| L3
+  MA -->|No| MA2{Managed identity required and an eligible<br/>agent-browser route can host authentication?}
+  MA2 -->|Yes| K
+  MA2 -->|No| U0
   M -->|No| LP{Page readiness predicate satisfied?}
   LP -->|Yes| A1
   LP -->|No| M1{Requires a focus or visibility handler<br/>without real-frame semantics?}
-  M1 -->|Yes: Tier B| L2[Install the post-navigation shim<br/><small>route: in-app-tier-b-shim</small>]
+  M1 -->|Yes: Tier B| B0{JavaScript injection available<br/>and eligible?}
+  B0 -->|Yes| L2[Install the post-navigation shim<br/><small>route: in-app-tier-b-shim</small>]
+  B0 -->|No| M0
   M1 -->|No| M2{Frame-driven predicate is stalled?}
-  M2 -->|Yes: Tier A| L1[Take one screenshot render pump<br/><small>route: in-app-tier-a-render-pump</small>]
+  M2 -->|Yes: Tier A| A0{Screenshot or compositor action<br/>available and eligible?}
+  A0 -->|Yes| L1[Take one screenshot render pump<br/><small>route: in-app-tier-a-render-pump</small>]
+  A0 -->|No| M0
   M2 -->|No: rAF already running| AB
   L1 --> IR{Page readiness predicate satisfied<br/>after the intervention?}
   L2 --> IR
@@ -97,7 +106,7 @@ flowchart TD
   P -->|Yes| Q
   P -->|No| R{Registered and healthy Codex CUA bridge<br/>provides the capability and is eligible?}
   R -->|Yes| S[Use Codex CUA bridge<br/><small>route: healthy-codex-cua-bridge</small>]
-  R -->|No| RI{Bridge implementation is eligible under the constraint<br/>but registration is missing or unhealthy?}
+  R -->|No| RI{Compatible macOS host and upstream component present,<br/>and bridge eligible but unregistered or unhealthy?}
   RI -->|Yes| RA[Offer the registration or repair command<br/>and request authorization]
   RA --> RR{User authorized it and the bridge is now<br/>registered, healthy, capable, and eligible?}
   RR -->|Yes| S
