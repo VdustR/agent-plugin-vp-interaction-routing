@@ -19,15 +19,17 @@ flowchart TD
   E -->|Yes| F[Use semantic interface<br/><small>route: connector-api-cli</small>]
   E -->|No| G{Target surface?}
 
-  G -->|Web-page DOM| HX{Needs isolation or concurrency plus current<br/>daily-browser state or a shared-state constraint?}
+  G -->|Web-page DOM| HX{Needs current daily-browser state or a shared-state<br/>constraint, and also any dedicated-route requirement:<br/>isolation, concurrency, repeatability, headless, or managed identity?}
   HX -->|Yes| RC[Report incompatible requirements<br/><small>route: report-requirement-conflict</small>]
   HX -->|No| HC{Explicitly constrained to a<br/>shared-state DOM integration?}
   HC -->|Yes| H0
   HC -->|No| H{Needs current browser state?}
   G -->|Browser chrome or native dialog| N0
   G -->|Native app or OS UI| N0
-  G -->|Unclassified or no semantic surface| GD{Can inventory discovery classify a usable<br/>service, web, native, DOM, or accessibility surface?}
-  GD -->|Yes| E
+  G -->|Unclassified or no semantic surface| GD{Can inventory discovery classify a usable<br/>web DOM or native accessibility surface?}
+  GD -->|Yes| GC{Classified surface?}
+  GC -->|Web-page DOM| HX
+  GC -->|Browser chrome, native dialog,<br/>native app, or OS UI| N0
   GD -->|No| U0
 
   H -->|Tabs, login, SSO, passkey, extension,<br/>handoff, or actual browser behavior| H0{Shared-state DOM integration<br/>available and eligible?}
@@ -52,7 +54,7 @@ flowchart TD
   JA1 -->|No| U0
   J -->|No| JF{Output requires small-text fidelity or<br/>more than the in-app pane's 800 px ceiling?}
   JF -->|Yes| M0
-  JF -->|No| LA{In-app DOM browser available<br/>and eligible under the constraint?}
+  JF -->|No| LA{In-app DOM browser available, eligible,<br/>and satisfies every current binding requirement?}
   LA -->|Yes| L[Use in-app DOM browser<br/><small>route: in-app-dom-browser</small>]
   LA -->|No| LF{Requires Tier C lifecycle or<br/>high-fidelity file capture?}
   LF -->|Yes| M0
@@ -150,13 +152,16 @@ flowchart TD
   IV -->|Yes| IV1[Verify independently through a semantic<br/>or visual surface]
   IV1 --> IV2{Independent predicate satisfied?}
   IV2 -->|Yes| X
-  IV2 -->|No| AB
+  IV2 -->|No| IVR[Refresh the independent verifier once<br/>without acting]
+  IVR --> IV3{Independent predicate satisfied after refresh?}
+  IV3 -->|Yes| X
+  IV3 -->|No| AB
   W -->|No| Y[Refresh current state once without acting]
   Y --> YP{Intended predicate satisfied after refresh?}
   YP -->|Yes| IV
   YP -->|No| Z{Evidence shows missing capability or context?}
   Z -->|No| AB[Report the unresolved result;<br/>continue readback only when safe and useful]
-  Z -->|Yes| AA[Switch interface and reacquire every selector or identifier]
+  Z -->|Yes| AA[Exclude the failed interface, switch, and<br/>reacquire every selector or identifier]
   AA --> E
 
 ```

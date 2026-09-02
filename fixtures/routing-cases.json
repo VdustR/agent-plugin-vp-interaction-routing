@@ -163,5 +163,13 @@
     "expectedRoute": "report-requirement-conflict",
     "fallback": "none",
     "verification": "requirements-conflict-readback"
+  },
+  {
+    "name": "current daily state with managed identity",
+    "surface": "web-dom",
+    "requirements": ["current-browser-state", "managed-identity"],
+    "expectedRoute": "report-requirement-conflict",
+    "fallback": "none",
+    "verification": "requirements-conflict-readback"
   }
 ]
