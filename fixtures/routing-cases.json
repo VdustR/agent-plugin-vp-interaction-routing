@@ -82,6 +82,14 @@
     "verification": "page-readiness-predicate-after-navigation"
   },
   {
+    "name": "startup shim plus real lifecycle",
+    "surface": "web-dom",
+    "requirements": ["startup-only-focus-check", "pre-navigation-injection", "animation", "real-lifecycle"],
+    "expectedRoute": "playwright-or-background-chromium",
+    "fallback": "managed-agent-browser",
+    "verification": "page-readiness-predicate"
+  },
+  {
     "name": "real browser lifecycle",
     "surface": "web-dom",
     "requirements": ["animation", "real-lifecycle"],
@@ -143,6 +151,15 @@
     "name": "current daily state with isolation",
     "surface": "web-dom",
     "requirements": ["current-browser-state", "isolation", "concurrency"],
+    "expectedRoute": "report-requirement-conflict",
+    "fallback": "none",
+    "verification": "requirements-conflict-readback"
+  },
+  {
+    "name": "shared-state constraint with isolation",
+    "surface": "web-dom",
+    "interfaceConstraint": "shared-state-dom",
+    "requirements": ["public", "isolation", "concurrency"],
     "expectedRoute": "report-requirement-conflict",
     "fallback": "none",
     "verification": "requirements-conflict-readback"

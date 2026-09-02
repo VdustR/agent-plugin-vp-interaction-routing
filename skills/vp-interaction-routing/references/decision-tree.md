@@ -19,14 +19,16 @@ flowchart TD
   E -->|Yes| F[Use semantic interface<br/><small>route: connector-api-cli</small>]
   E -->|No| G{Target surface?}
 
-  G -->|Web-page DOM| HX{Needs both current daily-browser state<br/>and isolation or concurrency?}
+  G -->|Web-page DOM| HX{Needs isolation or concurrency plus current<br/>daily-browser state or a shared-state constraint?}
   HX -->|Yes| RC[Report incompatible requirements<br/><small>route: report-requirement-conflict</small>]
   HX -->|No| HC{Explicitly constrained to a<br/>shared-state DOM integration?}
   HC -->|Yes| H0
   HC -->|No| H{Needs current browser state?}
   G -->|Browser chrome or native dialog| N0
   G -->|Native app or OS UI| N0
-  G -->|Unclassified or no semantic surface| U0
+  G -->|Unclassified or no semantic surface| GD{Can inventory discovery classify a usable<br/>service, web, native, DOM, or accessibility surface?}
+  GD -->|Yes| E
+  GD -->|No| U0
 
   H -->|Tabs, login, SSO, passkey, extension,<br/>handoff, or actual browser behavior| H0{Shared-state DOM integration<br/>available and eligible?}
   H0 -->|Yes| H1{Required session state present?}
@@ -63,13 +65,13 @@ flowchart TD
   L --> SP{Requires a startup-only focus<br/>or visibility check?}
   SP -->|Yes| P0{Eligible pre-navigation injection available<br/>and navigation can be restarted safely?}
   P0 -->|Yes| P1[Install the override before navigation, then navigate<br/><small>route: in-app-pre-navigation-shim</small>]
-  P1 --> RD
+  P1 --> M
   P0 -->|No| M0
   SP -->|No| M{Requires animation, video, canvas, transition,<br/>or another real lifecycle?}
   M -->|Yes: Tier C| M0
-  M0{Playwright or background Chromium available,<br/>eligible, and carrying any required managed session?}
+  M0{Playwright or background Chromium available,<br/>eligible, satisfies every original binding requirement,<br/>and carries any required managed session?}
   M0 -->|Yes| L3[Use Playwright or background Chromium<br/><small>route: playwright-or-background-chromium</small>]
-  M0 -->|No| TC{Managed agent-browser available, eligible,<br/>and carrying any required managed session?}
+  M0 -->|No| TC{Managed agent-browser available, eligible,<br/>satisfies every original binding requirement,<br/>and carries any required managed session?}
   TC -->|Yes| K
   TC -->|No| MA{Managed identity required and an eligible<br/>Playwright route can host authentication?}
   MA -->|Yes| L3
@@ -95,8 +97,11 @@ flowchart TD
   R0 -->|No| AB
 
   I --> RD{Page readiness predicate satisfied?}
-  K --> MS{Route requires a signed-in<br/>managed identity?}
-  L3 --> MS
+  K --> SW{Switching from a previously selected interface?}
+  L3 --> SW
+  SW -->|Yes| RE[Reacquire every selector, DOM reference,<br/>profile handle, and page identifier]
+  RE --> MS
+  SW -->|No| MS{Route requires a signed-in<br/>managed identity?}
   MS -->|No| RD
   MS -->|Yes| MS1{Required managed-profile<br/>session state present?}
   MS1 -->|Yes| RD
@@ -105,7 +110,7 @@ flowchart TD
   MS2 -->|Yes| RD
   MS2 -->|No| BL
   RD -->|Yes| A1
-  RD -->|No| R1{Evidence now requires real lifecycle and an available,<br/>eligible Tier C route has not run?}
+  RD -->|No| R1{Evidence now requires real lifecycle and an untried<br/>Tier C route satisfying every original requirement exists?}
   R1 -->|Yes| M0
   R1 -->|No| AB
 
