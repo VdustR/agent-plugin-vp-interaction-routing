@@ -40,7 +40,9 @@ flowchart TD
   J0 -->|No| J1{Managed Playwright route<br/>available and eligible?}
   J1 -->|Yes| L3
   J1 -->|No| U0
-  J -->|No| LA{In-app DOM browser available<br/>and eligible under the constraint?}
+  J -->|No| JF{Output requires small-text fidelity or<br/>more than the in-app pane's 800 px ceiling?}
+  JF -->|Yes| M0
+  JF -->|No| LA{In-app DOM browser available<br/>and eligible under the constraint?}
   LA -->|Yes| L[Use in-app DOM browser]
   LA -->|No| LB{Managed agent-browser<br/>available and eligible?}
   LB -->|Yes| K
@@ -48,15 +50,15 @@ flowchart TD
   L4 -->|Yes| L3
   L4 -->|No| U0
 
-  L --> LP{Page readiness predicate satisfied?}
-  LP -->|Yes| A1
-  LP -->|No| M{Requires animation, video, canvas, transition,<br/>startup-only focus, or another real lifecycle?}
-  M -->|Yes: Tier C| TC{Managed agent-browser<br/>available and eligible?}
-  TC -->|Yes| K
-  TC -->|No| M0{Playwright or background Chromium<br/>available and eligible?}
+  L --> M{Requires animation, video, canvas, transition,<br/>startup-only focus, or another real lifecycle?}
+  M -->|Yes: Tier C| M0{Playwright or background Chromium<br/>available and eligible?}
   M0 -->|Yes| L3[Use Playwright or background Chromium]
-  M0 -->|No| U0
-  M -->|No| M1{Requires a focus or visibility handler<br/>without real-frame semantics?}
+  M0 -->|No| TC{Managed agent-browser<br/>available and eligible?}
+  TC -->|Yes| K
+  TC -->|No| U0
+  M -->|No| LP{Page readiness predicate satisfied?}
+  LP -->|Yes| A1
+  LP -->|No| M1{Requires a focus or visibility handler<br/>without real-frame semantics?}
   M1 -->|Yes: Tier B| L2[Install the post-navigation shim]
   M1 -->|No| M2{Frame-driven predicate is stalled?}
   M2 -->|Yes: Tier A| L1[Take one screenshot render pump]
@@ -65,7 +67,7 @@ flowchart TD
   L2 --> IR
   IR -->|Yes| A1
   IR -->|No| R0{Evidence requires real lifecycle and an available,<br/>eligible Tier C route has not run?}
-  R0 -->|Yes| TC
+  R0 -->|Yes| M0
   R0 -->|No| AB
 
   I --> RD{Page readiness predicate satisfied?}
@@ -85,7 +87,7 @@ flowchart TD
   R -->|No| Q
   Q{Does available and eligible Peekaboo provide<br/>the required macOS capability?}
   Q -->|Yes| T[Use Peekaboo]
-  Q -->|No| U0{Coordinate-capable acting surface<br/>available and eligible?}
+  Q -->|No| U0{Coordinate-capable acting surface available,<br/>eligible, and capable of all remaining requirements?}
   U0 -->|Yes| U[Use screenshot interpretation and coordinates]
   U0 -->|No| BL
 
