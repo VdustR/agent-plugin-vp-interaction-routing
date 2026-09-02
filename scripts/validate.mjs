@@ -155,6 +155,50 @@ check("every reference file is linked from its SKILL.md", () => {
   }
 });
 
+check("routing cases cover every capability leaf with explicit verification", () => {
+  const cases = read("fixtures/routing-cases.json");
+  assert.ok(Array.isArray(cases) && cases.length > 0, "routing cases must be a non-empty array");
+
+  const requiredRoutes = new Set([
+    "connector-api-cli",
+    "verified-shared-state-dom",
+    "managed-agent-browser",
+    "in-app-dom-browser",
+    "in-app-tier-a-render-pump",
+    "in-app-tier-b-shim",
+    "playwright-or-background-chromium",
+    "host-first-party-computer-use",
+    "healthy-codex-cua-bridge",
+    "peekaboo",
+    "screenshot-coordinates",
+  ]);
+  const names = new Set();
+  const coveredRoutes = new Set();
+
+  for (const routeCase of cases) {
+    assert.equal(typeof routeCase.name, "string", "every case needs a name");
+    assert.ok(!names.has(routeCase.name), `duplicate routing case: ${routeCase.name}`);
+    names.add(routeCase.name);
+    assert.equal(typeof routeCase.surface, "string", `${routeCase.name} needs a surface`);
+    assert.ok(Array.isArray(routeCase.requirements) && routeCase.requirements.length > 0,
+      `${routeCase.name} needs at least one requirement`);
+    assert.equal(typeof routeCase.expectedRoute, "string",
+      `${routeCase.name} needs an expectedRoute`);
+    assert.equal(typeof routeCase.fallback, "string", `${routeCase.name} needs a fallback`);
+    assert.equal(typeof routeCase.verification, "string",
+      `${routeCase.name} needs an explicit verification predicate`);
+    coveredRoutes.add(routeCase.expectedRoute);
+  }
+
+  assert.deepEqual(
+    [...requiredRoutes].filter((route) => !coveredRoutes.has(route)),
+    [],
+    "every decision-tree capability leaf needs a routing case",
+  );
+  assert.ok(cases.some((routeCase) => routeCase.interfaceConstraint),
+    "an explicit interface constraint needs a routing case");
+});
+
 // Content invariants carried over from the skills repository's smoke-fixture
 // validator. Extracting the skill would otherwise silently drop this coverage.
 const FIXTURE = "fixtures/smoke/vp-interaction-routing.md";

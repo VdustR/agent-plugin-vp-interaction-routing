@@ -6,6 +6,29 @@ Codex Computer Use as MCP tools.
 
 Plugin name: `vp-interaction-routing`.
 
+## Routing overview
+
+The plugin selects a capability before mapping it to a product-specific tool:
+
+1. Use a connector, API, or repository CLI when it supports the complete
+   operation, authentication context, and result readback.
+2. Keep web-page interaction on a DOM-aware surface. Choose shared Chrome state
+   for the user's current login, tabs, extensions, or handoff; choose a managed
+   agent-browser profile for isolation and repeatability; otherwise use an
+   available in-app DOM browser whose lifecycle satisfies the page.
+3. Use the host's first-party computer use for ordinary native UI. From a
+   non-Codex harness without that capability, use a registered and healthy Codex
+   Computer Use bridge when it fits. Use Peekaboo for macOS system surfaces,
+   deep accessibility, capture, or missing capabilities.
+4. Use screenshot-coordinate interaction only when semantic, DOM, and
+   accessibility routes cannot complete the operation.
+5. Read the resulting state after every action. Refresh once before switching,
+   and reacquire every selector or identifier after a switch.
+
+The skill contains the executable policy. See the
+[complete decision tree and capability comparison](skills/vp-interaction-routing/references/decision-tree.md)
+for every branch, trade-off, representative route, and verification rule.
+
 ## What is in it
 
 | Component | Purpose |
