@@ -22,40 +22,63 @@ flowchart TD
   G -->|Web-page DOM| H{Needs current browser state?}
   G -->|Browser chrome or native dialog| N0
   G -->|Native app or OS UI| N0
-  G -->|Unclassified or no semantic surface| U
+  G -->|Unclassified or no semantic surface| U0
 
-  H -->|Tabs, login, SSO, passkey, extension,<br/>handoff, or actual browser behavior| I[Verified shared-state DOM integration]
+  H -->|Tabs, login, SSO, passkey, extension,<br/>handoff, or actual browser behavior| H0{Shared-state DOM integration<br/>available and eligible?}
+  H0 -->|Yes| H1{Required session state present?}
+  H0 -->|No| BL
+  H1 -->|Yes| I[Use verified shared-state DOM integration]
+  H1 -->|No| IH[Hand the page to the user for authentication<br/>in the required browser, then verify the session]
+  IH --> I
   H -->|No| J{Needs isolation, concurrency,<br/>repeatability, headless execution,<br/>or managed identity?}
-  J -->|Yes| K[agent-browser with dedicated or managed profile]
+  J -->|Yes| J0{Managed agent-browser<br/>available and eligible?}
+  J0 -->|Yes| K[Use agent-browser with dedicated or managed profile]
+  J0 -->|No| J1{Managed Playwright route<br/>available and eligible?}
+  J1 -->|Yes| L3
+  J1 -->|No| BL
   J -->|No| LA{In-app DOM browser available<br/>and eligible under the constraint?}
   LA -->|Yes| L[Use in-app DOM browser]
-  LA -->|No| LB{Managed agent-browser or Playwright<br/>eligible under the constraint?}
+  LA -->|No| LB{Managed agent-browser<br/>available and eligible?}
   LB -->|Yes| K
-  LB -->|No| LC[Report interface-constraint conflict]
+  LB -->|No| L4{Playwright route<br/>available and eligible?}
+  L4 -->|Yes| L3
+  L4 -->|No| BL
 
   L --> M{Requires animation, video, canvas, transition,<br/>startup-only focus, or another real lifecycle?}
-  M -->|Yes: Tier C| L3[Use Playwright or background Chromium]
+  M -->|Yes: Tier C| M0{Playwright or background Chromium<br/>available and eligible?}
+  M0 -->|Yes| L3[Use Playwright or background Chromium]
+  M0 -->|No| BL
   M -->|No| M1{Requires a focus or visibility handler<br/>without real-frame semantics?}
   M1 -->|Yes: Tier B| L2[Install the post-navigation shim]
   M1 -->|No| M2{Frame-driven predicate is stalled?}
   M2 -->|Yes: Tier A| L1[Take one screenshot render pump]
   M2 -->|No| A1
-  L1 --> A1
-  L2 --> A1
-  L3 --> A1
+  L1 --> RD{Page readiness predicate satisfied?}
+  L2 --> RD
+  L3 --> RD
+  RD -->|Yes| A1
+  RD -->|No| R0{Evidence requires real lifecycle and an available,<br/>eligible Tier C route has not run?}
+  R0 -->|Yes| M0
+  R0 -->|No| AB
 
   N0{Requires Peekaboo-specific macOS system,<br/>window, menu, Space, deep AX, or capture capability?}
   N0 -->|Yes| Q
-  N0 -->|No| N{Host first-party computer use available<br/>and capable?}
+  N0 -->|No| N{Host first-party computer use available,<br/>capable, and eligible?}
   N -->|Yes| O[Use first-party computer use]
   N -->|No| P{Running as Codex?}
   P -->|Yes| Q
-  P -->|No| R{Registered and healthy Codex CUA bridge<br/>provides the capability?}
+  P -->|No| R{Registered and healthy Codex CUA bridge<br/>provides the capability and is eligible?}
   R -->|Yes| S[Use Codex CUA bridge]
   R -->|No| Q
-  Q{Does Peekaboo provide the required<br/>macOS capability?}
+  Q{Does available and eligible Peekaboo provide<br/>the required macOS capability?}
   Q -->|Yes| T[Use Peekaboo]
-  Q -->|No| U[Screenshot interpretation and coordinates]
+  Q -->|No| U0{Coordinate-capable acting surface<br/>available and eligible?}
+  U0 -->|Yes| U[Use screenshot interpretation and coordinates]
+  U0 -->|No| BL
+
+  BL{Does an explicit interface constraint block<br/>an otherwise capable route?}
+  BL -->|Yes| LC[Report interface-constraint conflict]
+  BL -->|No| LU[Report capability unavailable]
 
   F --> A1[Act once]
   I --> A1
@@ -85,6 +108,7 @@ flowchart TD
   %% route-id: peekaboo
   %% route-id: screenshot-coordinates
   %% route-id: report-constraint-conflict
+  %% route-id: report-capability-unavailable
 ```
 
 The diagram expresses selection, not authorization. Preserve the user's current
@@ -109,7 +133,7 @@ not to require an earlier one.
 | Host first-party computer use | Ordinary native application interaction | Integrated with the host's policy and session | Accessibility semantics with read-after-act verification | Low to medium | Implementation-dependent | Capability and tool inventory vary by host session |
 | Codex Computer Use bridge | Native UI from a non-Codex harness lacking first-party computer use | The caller retains the authorization boundary | Compact accessibility tree and diff readback | Low to medium | Background-safe | macOS-only, requires registration and health verification, and adds latency |
 | Peekaboo | macOS windows, menus, Dock, Spaces, dialogs, deep accessibility, capture, and troubleshooting | Operates on the live desktop | Broad accessibility and system-surface coverage | Low | Can contend with the user | State identifiers become stale; some background input can be an unverifiable no-op |
-| Screenshot interpretation and coordinates | No usable semantic, DOM, or accessibility path | Inherits the acting surface's boundary | Weakest; requires visible readback after every consequential action | Low | Usually highest | Fragile under layout or state changes |
+| Screenshot interpretation and coordinates | No usable semantic, DOM, or accessibility path | Inherits the acting surface's boundary | Weakest; requires visible readback after every consequential action | Low | Usually highest | Requires a verified coordinate-capable acting surface and remains fragile under layout or state changes |
 
 ## Representative Routes
 

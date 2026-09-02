@@ -106,5 +106,13 @@
     "expectedRoute": "screenshot-coordinates",
     "fallback": "none",
     "verification": "visible-predicate-after-every-action"
+  },
+  {
+    "name": "no acting surface available",
+    "surface": "unknown-ui",
+    "requirements": ["no-coordinate-capable-interface"],
+    "expectedRoute": "report-capability-unavailable",
+    "fallback": "none",
+    "verification": "capability-inventory-readback"
   }
 ]
