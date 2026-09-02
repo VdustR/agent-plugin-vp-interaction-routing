@@ -161,11 +161,11 @@ check("routing cases cover every capability leaf with explicit verification", ()
 
   const decisionTree = readFileSync(
     join(root, "skills/vp-interaction-routing/references/decision-tree.md"), "utf8");
-  const routeMarkers = [...decisionTree.matchAll(/^\s*%% route-id: ([a-z0-9-]+)\s*$/gm)]
+  const routeMarkers = [...decisionTree.matchAll(/<small>route: ([a-z0-9-]+)<\/small>/g)]
     .map((match) => match[1]);
-  assert.ok(routeMarkers.length > 0, "the decision tree needs route-id markers");
+  assert.ok(routeMarkers.length > 0, "the decision tree needs route IDs on capability nodes");
   assert.equal(new Set(routeMarkers).size, routeMarkers.length,
-    "decision-tree route-id markers must be unique");
+    "decision-tree capability-node route IDs must be unique");
   const requiredRoutes = new Set(routeMarkers);
   const names = new Set();
   const coveredRoutes = new Set();

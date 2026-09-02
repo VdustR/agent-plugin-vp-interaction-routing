@@ -16,11 +16,11 @@ flowchart TD
   D --> E
 
   E{An interface eligible under the constraint is a<br/>connector, API, or repository CLI that fully supports<br/>operation, authentication, and readback?}
-  E -->|Yes| F[Use semantic interface]
+  E -->|Yes| F[Use semantic interface<br/><small>route: connector-api-cli</small>]
   E -->|No| G{Target surface?}
 
   G -->|Web-page DOM| HX{Needs both current daily-browser state<br/>and isolation or concurrency?}
-  HX -->|Yes| RC[Report incompatible requirements]
+  HX -->|Yes| RC[Report incompatible requirements<br/><small>route: report-requirement-conflict</small>]
   HX -->|No| H{Needs current browser state?}
   G -->|Browser chrome or native dialog| N0
   G -->|Native app or OS UI| N0
@@ -29,7 +29,7 @@ flowchart TD
   H -->|Tabs, login, SSO, passkey, extension,<br/>handoff, or actual browser behavior| H0{Shared-state DOM integration<br/>available and eligible?}
   H0 -->|Yes| H1{Required session state present?}
   H0 -->|No| U0
-  H1 -->|Yes| I[Use verified shared-state DOM integration]
+  H1 -->|Yes| I[Use verified shared-state DOM integration<br/><small>route: verified-shared-state-dom</small>]
   H1 -->|No| IH[Hand the page to the user for authentication<br/>in the required browser, then verify the session]
   IH --> H2{Required session state established?}
   H2 -->|Yes| I
@@ -38,14 +38,14 @@ flowchart TD
   J -->|Yes| JT{Requires Tier C lifecycle or<br/>high-fidelity file capture?}
   JT -->|Yes| M0
   JT -->|No| J0{Managed agent-browser<br/>available and eligible?}
-  J0 -->|Yes| K[Use agent-browser with dedicated or managed profile]
+  J0 -->|Yes| K[Use agent-browser with dedicated or managed profile<br/><small>route: managed-agent-browser</small>]
   J0 -->|No| J1{Managed Playwright route<br/>available and eligible?}
   J1 -->|Yes| L3
   J1 -->|No| U0
   J -->|No| JF{Output requires small-text fidelity or<br/>more than the in-app pane's 800 px ceiling?}
   JF -->|Yes| M0
   JF -->|No| LA{In-app DOM browser available<br/>and eligible under the constraint?}
-  LA -->|Yes| L[Use in-app DOM browser]
+  LA -->|Yes| L[Use in-app DOM browser<br/><small>route: in-app-dom-browser</small>]
   LA -->|No| LF{Requires Tier C lifecycle or<br/>high-fidelity file capture?}
   LF -->|Yes| M0
   LF -->|No| LB{Managed agent-browser<br/>available and eligible?}
@@ -56,16 +56,16 @@ flowchart TD
 
   L --> M{Requires animation, video, canvas, transition,<br/>startup-only focus, or another real lifecycle?}
   M -->|Yes: Tier C| M0{Playwright or background Chromium<br/>available and eligible?}
-  M0 -->|Yes| L3[Use Playwright or background Chromium]
+  M0 -->|Yes| L3[Use Playwright or background Chromium<br/><small>route: playwright-or-background-chromium</small>]
   M0 -->|No| TC{Managed agent-browser<br/>available and eligible?}
   TC -->|Yes| K
   TC -->|No| U0
   M -->|No| LP{Page readiness predicate satisfied?}
   LP -->|Yes| A1
   LP -->|No| M1{Requires a focus or visibility handler<br/>without real-frame semantics?}
-  M1 -->|Yes: Tier B| L2[Install the post-navigation shim]
+  M1 -->|Yes: Tier B| L2[Install the post-navigation shim<br/><small>route: in-app-tier-b-shim</small>]
   M1 -->|No| M2{Frame-driven predicate is stalled?}
-  M2 -->|Yes: Tier A| L1[Take one screenshot render pump]
+  M2 -->|Yes: Tier A| L1[Take one screenshot render pump<br/><small>route: in-app-tier-a-render-pump</small>]
   M2 -->|No: rAF already running| AB
   L1 --> IR{Page readiness predicate satisfied<br/>after the intervention?}
   L2 --> IR
@@ -90,21 +90,26 @@ flowchart TD
   N0{Requires Peekaboo-specific macOS system,<br/>window, menu, Space, deep AX, or capture capability?}
   N0 -->|Yes| Q
   N0 -->|No| N{Host first-party computer use available,<br/>capable, and eligible?}
-  N -->|Yes| O[Use first-party computer use]
+  N -->|Yes| O[Use first-party computer use<br/><small>route: host-first-party-computer-use</small>]
   N -->|No| P{Running as Codex?}
   P -->|Yes| Q
   P -->|No| R{Registered and healthy Codex CUA bridge<br/>provides the capability and is eligible?}
-  R -->|Yes| S[Use Codex CUA bridge]
-  R -->|No| Q
+  R -->|Yes| S[Use Codex CUA bridge<br/><small>route: healthy-codex-cua-bridge</small>]
+  R -->|No| RI{Bridge implementation available but<br/>registration is missing or unhealthy?}
+  RI -->|Yes| RA[Offer the registration or repair command<br/>and request authorization]
+  RA --> RR{User authorized it and the bridge<br/>is now registered and healthy?}
+  RR -->|Yes| S
+  RR -->|No| Q
+  RI -->|No| Q
   Q{Does available and eligible Peekaboo provide<br/>the required macOS capability?}
-  Q -->|Yes| T[Use Peekaboo]
+  Q -->|Yes| T[Use Peekaboo<br/><small>route: peekaboo</small>]
   Q -->|No| U0{Coordinate-capable acting surface available,<br/>eligible, and capable of all remaining requirements?}
-  U0 -->|Yes| U[Use screenshot interpretation and coordinates]
+  U0 -->|Yes| U[Use screenshot interpretation and coordinates<br/><small>route: screenshot-coordinates</small>]
   U0 -->|No| BL
 
   BL{Does an explicit interface constraint block<br/>an otherwise capable route?}
-  BL -->|Yes| LC[Report interface-constraint conflict]
-  BL -->|No| LU[Report capability unavailable]
+  BL -->|Yes| LC[Report interface-constraint conflict<br/><small>route: report-constraint-conflict</small>]
+  BL -->|No| LU[Report capability unavailable<br/><small>route: report-capability-unavailable</small>]
 
   F --> A1[Act once]
   O --> A1
@@ -120,25 +125,13 @@ flowchart TD
   IV2 -->|Yes| X
   IV2 -->|No| AB
   W -->|No| Y[Refresh current state once without acting]
-  Y --> Z{Evidence shows missing capability or context?}
+  Y --> YP{Intended predicate satisfied after refresh?}
+  YP -->|Yes| IV
+  YP -->|No| Z{Evidence shows missing capability or context?}
   Z -->|No| AB[Report the unresolved result;<br/>continue readback only when safe and useful]
   Z -->|Yes| AA[Switch interface and reacquire every selector or identifier]
   AA --> E
 
-  %% route-id: connector-api-cli
-  %% route-id: verified-shared-state-dom
-  %% route-id: managed-agent-browser
-  %% route-id: in-app-dom-browser
-  %% route-id: in-app-tier-a-render-pump
-  %% route-id: in-app-tier-b-shim
-  %% route-id: playwright-or-background-chromium
-  %% route-id: host-first-party-computer-use
-  %% route-id: healthy-codex-cua-bridge
-  %% route-id: peekaboo
-  %% route-id: screenshot-coordinates
-  %% route-id: report-constraint-conflict
-  %% route-id: report-capability-unavailable
-  %% route-id: report-requirement-conflict
 ```
 
 The diagram expresses selection, not authorization. Preserve the user's current
