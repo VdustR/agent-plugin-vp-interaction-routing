@@ -39,11 +39,15 @@ flowchart TD
   H -->|No| J{Needs isolation, concurrency,<br/>repeatability, headless execution,<br/>or managed identity?}
   J -->|Yes| JT{Requires Tier C lifecycle or<br/>high-fidelity file capture?}
   JT -->|Yes| M0
-  JT -->|No| J0{Managed agent-browser<br/>available and eligible?}
+  JT -->|No| J0{Managed agent-browser available, eligible,<br/>and carrying any required managed session?}
   J0 -->|Yes| K[Use agent-browser with dedicated or managed profile<br/><small>route: managed-agent-browser</small>]
-  J0 -->|No| J1{Managed Playwright route<br/>available and eligible?}
+  J0 -->|No| J1{Managed Playwright route available, eligible,<br/>and carrying any required managed session?}
   J1 -->|Yes| L3
-  J1 -->|No| U0
+  J1 -->|No| JA0{Managed identity required and an eligible<br/>agent-browser route can host authentication?}
+  JA0 -->|Yes| K
+  JA0 -->|No| JA1{Managed identity required and an eligible<br/>Playwright route can host authentication?}
+  JA1 -->|Yes| L3
+  JA1 -->|No| U0
   J -->|No| JF{Output requires small-text fidelity or<br/>more than the in-app pane's 800 px ceiling?}
   JF -->|Yes| M0
   JF -->|No| LA{In-app DOM browser available<br/>and eligible under the constraint?}
@@ -56,7 +60,12 @@ flowchart TD
   L4 -->|Yes| L3
   L4 -->|No| U0
 
-  L --> M{Requires animation, video, canvas, transition,<br/>startup-only focus, or another real lifecycle?}
+  L --> SP{Requires a startup-only focus<br/>or visibility check?}
+  SP -->|Yes| P0{Eligible pre-navigation injection available<br/>and navigation can be restarted safely?}
+  P0 -->|Yes| P1[Install the override before navigation, then navigate<br/><small>route: in-app-pre-navigation-shim</small>]
+  P1 --> RD
+  P0 -->|No| M0
+  SP -->|No| M{Requires animation, video, canvas, transition,<br/>or another real lifecycle?}
   M -->|Yes: Tier C| M0
   M0{Playwright or background Chromium available,<br/>eligible, and carrying any required managed session?}
   M0 -->|Yes| L3[Use Playwright or background Chromium<br/><small>route: playwright-or-background-chromium</small>]
@@ -96,7 +105,9 @@ flowchart TD
   MS2 -->|Yes| RD
   MS2 -->|No| BL
   RD -->|Yes| A1
-  RD -->|No| AB
+  RD -->|No| R1{Evidence now requires real lifecycle and an available,<br/>eligible Tier C route has not run?}
+  R1 -->|Yes| M0
+  R1 -->|No| AB
 
   N0{Requires Peekaboo-specific macOS system,<br/>window, menu, Space, deep AX, or capture capability?}
   N0 -->|Yes| Q
@@ -151,9 +162,11 @@ only routes compatible with it are eligible throughout the tree. The constraint
 does not make an incapable interface capable; report the conflict when no safe
 route satisfies both the constraint and the operation.
 
-The lifecycle checks are ordered from strongest requirement to weakest: Tier C,
-then Tier B, then Tier A. A later tier is considered only after the page is known
-not to require an earlier one.
+Startup-only focus or visibility checks first test whether an eligible override
+can be installed before navigation. Otherwise, lifecycle checks are ordered
+from strongest requirement to weakest: Tier C, then Tier B, then Tier A. A
+later tier is considered only after the page is known not to require an earlier
+one.
 
 ## Capability Comparison
 

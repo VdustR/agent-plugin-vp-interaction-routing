@@ -52,7 +52,7 @@
     "name": "incapable explicit interface constraint",
     "surface": "web-dom",
     "interfaceConstraint": "in-app-browser",
-    "requirements": ["startup-only-focus-check", "real-lifecycle"],
+    "requirements": ["startup-only-focus-check", "no-pre-navigation-injection", "real-lifecycle"],
     "expectedRoute": "report-constraint-conflict",
     "fallback": "none",
     "verification": "capability-conflict-readback"
@@ -72,6 +72,14 @@
     "expectedRoute": "in-app-tier-b-shim",
     "fallback": "playwright-or-background-chromium",
     "verification": "page-readiness-predicate"
+  },
+  {
+    "name": "startup-only focus check with pre-navigation injection",
+    "surface": "web-dom",
+    "requirements": ["startup-only-focus-check", "pre-navigation-injection", "safe-navigation-restart"],
+    "expectedRoute": "in-app-pre-navigation-shim",
+    "fallback": "playwright-or-background-chromium",
+    "verification": "page-readiness-predicate-after-navigation"
   },
   {
     "name": "real browser lifecycle",
