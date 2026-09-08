@@ -79,13 +79,15 @@ For the complete decision tree, capability comparison, and route examples, read
 
 ## Lifecycle And Cleanup
 
-- Record which sessions, tabs, windows, and helper processes existed before the
-  task. Treat resources created or activated by the task as task-owned.
+- Track identifiers for sessions, tabs, windows, and helper processes created
+  by the task. A resource that existed before the task remains user-owned when
+  the task uses or activates it, unless the user transfers lifecycle ownership.
 - Before switching interfaces, end the previous task-owned session unless the
   current task still needs it.
-- End task-owned Computer Use sessions after success, failure, cancellation, or
-  handoff. Use the interface's documented close, end, disconnect, or reset
-  operation. When structured teardown is available, run cleanup in `finally`.
+- End task-owned Computer Use, browser, and desktop-automation sessions after
+  success, failure, cancellation, or handoff. Use the interface's documented
+  close, end, disconnect, or reset operation. When structured teardown is
+  available, run cleanup in `finally`.
 - Read the interface or process state after cleanup and confirm that the session
   ended. A successful close request does not establish the resulting state.
 - Close task-created temporary tabs, windows, and helper processes when they are
