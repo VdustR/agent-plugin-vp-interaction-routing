@@ -3,6 +3,21 @@
 Use native UI automation only after confirming that no purpose-built connector,
 API, CLI, or browser DOM interface can complete the current operation.
 
+## Session Lifecycle
+
+Track identifiers for Computer Use sessions and helper processes started by the
+task. A session that existed before the task remains user-owned when the task
+uses or activates it. End task-owned sessions when native interaction finishes,
+the route changes, or the task ends through success, failure, cancellation, or
+handoff. Use the selected interface's documented lifecycle operation, then read
+its state to confirm that the session ended.
+
+Ending a Computer Use session does not require quitting the target application
+or a shared host service. Close task-created temporary windows and helper
+processes. Leave existing user state unchanged unless the user requested its
+closure. If the client provides no end or disconnect control, report the active
+resource and the client action required to release it.
+
 ## First-Party Computer Use
 
 Prefer Codex first-party Computer Use for native application work when operating
