@@ -77,6 +77,23 @@ For the complete decision tree, capability comparison, and route examples, read
   preference and the host policy; do not add confirmation gates when that
   policy permits the action without prompting.
 
+## Lifecycle And Cleanup
+
+- Record which sessions, tabs, windows, and helper processes existed before the
+  task. Treat resources created or activated by the task as task-owned.
+- Before switching interfaces, end the previous task-owned session unless the
+  current task still needs it.
+- End task-owned Computer Use sessions after success, failure, cancellation, or
+  handoff. Use the interface's documented close, end, disconnect, or reset
+  operation. When structured teardown is available, run cleanup in `finally`.
+- Read the interface or process state after cleanup and confirm that the session
+  ended. A successful close request does not establish the resulting state.
+- Close task-created temporary tabs, windows, and helper processes when they are
+  no longer needed. Leave the user's existing apps, tabs, windows, documents,
+  and shared services open unless the user requested otherwise.
+- If the client provides no way to end the session, report which resource
+  remains active and which client or user action will end it.
+
 ## Decision Priority
 
 When several interfaces can complete the task, compare them in this order:

@@ -3,6 +3,20 @@
 Use native UI automation only after confirming that no purpose-built connector,
 API, CLI, or browser DOM interface can complete the current operation.
 
+## Session Lifecycle
+
+Record which Computer Use sessions, applications, and windows existed before
+the task. End sessions started by the task when native interaction finishes,
+the route changes, or the task ends through success, failure, cancellation, or
+handoff. Use the selected interface's documented lifecycle operation, then read
+its state to confirm that the session ended.
+
+Ending a Computer Use session does not require quitting the target application
+or a shared host service. Close task-created temporary windows and helper
+processes. Leave existing user state unchanged unless the user requested its
+closure. If the client provides no end or disconnect control, report the active
+resource and the client action required to release it.
+
 ## First-Party Computer Use
 
 Prefer Codex first-party Computer Use for native application work when operating
@@ -61,6 +75,10 @@ Treat the bridge as an optional capability, not a universal dependency:
 Prefer the host's first-party surface when it provides equal capability and
 better integration. Use the bridge when the host has no native UI surface or
 when the bridge materially improves background-safe accessibility interaction.
+The MCP client owns a stdio bridge process and its upstream app-server child;
+closing or disconnecting that MCP session must terminate both. Check process or
+server state when the client exposes it. Leave persistent registration in place
+unless the user requests its removal.
 
 ## Peekaboo
 
