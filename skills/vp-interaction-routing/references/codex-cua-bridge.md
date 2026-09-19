@@ -161,6 +161,23 @@ file path unless `include_screenshot` is set.
 
 - **Read, act, read.** Call `get_app_state`, take `element_index` values from
   that text, act, then read again before the next decision.
+- **Read the app in your own session before any mutating call.** The service
+  refuses a mutating call against an app it does not consider active, with
+  `error: Computer Use is not active for '<bundle path>'`. This covers
+  coordinate calls too, which need no `element_index`.
+- **Activation is service-wide, not per session.** A `get_app_state` from one
+  bridge process satisfies the precondition for a different process that never
+  read the app, for as long as the reading session stays open. The refusal
+  therefore depends on unrelated Computer Use activity on the machine: the same
+  call succeeds while another session holds the app and is refused once none
+  does. Measured against ChatGPT.app 26.915.31945, `codex-cli`
+  0.155.0-alpha.9.2: a naked coordinate click was refused from a fresh session
+  with no other holder, accepted from a fresh session while a separate process
+  held a read, and accepted once the session made its own read. When
+  activation is released is not characterized here; a click was still accepted
+  after every other holder exited, so do not treat a holder's exit as a
+  deactivation. Own the precondition by reading in your own session rather than
+  relying on any of this.
 - **An `element_index` is valid only for the read that produced it.** Indexes
   shift as the tree changes.
 - **The diff is server-side state, not per client.** `get_app_state` returns a

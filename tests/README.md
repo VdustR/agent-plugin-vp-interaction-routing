@@ -42,6 +42,19 @@ can run. It reports a reason instead of failing when the host cannot support it.
 
 ## Notes for anyone extending these
 
+- **Read the app in the test's own session before any mutating call.** The
+  service refuses a mutating call against an app it does not consider active,
+  coordinate calls included: `Computer Use is not active for '<bundle path>'`.
+  Activation is service-wide, so another Computer Use session holding the app
+  satisfies the precondition on a test's behalf. A test that omits its own read
+  therefore passes or fails on whatever else is running on the machine. The
+  coordinate test did exactly that and failed only once nothing else held
+  Calculator. Tests that start from `resetCalculator` already read first.
+- **Do not widen `liveUnavailable()` to hide an order- or environment-dependent
+  pass.** It answers whether the host can run the suite, not whether a test is
+  self-contained. Skipping on a health signal would have converted this failure
+  into a silent pass and left the stale assumption in place. The fix belongs in
+  the test.
 - **Re-read before every click.** Element indexes are valid only for the read
   that produced them. Entering an expression inserts a result row and renumbers
   every control below it, so a cached index acts on the wrong control.

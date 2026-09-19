@@ -414,6 +414,12 @@ const INVARIANTS = [
     "the skill must route allowlist containment to a fresh context"],
   [ADAPTERS, /properties of the\s+installed build, not of the adapter category/s,
     "adapters must require per-build measurement"],
+  [BRIDGE_REFERENCE, /refuses a mutating call against an app it does not consider\s+active.*Computer Use is not active for.*covers\s+coordinate calls too/s,
+    "the bridge reference must record the activation precondition for mutating calls"],
+  [BRIDGE_REFERENCE, /Activation is service-wide, not per session.*depends on unrelated Computer Use activity/s,
+    "the bridge reference must record that activation is shared across sessions"],
+  [BRIDGE_REFERENCE, /When\s+activation is released is not characterized here/s,
+    "the bridge reference must not claim an unmeasured deactivation rule"],
   [BROWSER, /a dedicated persistent profile is one of the rejected modes, so it is not an\s+eligible fallback here/s,
     "a containment route must not fall back to a persistent profile"],
 ];
