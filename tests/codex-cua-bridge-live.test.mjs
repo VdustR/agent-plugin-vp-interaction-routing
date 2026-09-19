@@ -271,9 +271,26 @@ test("clicks act on the target and do not steal focus", { skip }, async () => {
     }
 
     assert.match(displayValue(await readTree(client)), /56/);
-    // The invariant is that the bridge does not change focus. Asserting the
-    // target is never frontmost would be wrong whenever it already was.
-    assert.equal(frontmostApp(), before, "the bridge must not change which app is frontmost");
+
+    // The invariant is that the bridge does not raise the app it is driving.
+    //
+    // Comparing the frontmost app before and after is broader than that: it
+    // also fails when anything else takes the foreground, which on a machine
+    // someone is using it will. Observed failing with 'Slack' !== 'Claude'
+    // when a notification arrived mid-test.
+    //
+    // So assert the specific thing, and only when the reading can mean
+    // anything: if the target was already frontmost, it being frontmost
+    // afterwards proves nothing either way.
+    const after = frontmostApp();
+    if (before !== APP) {
+      assert.notEqual(after, APP, "the bridge must not raise the app it is driving");
+    }
+    // Leave a trace when a third party took over, so a reader of a later
+    // failure elsewhere in the suite knows the machine was not quiet.
+    if (after !== before) {
+      console.log(`note: the frontmost app changed from ${before} to ${after} during this test`);
+    }
   });
 });
 

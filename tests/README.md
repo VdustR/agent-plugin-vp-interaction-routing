@@ -107,6 +107,13 @@ rather than silently deleting macOS coverage.
 - **Assert the negative capability too.** `frontmostApp()` fails when `osascript`
   cannot answer, because an empty string on both sides of the focus comparison
   would pass even if focus had been stolen.
+- **Assert the invariant, not the machine being quiet.** The focus test checks
+  that the bridge does not raise the app it is driving. It used to compare the
+  frontmost app before and after, which also fails when anything else takes the
+  foreground; it was seen failing with `'Slack' !== 'Claude'` when a
+  notification arrived mid-test. The narrower check is skipped when the target
+  was already frontmost, because then the reading cannot mean anything either
+  way, and a third-party change is logged rather than asserted on.
 - **Validation fails when no suite is found.** An unmatched glob would reach
   `node --test` literally and exit zero having run nothing.
 - **Ask AppKit for the frontmost app, not System Events.** Its AppleEvent IPC
