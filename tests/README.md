@@ -8,6 +8,7 @@ Coverage for `skills/vp-interaction-routing/scripts/codex-cua-bridge.mjs`.
 | `codex-cua-bridge-approvals.test.mjs` | Node only, via a fake upstream | `npm run validate`, including CI |
 | `codex-cua-bridge-runtime.test.mjs` | Node only, via a fake upstream | `npm run validate`, including CI |
 | `codex-cua-bridge-live.test.mjs` | macOS, ChatGPT.app with the Computer Use component | `npm run validate` on a capable host; skips elsewhere |
+| `live-guard.test.mjs` | Node only, via a fake upstream | `npm run validate`, including CI |
 | `invariant-matcher.test.mjs` | Node only | `npm run validate`, including CI |
 
 `helpers/fake-app-server.mjs` stands in for the Codex binary. The bridge spawns
@@ -37,8 +38,15 @@ report, diff versus full reads, screenshot opt-in and its size cap,
 window-relative coordinates, focus preservation, cancellation actually
 preventing a click, and recovery after the app-server child is killed.
 
-`liveUnavailable()` in `helpers/mcp-client.mjs` decides whether the live suite
-can run. It reports a reason instead of failing when the host cannot support it.
+`liveUnavailableReason()` in `helpers/mcp-client.mjs` decides whether the live
+suite can run, in two parts. `liveUnavailable()` answers from the installation
+alone: platform and the Codex binary. `probeServiceState()` then makes one real
+read, because an intact installation does not mean the service will serve.
+Either way it reports a reason instead of failing.
+
+`live-guard.test.mjs` covers that guard, including the classification of every
+refusal the live tests assert on, so widening the skip by accident fails on CI
+rather than silently deleting macOS coverage.
 
 ## Notes for anyone extending these
 
@@ -50,11 +58,29 @@ can run. It reports a reason instead of failing when the host cannot support it.
   therefore passes or fails on whatever else is running on the machine. The
   coordinate test did exactly that and failed only once nothing else held
   Calculator. Tests that start from `resetCalculator` already read first.
-- **Do not widen `liveUnavailable()` to hide an order- or environment-dependent
-  pass.** It answers whether the host can run the suite, not whether a test is
-  self-contained. Skipping on a health signal would have converted this failure
-  into a silent pass and left the stale assumption in place. The fix belongs in
-  the test.
+- **Skip only when the service says it is serving nothing.** The guard
+  recognizes one upstream message, `This application session has been explicitly
+  stopped by the user`, observed on a host whose installation was intact,
+  refusing every call across twenty freshly spawned app-server processes over
+  seven minutes, and clearing only when `SkyComputerUseService` was restarted.
+  The entry bar is that evidence: a message refusing every call, not one call.
+  `Sky Computer Use native pipe startup failed` and `Sky Computer Use native
+  pipe closed before response` are deliberately excluded, both seen under heavy
+  concurrent load and the second seen recovering on the very next call. A single
+  failed call should fail the suite, where someone looks at it. Never add a
+  wrong answer: a bad tree, a bad coordinate result, or a bridge defect must
+  keep failing.
+- **Do not widen the guard to hide an order- or environment-dependent pass.**
+  That is a different failure, and the coordinate test is the example: it
+  depended on another session's activation, and skipping on a health signal
+  would have converted it into a silent pass rather than fixing the test. The
+  guard answers whether the service can serve at all, never whether a test is
+  self-contained.
+- **`health` is not that signal.** Its verdict rests on the app-server
+  handshake and the reflected sky surface, so it reported
+  `healthy: Computer Use is reachable through this bridge` throughout the seven
+  minutes in which every Computer Use call was refused. The guard makes a real
+  read for this reason.
 - **Re-read before every click.** Element indexes are valid only for the read
   that produced them. Entering an expression inserts a result row and renumbers
   every control below it, so a cached index acts on the wrong control.

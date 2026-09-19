@@ -8,6 +8,8 @@
 //   FAKE_OBSERVED        file to append the bridge's reply to, as JSON lines
 //   FAKE_REVERSE_PARAMS  optional JSON params for the reverse request
 //   FAKE_TEXT_LENGTH     pad tool-call results to this many characters
+//   FAKE_TEXT            exact text to return from a tool call, for upstream
+//                        messages a test needs verbatim
 //   FAKE_HANG            never answer a tool call, to exercise the timeout path
 //   FAKE_ARGS_LOG        append the arguments of each tool call, as JSON lines
 //   FAKE_PID_LOG         append this process's pid on startup, to prove replacement
@@ -30,6 +32,9 @@ const hang = process.env.FAKE_HANG === "1";
 
 /** A tool result, padded when the test is exercising the output cap. */
 function toolResult() {
+  if (process.env.FAKE_TEXT !== undefined) {
+    return { content: [{ type: "text", text: process.env.FAKE_TEXT }] };
+  }
   const text = Number.isFinite(textLength) ? "y".repeat(textLength) : "[]";
   return { content: [{ type: "text", text }] };
 }

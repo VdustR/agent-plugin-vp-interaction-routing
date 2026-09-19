@@ -19,9 +19,13 @@ const CODEX_CANDIDATES = [
 ];
 
 /**
- * Why the live suite is unavailable here, or null when it can run. Computer Use
- * needs macOS and the Codex binary inside ChatGPT.app, so CI on Linux skips
- * rather than fails.
+ * Why the live suite is unavailable here from what the host looks like, or null
+ * when nothing in the installation rules it out. Computer Use needs macOS and
+ * the Codex binary inside ChatGPT.app, so CI on Linux skips rather than fails.
+ *
+ * This answers only "is it installed". `liveUnavailableReason` adds the
+ * question that cannot be answered from the filesystem: whether the service
+ * will actually serve.
  */
 export function liveUnavailable() {
   if (process.platform !== "darwin") return `requires macOS, running on ${process.platform}`;
@@ -34,6 +38,84 @@ export function liveUnavailable() {
     return "ChatGPT.app with the Computer Use component is not installed";
   }
   return null;
+}
+
+/**
+ * Upstream refusals that mean the Computer Use service is serving nothing at
+ * all, as opposed to answering this particular call wrongly or failing once.
+ *
+ * Entry bar: the message must have been observed refusing every call, not just
+ * one. This one was, on a host whose installation was intact and whose bridge
+ * handshake succeeded, across twenty freshly spawned app-server processes over
+ * seven minutes; it cleared only when `SkyComputerUseService` was restarted.
+ *
+ * Deliberately absent: `Sky Computer Use native pipe startup failed` and
+ * `Sky Computer Use native pipe closed before response`. Both were seen under
+ * heavy concurrent load, and the second was seen recovering on the very next
+ * call, so neither is established as a service-wide outage. A single failed
+ * call must fail the suite, where it gets looked at, rather than skip it.
+ *
+ * Never add a wrong answer here. A bad tree, a bad coordinate result, or any
+ * bridge defect must keep failing.
+ */
+const SERVICE_STATE_REFUSALS = [
+  "This application session has been explicitly stopped by the user",
+];
+
+/**
+ * The service-state refusal contained in this upstream text, or null. Exported
+ * so the classification is testable without a live service, including on CI.
+ */
+export function serviceRefusal(text) {
+  if (typeof text !== "string") return null;
+  return SERVICE_STATE_REFUSALS.find((refusal) => text.includes(refusal)) ?? null;
+}
+
+/**
+ * Why the live suite cannot run here, or null when it can. Adds a single live
+ * read to `liveUnavailable()`, because an intact installation does not mean the
+ * service will serve: `health` reports
+ * "healthy: Computer Use is reachable through this bridge" from the app-server
+ * handshake and the reflected sky surface alone, and was observed saying so
+ * while every Computer Use call was refused.
+ *
+ * Only a refusal the service makes about its own state skips. Anything else,
+ * including a read that answers with the wrong content, is left to fail in the
+ * test that asserts it.
+ */
+export async function liveUnavailableReason(app = "Calculator") {
+  const installed = liveUnavailable();
+  if (installed) return installed;
+  return probeServiceState({ app });
+}
+
+/**
+ * One live read, reported as a skip reason when the service refuses it on its
+ * own state, or null otherwise. Separate from the installation check so it can
+ * be exercised against the fake upstream on any platform.
+ *
+ * It fails open by design: a timeout, an unparseable answer, a degraded bridge,
+ * or a thrown error all return null and let the suite run. Skipping is the
+ * destructive outcome, because it deletes coverage silently, so only a
+ * recognized refusal reaches it.
+ */
+export async function probeServiceState({ app = "Calculator", env = {}, timeoutMs = 90000 } = {}) {
+  const client = new BridgeClient({ env });
+  try {
+    await client.initialize();
+    const response = await client.callTool("get_app_state", { app, full_tree: true }, timeoutMs);
+    const refusal = serviceRefusal(toolText(response));
+    return refusal ? `the Computer Use service is not serving: ${refusal}` : null;
+  } catch (error) {
+    // A probe that cannot run is not evidence the service is down, so let the
+    // suite run and fail with its own message rather than skipping silently.
+    // Say so on stderr: a guard that silently stopped working would otherwise
+    // look exactly like a healthy host.
+    process.stderr.write(`live guard: the service probe could not run: ${error?.message}\n`);
+    return null;
+  } finally {
+    await client.close();
+  }
 }
 
 /** Minimal newline-delimited JSON-RPC client for driving the bridge over stdio. */

@@ -125,6 +125,24 @@ naming what is missing, so a renamed upstream function is reported rather than
 passing silently. Both prefixes are asserted by the test suites, so match on the
 prefix and treat the text after it as a reason for a human.
 
+**A `healthy` verdict does not mean a call will succeed.** Every check above is
+the app-server handshake or the reflected `@oai/sky` surface; none of them
+performs a Computer Use action. Measured on a host where the service refused
+every call for seven minutes with
+`error: This application session has been explicitly stopped by the user for
+this turn`: `health` reported
+`healthy: Computer Use is reachable through this bridge` throughout, across
+twenty freshly spawned app-server processes, and the refusal cleared only when
+the `SkyComputerUseService` process was restarted. Use `health` to check
+compatibility, and one real `get_app_state` to check that the service is
+serving.
+
+Two further messages, `error: Sky Computer Use native pipe startup failed` and
+`error: Sky Computer Use native pipe closed before response`, were seen under
+heavy concurrent load; the second was seen recovering on the next call. Neither
+is established as a service-wide outage, so treat one of them as a failed call
+to retry or report, not as evidence the service is down.
+
 Other diagnostics:
 
 ```bash
