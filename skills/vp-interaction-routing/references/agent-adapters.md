@@ -47,6 +47,18 @@ file records routing intent rather than a permanent tool inventory.
   bridge are unavailable, or for missing system and inspection capabilities.
   Account for contention with the user's live desktop before interacting.
 
+## Every Adapter
+
+- Foreground cost, page lifecycle, and capture resolution are properties of the
+  installed build, not of the adapter category. Measure them in the current
+  session rather than inheriting a value recorded here or in a reference table.
+- A shared-state integration sandboxes itself to its own tab container. Reaching
+  one of the user's existing tabs means moving that tab into the container,
+  which is a change to the user's window that the user makes or approves.
+- An existing login can be carried into a dedicated profile, so it does not by
+  itself select a shared-state integration. Verify the carried session before
+  the first consequential action.
+
 Do not claim that an adapter is available merely because this file names it.
 Discover the current session's tools and follow their directly matching skills
 before acting.

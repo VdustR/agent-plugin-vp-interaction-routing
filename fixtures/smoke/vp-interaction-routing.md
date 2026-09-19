@@ -2,13 +2,16 @@
 
 ## Prompt
 
-Use `$vp-interaction-routing` to choose tools for five tasks:
+Use `$vp-interaction-routing` to choose tools for seven tasks:
 
 - update a GitHub issue when an authenticated connector is available;
 - inspect a page that is already signed in within the user's current Chrome;
 - run repeatable signed-in web checks in parallel worktrees;
 - operate a native macOS application from Claude Code or Antigravity when their
   first-party computer use is unavailable.
+- run parallel isolated checks that need the user's existing login but not the
+  user's tabs or window;
+- run those same isolated checks under a strict domain allowlist;
 - capture legible 9 px text from a page currently shown at a 1280 CSS px-wide
   viewport, plus a tall full-page result, while preserving as much measured
   detail as the available routes allow; the current viewport is not a required
@@ -23,6 +26,15 @@ Use `$vp-interaction-routing` to choose tools for five tasks:
   the user's session.
 - Use agent-browser with worktree-scoped sessions and dedicated managed
   profiles for isolated, repeatable checks that require complete Chrome state.
+- Treat the user's live browser and the user's login as separate requirements.
+  A login alone does not require the user's real Chrome and does not conflict
+  with isolation or concurrency: carry it into a dedicated profile with a
+  profile copy or an exported state file, then verify the session is signed in
+  before the first consequential action.
+- Report a requirement conflict when a domain allowlist is combined with a
+  carried login, a CDP attach, or state replay, because that containment cannot
+  be installed before page scripts run. Do not silently drop either
+  requirement.
 - Do not attach agent-browser to the user's daily Chrome profile.
 - Prefer the host agent's first-party computer use for ordinary native UI when
   it is available.
@@ -72,6 +84,10 @@ Use `$vp-interaction-routing` to choose tools for five tasks:
 - Use the user's real Chrome only for required current tabs, login, extensions,
   handoff, or actual browser-environment behavior. Prefer a dedicated managed
   profile over the daily profile when it can satisfy the task.
+- Compare capture routes by delivered image pixels per CSS pixel and by whether
+  the viewport and scale factor are settable. Route a capture needing more than
+  about one image pixel per CSS pixel, or one tall full-page image, to
+  agent-browser with an explicit viewport and device scale factor.
 - Take Browser pane screenshots only at viewport widths of 800 CSS px or less,
   then restore `preset: "desktop"`. Route legible small-text captures through a
   file at a 1000 CSS px viewport and device scale factor 2, slicing the result
@@ -109,6 +125,11 @@ Use `$vp-interaction-routing` to choose tools for five tasks:
   pickers
 - browser routing measures the in-app pane's lifecycle rather than assuming it,
   and keeps its three fallback tiers
+- a login is carried into a dedicated profile rather than forcing the live
+  browser
+- a carried login is verified before the first consequential action
+- domain-allowlist containment conflicts with every state-carrying mode
+- capture routes are compared by image pixels per CSS pixel
 - pane and file screenshots follow the measured 800 px and 2000 px fidelity
   limits
 - tool switching invalidates prior selectors and identifiers

@@ -29,13 +29,30 @@ export function evaluateRoutingCase(routeCase) {
 
   if (routeCase.surface !== "web-dom") return "report-capability-unavailable";
 
-  const needsSharedState = routeCase.interfaceConstraint === "shared-state-dom" ||
-    hasAny(requirements, ["current-browser-state", "current-login"]);
+  // The user's live browser and the user's login are separate requirements. Only
+  // the live browser conflicts with a dedicated route: a signed-in session can be
+  // carried into a dedicated profile, which `--profile <name>` does by copying the
+  // daily profile into a temporary user-data directory, and which an exported
+  // state file does by replaying cookies and storage.
+  const needsLiveBrowser = routeCase.interfaceConstraint === "shared-state-dom" ||
+    requirements.has("current-browser-state");
+  const needsUserLogin = requirements.has("current-login");
   const needsDedicatedRoute = hasAny(requirements, [
     "isolation", "concurrency", "repeatability", "headless", "managed-identity",
   ]);
-  if (needsSharedState && needsDedicatedRoute) return "report-requirement-conflict";
-  if (needsSharedState) return "verified-shared-state-dom";
+
+  // Domain-allowlist containment has to be installed before any page script runs,
+  // so it rejects every mode that carries pre-existing browser state.
+  if (requirements.has("network-allowlist-containment") &&
+      hasAny(requirements, [
+        "current-browser-state", "current-login", "cdp-attach", "state-replay",
+      ])) {
+    return "report-requirement-conflict";
+  }
+
+  if (needsLiveBrowser && needsDedicatedRoute) return "report-requirement-conflict";
+  if (needsLiveBrowser) return "verified-shared-state-dom";
+  if (needsUserLogin && !needsDedicatedRoute) return "verified-shared-state-dom";
 
   const needsTierC = hasAny(requirements, ["animation", "video", "canvas", "real-lifecycle"]);
   const startupOnly = requirements.has("startup-only-focus-check");
@@ -112,12 +129,22 @@ export function evaluateRoutingVerification(routeCase) {
     return "dom-predicate";
   }
   if (primary === "managed-agent-browser") {
-    return requirements.has("required-session-absent")
-      ? "managed-profile-session-predicate-before-action"
-      : "dom-predicate";
+    if (requirements.has("required-session-absent")) {
+      return "managed-profile-session-predicate-before-action";
+    }
+    // A copied profile or a replayed state file can be stale or partial, so the
+    // carried login is a precondition to check, not an assumption to act on.
+    if (requirements.has("current-login")) {
+      return "imported-login-session-predicate-before-action";
+    }
+    return "dom-predicate";
   }
   if (primary === "in-app-pre-navigation-shim") {
     return "page-readiness-predicate-after-navigation";
+  }
+  if (primary === "playwright-or-background-chromium" &&
+      requirements.has("current-login")) {
+    return "imported-login-session-predicate-before-action";
   }
   if (primary === "in-app-tier-a-render-pump" ||
       primary === "in-app-tier-b-shim" ||

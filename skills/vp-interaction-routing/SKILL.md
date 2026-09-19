@@ -29,11 +29,18 @@ token or latency savings.
      choose an accessibility or native route using
      [references/native-ui-routing.md](references/native-ui-routing.md).
 4. Select by the binding requirement:
-   - existing tabs, login, SSO, passkeys, extensions, direct handoff, or the
-     user's actual browser environment: a DOM integration verified to share the
-     user's current browser state;
+   - existing tabs, live SSO or passkey flows, extensions, direct handoff, or
+     the user's actual browser environment: a DOM integration verified to share
+     the user's current browser state;
    - isolation, concurrency, repeatability, headless execution, or managed
      identity: agent-browser with a dedicated or managed profile;
+   - an existing login without the live browser: also a dedicated profile, with
+     the login carried in by a profile copy or an exported state file and
+     verified signed in before the first consequential action. A login alone
+     does not require the user's browser and does not conflict with isolation;
+   - domain-allowlist containment: a fresh context only. It cannot be combined
+     with a carried login, a CDP attach, or state replay, so report that
+     conflict instead of dropping either requirement;
    - public background DOM work: an available in-app DOM browser whose measured
      lifecycle satisfies the page;
    - ordinary native UI: the host's first-party computer use;

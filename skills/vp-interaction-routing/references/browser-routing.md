@@ -13,9 +13,20 @@ this route before an isolated browser or a desktop controller.
 Use a shared-state browser surface when the task requires any of these:
 
 - the user's current tabs or navigation state;
-- an existing login, SSO session, passkey flow, or browser extension;
+- a live SSO or passkey flow, or an installed browser extension;
 - direct handoff between the agent and user in the same browser;
 - behavior that must be observed in the user's actual browser environment.
+
+An existing login on its own is not on that list. It can be carried into a
+dedicated profile, so it does not by itself force the live browser, and it does
+not conflict with isolation, concurrency, or headless execution.
+
+These integrations sandbox themselves by default and the sandbox is a container,
+not an origin rule: measured on Chrome 155.0.0.0, `mcp__claude-in-chrome__*`
+refused a tab outside its tab group and accepted a tab it did not create once
+that tab was inside the group. Reaching one of the user's existing tabs
+therefore means moving that tab into the agent's container, which is a change to
+the user's window that the user makes or approves.
 
 Treat access to the daily browser as a broader data boundary. Avoid unrelated
 tabs and do not inspect cookies, passwords, profile databases, or storage files.
@@ -26,19 +37,54 @@ The policy may require confirmation or may allow the action without prompting,
 depending on the user's current preference and task context. Do not add a
 separate confirmation requirement in this routing layer.
 
+## Carrying A Login Without The Live Browser
+
+Needing the user's signed-in session and needing the user's live browser are
+separate requirements, and only the second one rules out a dedicated route. A
+signed-in session can be carried into an isolated profile two ways:
+
+- `agent-browser --profile <name>` copies the named Chrome profile into a
+  temporary user-data directory. Measured: the launched process ran with
+  `--user-data-dir=/var/folders/.../agent-browser-profile-<uuid>`,
+  `--headless=new` and `--disable-backgrounding-occluded-windows`, while the
+  user's own Chrome kept running on the original directory. The copy is what
+  keeps this clear of the profile singleton lock.
+- `agent-browser --auto-connect state save <file>` exports cookies and storage
+  from a running Chrome, and `--state <file>` replays them into a fresh session.
+
+Treat the carried login as a precondition to verify, not an assumption: a copy
+is a point-in-time snapshot and a state file can be stale, partial, or expired.
+Read a signed-in predicate before the first consequential action. State files
+hold session tokens in plaintext, so keep them out of version control and
+delete them when the task ends.
+
+Requiring domain-allowlist containment excludes every one of these modes. The
+installed CLI rejects `--allowed-domains` together with CDP, auto-connect,
+Chrome profiles, restore or state replay, direct-page provider plugins, unsafe
+startup args, and iOS or Safari, because it cannot install equivalent
+containment before page scripts run. Containment and a carried login are a real
+requirement conflict; report it rather than silently dropping one of them.
+
 ## Foreground Cost
 
 Default to the in-app Browser pane for public page work that does not require a
 real visible-page lifecycle or user-specific browser state. Use the user's real
-Chrome only when the task genuinely requires its current tabs, logged-in
-session, extensions, direct handoff, or actual browser environment. Prefer a
-dedicated managed profile through `vp-agent-browser-session` over the daily
-profile when either can supply the required state.
+Chrome only when the task genuinely requires its current tabs, extensions,
+direct handoff, or actual browser environment. A logged-in session alone does
+not require it: see [Carrying A Login Without The Live
+Browser](#carrying-a-login-without-the-live-browser). Prefer a dedicated managed
+profile through `vp-agent-browser-session` over the daily profile when either
+can supply the required state.
+
+Foreground cost is a property of a specific client build, not of the category.
+Re-measure it rather than inheriting a row below, by reading the frontmost
+application before and after the call.
 
 | Surface | Takes the macOS foreground | Routing consequence |
 | --- | --- | --- |
 | `mcp__Claude_Browser__*` (in-app Browser pane) | No | Preferred background DOM surface when its measured page lifecycle is sufficient. |
-| `mcp__claude-in-chrome__*`, `mcp__Control_Chrome__*` | Yes | Use only when the user's real Chrome session is required. |
+| `mcp__claude-in-chrome__*` | No | Measured on Chrome 155.0.0.0 with extension-created tabs: `navigate`, `computer screenshot` and `javascript_tool` all left the frontmost application unchanged. An earlier row recorded `Yes`; treat foreground cost as version-dependent and re-measure. |
+| `mcp__Control_Chrome__*` | Not re-measured | Recorded as `Yes` previously and not re-tested since. Measure before routing on it. |
 | `peekaboo click/type/scroll/press` with `--app` or `--pid` | No | Keep every Peekaboo input explicitly process-targeted. Verified effective on a native app. |
 | `peekaboo` input with no target | Refused | Peekaboo rejects untargeted background delivery. `--foreground` does send global input, so never aim it at an unnamed window. |
 | `peekaboo app launch` | Refused | A cold background launch is rejected before dispatch; use `open -g -a` for that route. |
@@ -58,6 +104,36 @@ and debugging controls.
 
 Use the `vp-agent-browser-session` skill for persistence selection, managed
 profile lifecycle, daily-profile isolation, and manual authentication rules.
+
+## Shared-State Integration Lifecycle
+
+A real Chrome window does not by itself give a page real lifecycle. The
+governing variables are the same as for the pane: whether the target tab is the
+selected tab, and whether its window has unoccluded screen area. Measured
+through `mcp__claude-in-chrome__*` on Chrome 155.0.0.0, against a page with a
+`requestAnimationFrame` counter, an `IntersectionObserver` target and a
+`loading="lazy"` image:
+
+| Condition | `visibilityState` | `hasFocus()` | rAF | `IntersectionObserver` | lazy image |
+| --- | --- | --- | --- | --- | --- |
+| Tab created in an existing window, never selected | `hidden` | `false` | 0 per second | Did not fire | Stayed `naturalWidth` 0 |
+| After one `computer screenshot` on that tab | `hidden` | `false` | 0 per second | Fired | Reached `naturalWidth` 200 |
+| Tab selected in an on-screen window | `visible` | `true` | About 60 per second | Fired | Reached `naturalWidth` 200 |
+
+Two rules follow. The Tier A render pump applies here exactly as it does to the
+pane: one screenshot resolved the observer and the lazy image while
+`visibilityState` stayed `hidden` and the rAF counter stayed at 0, so a
+frame-driven predicate can be satisfied without a lifecycle change. And a
+routed task that needs sustained frames has to select the tab and keep the
+window unoccluded, which spends the user's screen; when that cost is not
+acceptable, the route is Playwright or background Chromium, whose
+`--disable-backgrounding-occluded-windows` launch keeps frames running with no
+window visible at all.
+
+The selected-tab row reported `hasFocus(): true` while another application was
+frontmost, but the tab had just been activated, so activation and the
+integration are confounded there. Do not route focus-gated logic on that row
+alone.
 
 ## In-App Browser Lifecycle
 
@@ -196,16 +272,39 @@ only route here that fakes `visibilityState`.
 
 ## Screenshot Fidelity
 
+Compare capture routes by delivered image pixels per CSS pixel, and by whether
+the viewport and the scale factor can be set rather than inherited. Those two
+properties decide whether small text survives and whether a tall page can be
+captured in one piece; image format decides whether the result is resampled.
+
+Measured against one page at a 1299 CSS px wide viewport with a 3403 CSS px
+document height:
+
+| Route | Image px per CSS px | Viewport and scale | Full page | Format |
+| --- | --- | --- | --- | --- |
+| In-app Browser pane | 1, and only up to 800 px wide | Viewport settable with `resize_window`; scale can only shrink | No | png |
+| `mcp__claude-in-chrome__computer screenshot` | About 1: delivered 1372x886 for a 1299x839 viewport at `scale: 1` | Viewport settable; scale can only shrink | No parameter for it | jpeg, so lossy |
+| `agent-browser screenshot` | Exactly the scale factor set: 2598x1566 at device scale factor 2 | Both settable with `set viewport <w> <h> <dsf>` | `--full`, measured 2598x6806 with no long-edge cap | png |
+
+Route a capture that needs more than about one image pixel per CSS pixel, or a
+single tall full-page image, to `agent-browser`. It is the only measured route
+whose scale factor is an input rather than a property of the window.
+
 The in-app Browser pane normalizes screenshots to 800 px wide. Use pane
 screenshots only at a viewport no wider than 800 CSS px, then always restore the
 window with `preset: "desktop"`. Its ceiling is one image pixel per CSS pixel;
 `scale` can only shrink the result, and region crop is unavailable.
 
-When small text must remain legible, use the file route: capture at a viewport
-of 1000 CSS px with `deviceScaleFactor: 2`, producing a 2000 px-wide image that
-is delivered 1:1. Never exceed a device scale factor of 2. The file route caps
-the long edge at 2000 px, so slice tall full-page captures into images whose
-long edge stays at or below 2000 px instead of sending one tall image.
+When small text must remain legible and the pane is the route in use, use the
+file route: capture at a viewport of 1000 CSS px with `deviceScaleFactor: 2`,
+producing a 2000 px-wide image that is delivered 1:1. Never exceed a device
+scale factor of 2. The file route caps the long edge at 2000 px, so slice tall
+full-page captures into images whose long edge stays at or below 2000 px
+instead of sending one tall image.
+
+Delivered pixels are not the same as resolved detail. These rows record how many
+pixels each route hands back, which is the ceiling on legibility, not proof that
+every pixel carries distinct rendered detail.
 
 ## Selection
 
@@ -214,8 +313,9 @@ For authenticated tasks, use this order:
 1. a purpose-built connector or API with the required authentication context;
 2. Codex in Chrome, Claude in Chrome, or another DOM-aware integration verified
    to share the user's existing Chrome state;
-3. agent-browser with a dedicated or managed profile when isolation or
-   repeatability matters and the required login exists there;
+3. agent-browser with a dedicated or managed profile when isolation,
+   concurrency, repeatability, or headless execution matters, including when the
+   required login has to be carried in rather than already existing there;
 4. desktop automation only for browser chrome or UI outside the page DOM.
 
 Product labels such as plugin or in-app browser are insufficient evidence of

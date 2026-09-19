@@ -16,6 +16,38 @@
     "verification": "dom-predicate"
   },
   {
+    "name": "user login carried into an isolated profile",
+    "surface": "web-dom",
+    "requirements": ["current-login", "isolation", "concurrency"],
+    "expectedRoute": "managed-agent-browser",
+    "fallback": "dedicated-playwright-profile",
+    "verification": "imported-login-session-predicate-before-action"
+  },
+  {
+    "name": "user login carried into a real-lifecycle profile",
+    "surface": "web-dom",
+    "requirements": ["current-login", "isolation", "animation", "real-lifecycle"],
+    "expectedRoute": "playwright-or-background-chromium",
+    "fallback": "managed-headed-chromium",
+    "verification": "imported-login-session-predicate-before-action"
+  },
+  {
+    "name": "network allowlist containment with an imported login",
+    "surface": "web-dom",
+    "requirements": ["network-allowlist-containment", "current-login", "isolation"],
+    "expectedRoute": "report-requirement-conflict",
+    "fallback": "none",
+    "verification": "requirements-conflict-readback"
+  },
+  {
+    "name": "network allowlist containment with a fresh context",
+    "surface": "web-dom",
+    "requirements": ["network-allowlist-containment", "isolation", "headless"],
+    "expectedRoute": "managed-agent-browser",
+    "fallback": "dedicated-playwright-profile",
+    "verification": "dom-predicate"
+  },
+  {
     "name": "parallel signed-in worktrees",
     "surface": "web-dom",
     "requirements": ["isolation", "concurrency", "managed-identity"],

@@ -19,11 +19,13 @@ flowchart TD
   E -->|Yes| F[Use semantic interface<br/><small>route: connector-api-cli</small>]
   E -->|No| G{Target surface?}
 
-  G -->|Web-page DOM| HX{Needs current daily-browser state or a shared-state<br/>constraint, and also any dedicated-route requirement:<br/>isolation, concurrency, repeatability, headless, or managed identity?}
+  G -->|Web-page DOM| AL{Needs domain-allowlist containment and also any<br/>state-carrying mode: the live browser, a carried login,<br/>CDP attach, or state replay?}
+  AL -->|Yes| RC
+  AL -->|No| HX{Needs the user's live browser or a shared-state constraint,<br/>and also any dedicated-route requirement:<br/>isolation, concurrency, repeatability, headless, or managed identity?}
   HX -->|Yes| RC[Report incompatible requirements<br/><small>route: report-requirement-conflict</small>]
   HX -->|No| HC{Explicitly constrained to a<br/>shared-state DOM integration?}
   HC -->|Yes| H0
-  HC -->|No| H{Needs current browser state?}
+  HC -->|No| H{Needs the user's live browser?}
   G -->|Browser chrome or native dialog| N0
   G -->|Native app or OS UI| N0
   G -->|Unclassified or no semantic surface| GD{Can inventory discovery classify a usable<br/>web DOM or native accessibility surface?}
@@ -32,7 +34,7 @@ flowchart TD
   GC -->|Browser chrome, native dialog,<br/>native app, or OS UI| N0
   GD -->|No| U0
 
-  H -->|Tabs, login, SSO, passkey, extension,<br/>handoff, or actual browser behavior| H0{Shared-state DOM integration<br/>available and eligible?}
+  H -->|Tabs, live SSO or passkey, extension,<br/>handoff, or actual browser behavior| H0{Shared-state DOM integration<br/>available and eligible?}
   H0 -->|Yes| H1{Required session state present?}
   H0 -->|No| U0
   H1 -->|Yes| I[Use verified shared-state DOM integration<br/><small>route: verified-shared-state-dom</small>]
@@ -109,9 +111,9 @@ flowchart TD
   L3 --> SW
   SW -->|Yes| RE[Reacquire every selector, DOM reference,<br/>profile handle, and page identifier]
   RE --> MS
-  SW -->|No| MS{Route requires a signed-in<br/>managed identity?}
+  SW -->|No| MS{Route requires a signed-in managed identity<br/>or a login carried in from the user's browser?}
   MS -->|No| RD
-  MS -->|Yes| MS1{Required managed-profile<br/>session state present?}
+  MS -->|Yes| MS1{Required managed-profile session state present,<br/>or carried in by a profile copy or state replay?}
   MS1 -->|Yes| RD
   MS1 -->|No| JH[Hand the managed-profile page to the user<br/>for authentication, then verify the session]
   JH --> MS2{Required managed-profile<br/>session state established?}
@@ -180,6 +182,12 @@ only routes compatible with it are eligible throughout the tree. The constraint
 does not make an incapable interface capable; report the conflict when no safe
 route satisfies both the constraint and the operation.
 
+Needing the user's live browser and needing the user's login are separate
+tests. Only the live browser conflicts with a dedicated route; a login can be
+carried into a dedicated profile and is then a precondition to verify at the
+`MS1` gate. Domain-allowlist containment is checked before either, because it
+cannot coexist with any mode that carries pre-existing browser state.
+
 Startup-only focus or visibility checks first test whether an eligible override
 can be installed before navigation. Otherwise, lifecycle checks are ordered
 from strongest requirement to weakest: Tier C, then Tier B, then Tier A. A
@@ -191,9 +199,9 @@ one.
 | Capability | Best fit | Authentication and data boundary | Semantics and verification | Isolation | Foreground and contention | Principal limitation |
 | --- | --- | --- | --- | --- | --- | --- |
 | Connector, API, or repository CLI | Complete semantic operations | Usually the narrowest explicit scope | Strong typed or structured readback | High | None | Cannot complete UI-only steps |
-| Shared-state DOM integration | Current tabs, login, SSO, passkeys, extensions, handoff, or actual browser behavior | Broad access to the user's daily browser | Strong page-DOM semantics | Low | May occupy the real browser | Shared state must be verified, not inferred from a product label |
+| Shared-state DOM integration | Current tabs, live SSO or passkey flows, extensions, handoff, or actual browser behavior | Broad access to the user's daily browser, narrowed by the integration's own tab container | Strong page-DOM semantics | Low | Measured as no macOS foreground cost on one build; re-measure per build | Shared state must be verified, not inferred from a product label; reaching one of the user's existing tabs needs that tab moved into the agent's container |
 | In-app DOM browser | Public, one-off background page work | Separate from the daily browser | Strong DOM access when its measured lifecycle is sufficient | Medium | None | Focus, animation, lazy loading, and screenshot fidelity can require escalation |
-| agent-browser with a managed profile | Repeatable, concurrent, headless, worktree-scoped, or persistent signed-in automation | Dedicated profile with an explicit identity boundary | Strong DOM access and reproducibility | High | Usually none | Never attach it to the user's daily browser profile |
+| agent-browser with a managed profile | Repeatable, concurrent, headless, worktree-scoped, or persistent signed-in automation, including a login carried in from the user's browser | Dedicated profile with an explicit identity boundary; a carried login widens it to that session's scope | Strong DOM access and reproducibility, and the only measured route whose capture scale factor is an input | High | Usually none | Never attach it to the user's daily browser profile; a carried login is a snapshot to verify, and domain-allowlist containment cannot be combined with one |
 | Playwright or background Chromium | Real page lifecycle, animation, video, canvas, or transitions | Ephemeral or dedicated managed profile | Strong DOM and CDP readback | High | Can remain in the background | A real profile requires lock, port, process, and endpoint ownership checks |
 | Host first-party computer use | Ordinary native application interaction | Integrated with the host's policy and session | Accessibility semantics with read-after-act verification | Low to medium | Implementation-dependent | Capability and tool inventory vary by host session |
 | Codex Computer Use bridge | Native UI from a non-Codex harness lacking first-party computer use | The caller retains the authorization boundary | Compact accessibility tree and diff readback | Low to medium | Background-safe | macOS-only, requires registration and health verification, and adds latency |
@@ -206,6 +214,8 @@ one.
 | --- | --- | --- |
 | Update an authenticated GitHub issue | Authenticated connector or `gh` when it supports the complete operation | Verified shared-state DOM integration |
 | Inspect a page already signed in in the user's Chrome | Verified shared-state DOM integration | Hand the page to the user for authentication in that browser if the session is absent |
+| Use the user's login for isolated or concurrent work | Dedicated profile seeded by a profile copy or an exported state file, verified signed in before acting | Hand the dedicated profile to the user for authentication |
+| Capture legible small text or one tall full-page image | agent-browser with an explicit viewport and device scale factor | The in-app pane's file route, sliced to the 2000 px long edge |
 | Run signed-in checks in parallel worktrees | agent-browser with worktree-scoped managed profiles | Dedicated Playwright profiles |
 | Read a public documentation page in the background | In-app DOM browser | agent-browser when lifecycle evidence requires it |
 | Exercise canvas animation without taking the user's foreground | Playwright or background Chromium | A managed headed Chromium profile when extensions or persistent login are required |
