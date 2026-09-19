@@ -89,7 +89,8 @@ application before and after the call.
 | --- | --- | --- |
 | `mcp__Claude_Browser__*` (in-app Browser pane) | No | Preferred background DOM surface when its measured page lifecycle is sufficient. |
 | `mcp__claude-in-chrome__*` | No | Measured on Chrome 155.0.0.0 with extension-created tabs: `navigate`, `computer screenshot` and `javascript_tool` all left the frontmost application unchanged. An earlier row recorded `Yes`; treat foreground cost as version-dependent and re-measure. |
-| `mcp__Control_Chrome__*` | Not re-measured | Recorded as `Yes` previously and not re-tested since. Measure before routing on it. |
+| `mcp__Control_Chrome__*` reads | No | `get_current_tab` and `list_tabs` both left the frontmost application unchanged. |
+| `mcp__Control_Chrome__*` `open_url` | Yes | Measured: Chrome became the frontmost application. Budget the interruption, or use a route that opens a tab without activating the browser. |
 | `peekaboo click/type/scroll/press` with `--app` or `--pid` | No | Keep every Peekaboo input explicitly process-targeted. Verified effective on a native app. |
 | `peekaboo` input with no target | Refused | Peekaboo rejects untargeted background delivery. `--foreground` does send global input, so never aim it at an unnamed window. |
 | `peekaboo app launch` | Refused | A cold background launch is rejected before dispatch; use `open -g -a` for that route. |
@@ -307,9 +308,14 @@ scale factor of 2. The file route caps the long edge at 2000 px, so slice tall
 full-page captures into images whose long edge stays at or below 2000 px
 instead of sending one tall image.
 
-Delivered pixels are not the same as resolved detail. These rows record how many
-pixels each route hands back, which is the ceiling on legibility, not proof that
-every pixel carries distinct rendered detail.
+The extra pixels carry real detail rather than an upscale. Measured on four SVG
+hairlines drawn at 0.5 CSS px on white, captured at the same 400x200 CSS
+viewport: at device scale factor 1 the hairlines resolved only to four mid-gray
+antialiased pixels with a single pure-black pixel from the 1 CSS px reference
+line, while at device scale factor 2 the same scanline held six pure-black
+pixels and no mid-gray at all. Sub-CSS-pixel features that antialiasing
+destroys at scale factor 1 survive at scale factor 2, so the ratio in the table
+predicts legibility rather than only file size.
 
 ## Selection
 
