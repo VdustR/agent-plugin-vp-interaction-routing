@@ -62,7 +62,9 @@ rather than silently deleting macOS coverage.
   recognizes one upstream message, `This application session has been explicitly
   stopped by the user`, observed on a host whose installation was intact,
   refusing every call across twenty freshly spawned app-server processes over
-  seven minutes, and clearing only when `SkyComputerUseService` was restarted.
+  seven minutes, and clearing only when `SkyComputerUseService` was restarted
+  with `pkill -f SkyComputerUseService`, which the skip reason now names so the
+  reader can act on it.
   The entry bar is that evidence: a message refusing every call, not one call.
   `Sky Computer Use native pipe startup failed` and `Sky Computer Use native
   pipe closed before response` are deliberately excluded, both seen under heavy
