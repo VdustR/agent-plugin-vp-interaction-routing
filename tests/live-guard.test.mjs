@@ -22,11 +22,12 @@ const STOPPED_SESSION =
   "Stop your work and send a final message noting they stopped the session and you're ready " +
   "to continue if they want you to. Computer Use can be used again in the next assistant turn.";
 
-test("a service-state refusal is recognized", () => {
-  assert.equal(
-    serviceRefusal(STOPPED_SESSION),
-    "This application session has been explicitly stopped by the user",
-  );
+test("a service-state refusal is recognized, and carries how to recover", () => {
+  const refusal = serviceRefusal(STOPPED_SESSION);
+  assert.equal(refusal.text, "This application session has been explicitly stopped by the user");
+  // The state does not time out and survives a fresh bridge, so a skip without
+  // the recovery step leaves the reader stuck.
+  assert.match(refusal.recovery, /SkyComputerUseService/);
 });
 
 test("a single failed call is not a service outage", () => {
@@ -76,7 +77,9 @@ const probeAgainst = (text) =>
   probeServiceState({ env: { CODEX_CUA_BRIDGE_CODEX_BIN: fakeAppServerPath, FAKE_TEXT: text } });
 
 test("the probe reports a refusing service as a skip reason", async () => {
-  assert.match(await probeAgainst(STOPPED_SESSION), /not serving: This application session/);
+  const reason = await probeAgainst(STOPPED_SESSION);
+  assert.match(reason, /not serving: This application session/);
+  assert.match(reason, /To recover, run `pkill -f SkyComputerUseService`/);
 });
 
 test("the probe lets a serving upstream run the suite", async () => {

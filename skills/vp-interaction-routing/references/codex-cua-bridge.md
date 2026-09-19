@@ -133,7 +133,10 @@ every call for seven minutes with
 this turn`: `health` reported
 `healthy: Computer Use is reachable through this bridge` throughout, across
 twenty freshly spawned app-server processes, and the refusal cleared only when
-the `SkyComputerUseService` process was restarted. Use `health` to check
+the `SkyComputerUseService` process was restarted with
+`pkill -f SkyComputerUseService`, after which it respawned on the next call.
+That service is spawned on demand and exits when idle, so finding no such
+process is normal while Computer Use is working. Use `health` to check
 compatibility, and one real `get_app_state` to check that the service is
 serving.
 

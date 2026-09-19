@@ -59,7 +59,17 @@ export function liveUnavailable() {
  * bridge defect must keep failing.
  */
 const SERVICE_STATE_REFUSALS = [
-  "This application session has been explicitly stopped by the user",
+  {
+    text: "This application session has been explicitly stopped by the user",
+    // What actually cleared it, so the skip line is enough to act on. Without
+    // this a developer reads "not serving" and has nowhere to go: the state
+    // does not time out, and a fresh bridge does not clear it.
+    //
+    // The service is spawned on demand and exits when idle, so `pgrep` can
+    // find nothing while things are working. That does not matter here: when
+    // this state is what you are hitting, the service is running.
+    recovery: "run `pkill -f SkyComputerUseService`; it respawns on the next call",
+  },
 ];
 
 /**
@@ -68,7 +78,7 @@ const SERVICE_STATE_REFUSALS = [
  */
 export function serviceRefusal(text) {
   if (typeof text !== "string") return null;
-  return SERVICE_STATE_REFUSALS.find((refusal) => text.includes(refusal)) ?? null;
+  return SERVICE_STATE_REFUSALS.find((refusal) => text.includes(refusal.text)) ?? null;
 }
 
 /**
@@ -105,7 +115,9 @@ export async function probeServiceState({ app = "Calculator", env = {}, timeoutM
     await client.initialize();
     const response = await client.callTool("get_app_state", { app, full_tree: true }, timeoutMs);
     const refusal = serviceRefusal(toolText(response));
-    return refusal ? `the Computer Use service is not serving: ${refusal}` : null;
+    return refusal
+      ? `the Computer Use service is not serving: ${refusal.text}. To recover, ${refusal.recovery}`
+      : null;
   } catch (error) {
     // A probe that cannot run is not evidence the service is down, so let the
     // suite run and fail with its own message rather than skipping silently.
