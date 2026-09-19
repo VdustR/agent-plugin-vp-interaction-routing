@@ -614,8 +614,22 @@ const TOOLS = [
     description:
       "Verify the bridge end to end and report the upstream inventory: Codex binary, " +
       "ChatGPT.app version, app-server handshake, thread id, configured MCP servers, " +
-      "and the live @oai/sky function list. Run this before relying on the bridge.",
-    inputSchema: { type: "object", properties: {}, additionalProperties: false },
+      "and the live @oai/sky function list. Run this before relying on the bridge. " +
+      "None of that performs a Computer Use action, so it proves compatibility, not " +
+      "that the service will serve; pass probe_app to also read that app and have the " +
+      "verdict reflect the answer.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        probe_app: {
+          type: "string",
+          description:
+            "Read this app as part of the check, so the verdict reflects whether " +
+            "Computer Use actually answers. Costs one real read and activates the app.",
+        },
+      },
+      additionalProperties: false,
+    },
   },
   {
     name: "list_apps",
@@ -988,7 +1002,7 @@ async function runTool(ctx, name, rawArgs, token) {
   if (unmet) throw new Error(`${name}: ${unmet}`);
   const { sky } = ctx;
 
-  if (name === "health") return runHealth(ctx);
+  if (name === "health") return runHealth(ctx, args, token);
 
   if (name === "list_apps") {
     return { content: [{ type: "text", text: cap(await sky.listApps(token)) }] };
@@ -1029,7 +1043,7 @@ async function runTool(ctx, name, rawArgs, token) {
   return { content: [{ type: "text", text: cap(await sky.call(name, args, token)) }] };
 }
 
-async function runHealth(ctx) {
+async function runHealth(ctx, args = {}, token) {
   const { sky, appServer } = ctx;
   const report = {
     bridge: { name: BRIDGE_NAME, version: BRIDGE_VERSION },
@@ -1093,15 +1107,46 @@ async function runHealth(ctx) {
   report.checks.missing_sky_functions = missing;
 
   const skyOk = Array.isArray(surface) && missing.length === 0;
+
+  // Everything above is the app-server handshake and the reflected surface, so
+  // it establishes compatibility and nothing more. The service can refuse every
+  // Computer Use call while all of it still passes: observed refusing calls for
+  // seven minutes with "This application session has been explicitly stopped by
+  // the user", across twenty freshly spawned app-server processes, with the
+  // checks above green throughout. Only an actual read answers that question,
+  // and only when the caller asks for one, because it activates the app and
+  // costs a screenshot.
+  let probeOk = null;
+  if (skyOk && typeof args.probe_app === "string" && args.probe_app.length > 0) {
+    try {
+      const text = await sky.call("get_app_state", { app: args.probe_app }, token);
+      report.checks.probe = { app: args.probe_app, answer: cap(text) };
+      probeOk = true;
+    } catch (err) {
+      report.checks.probe = { app: args.probe_app, failed: err.message };
+      probeOk = false;
+    }
+  }
+
+  const healthy = skyOk && probeOk !== false;
   report.verdict = !Array.isArray(surface)
     ? "unhealthy: the sky Computer Use surface did not load"
     : missing.length
       ? `unhealthy: upstream is missing ${missing.join(", ")}; the matching tools will fail`
-      : "healthy: Computer Use is reachable through this bridge";
+      : probeOk === false
+        // State what happened and let the reader judge. A refusing service and
+        // a misspelled app name both land here, and this cannot tell them
+        // apart: "Invalid app: Foo" means the service answered.
+        ? `unhealthy: the surface loaded but reading ${args.probe_app} failed: ` +
+          `${report.checks.probe.failed}`
+        : probeOk === true
+          ? `healthy: Computer Use answered a read of ${args.probe_app}`
+          : "healthy: Computer Use is reachable through this bridge, though no " +
+            "Computer Use call was made; pass probe_app to check that too";
 
   return {
     content: [{ type: "text", text: JSON.stringify(report, null, 2) }],
-    isError: !skyOk,
+    isError: !healthy,
   };
 }
 
