@@ -420,6 +420,10 @@ const INVARIANTS = [
     "the bridge reference must record that activation is shared across sessions"],
   [BRIDGE_REFERENCE, /When\s+activation is released is not characterized here/s,
     "the bridge reference must not claim an unmeasured deactivation rule"],
+  [BRIDGE_REFERENCE, /A `healthy` verdict does not mean a call will succeed.*none of them\s+performs a Computer Use action/s,
+    "the bridge reference must record what a healthy verdict does not prove"],
+  [BRIDGE_REFERENCE, /one real `get_app_state` to check that the service is\s+serving/s,
+    "the bridge reference must name the check that proves the service is serving"],
   [BROWSER, /a dedicated persistent profile is one of the rejected modes, so it is not an\s+eligible fallback here/s,
     "a containment route must not fall back to a persistent profile"],
 ];

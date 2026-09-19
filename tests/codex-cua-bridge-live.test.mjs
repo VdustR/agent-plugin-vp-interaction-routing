@@ -11,9 +11,12 @@ import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 
-import { BridgeClient, liveUnavailable, toolText } from "./helpers/mcp-client.mjs";
+import { BridgeClient, liveUnavailableReason, toolText } from "./helpers/mcp-client.mjs";
 
-const unavailable = liveUnavailable();
+// Awaited before any test is defined, so the whole suite sees one decision. The
+// probe costs one bridge session; the alternative is every test failing in turn
+// against a service that is refusing everything.
+const unavailable = await liveUnavailableReason();
 // Node treats any non-undefined `skip` value as a skip directive, so an absent
 // reason must be `false` rather than null or the whole suite silently skips.
 const skip = unavailable ?? false;
