@@ -247,12 +247,39 @@ test("clicks act on the target and do not steal focus", { skip }, async () => {
 
 test("coordinates are window-relative, so an out-of-window point is refused", { skip }, async () => {
   await withSession(async (client) => {
+    // Computer Use refuses to act on an app it does not consider active, with
+    // "Computer Use is not active for ...". This read is the precondition for
+    // the clicks below, not incidental setup. The other live tests reach it
+    // through `resetCalculator`; this one is the only place it has to be
+    // stated.
+    //
+    // Without it the test was not self-contained: activation is service-wide,
+    // so any concurrently running Computer Use session holding Calculator --
+    // an editor's own bridge, for instance -- satisfied the precondition on
+    // this test's behalf. That is why it passed for a long time and then
+    // failed consistently once no such session was running, with no change
+    // here.
+    const activated = await client.callTool("get_app_state", { app: APP, full_tree: true }, 90000);
+    assert.notEqual(
+      activated.result.isError,
+      true,
+      `Computer Use must activate for ${APP}: ${toolText(activated)}`,
+    );
+
     const inside = await client.callTool("click", { app: APP, x: 100, y: 100 }, 90000);
-    assert.notEqual(inside.result.isError, true, "a point inside the window is clickable");
+    assert.notEqual(
+      inside.result.isError,
+      true,
+      // Report the upstream text: the two ways this fails, a refused
+      // activation and a genuinely out-of-window point, need telling apart.
+      `a point inside the window is clickable: ${toolText(inside)}`,
+    );
 
     // The service adds the window origin, so a large offset lands off-window.
     const outside = await client.callTool("click", { app: APP, x: 9000, y: 9000 }, 90000);
     assert.equal(outside.result.isError, true);
+    // Match the specific refusal. An unactivated session also errors here, so
+    // asserting only `isError` would accept that for the wrong reason.
     assert.match(toolText(outside), /windowNotFoundAtPosition/);
   });
 });
