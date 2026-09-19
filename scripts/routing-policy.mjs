@@ -42,11 +42,13 @@ export function evaluateRoutingCase(routeCase) {
   ]);
 
   // Domain-allowlist containment has to be installed before any page script runs,
-  // so it rejects every mode that carries pre-existing browser state.
+  // so it rejects every mode that carries pre-existing browser state. A
+  // shared-state integration is the strongest such mode, so the constraint
+  // counts here as well as the requirement tokens.
   if (requirements.has("network-allowlist-containment") &&
-      hasAny(requirements, [
-        "current-browser-state", "current-login", "cdp-attach", "state-replay",
-      ])) {
+      (needsLiveBrowser || hasAny(requirements, [
+        "current-login", "cdp-attach", "state-replay",
+      ]))) {
     return "report-requirement-conflict";
   }
 
@@ -101,11 +103,17 @@ export function evaluateRoutingFallback(routeCase) {
       : "managed-agent-browser";
   }
   if (primary === "managed-agent-browser") {
-    return requirements.has("required-session-absent")
-      ? "user-authentication-handoff-or-report-capability-unavailable"
-      : requirements.has("in-app-unavailable")
-        ? "playwright-or-background-chromium"
-        : "dedicated-playwright-profile";
+    if (requirements.has("required-session-absent")) {
+      return "user-authentication-handoff-or-report-capability-unavailable";
+    }
+    // Containment rejects persistent profiles, so the usual profile fallback is
+    // not eligible here; only a fresh context can carry the allowlist.
+    if (requirements.has("network-allowlist-containment")) {
+      return "ephemeral-playwright-context";
+    }
+    return requirements.has("in-app-unavailable")
+      ? "playwright-or-background-chromium"
+      : "dedicated-playwright-profile";
   }
   if (primary === "in-app-pre-navigation-shim" ||
       primary === "in-app-tier-a-render-pump" ||

@@ -63,7 +63,12 @@ installed CLI rejects `--allowed-domains` together with CDP, auto-connect,
 Chrome profiles, restore or state replay, direct-page provider plugins, unsafe
 startup args, and iOS or Safari, because it cannot install equivalent
 containment before page scripts run. Containment and a carried login are a real
-requirement conflict; report it rather than silently dropping one of them.
+requirement conflict; report it rather than silently dropping one of them. The
+same exclusion applies to an explicit shared-state constraint, which carries the
+most pre-existing state of all. When containment is required and no state has to
+be carried, the route and its fallback both have to be fresh ephemeral contexts:
+a dedicated persistent profile is one of the rejected modes, so it is not an
+eligible fallback here.
 
 ## Foreground Cost
 

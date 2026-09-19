@@ -216,6 +216,23 @@ check("routing cases cover every capability leaf with explicit verification", ()
     routeCase.requirements.includes("required-session-absent") &&
     routeCase.verification.includes("session-predicate-before-action")),
     "a managed identity needs session verification before action");
+  for (const token of ["cdp-attach", "state-replay", "current-login"]) {
+    assert.ok(cases.some((routeCase) =>
+      routeCase.requirements.includes("network-allowlist-containment") &&
+      routeCase.requirements.includes(token) &&
+      routeCase.expectedRoute === "report-requirement-conflict"),
+      `allowlist containment must have a conflict case for ${token}`);
+  }
+  assert.ok(cases.some((routeCase) =>
+    routeCase.interfaceConstraint === "shared-state-dom" &&
+    routeCase.requirements.includes("network-allowlist-containment") &&
+    routeCase.expectedRoute === "report-requirement-conflict"),
+    "allowlist containment must conflict with an explicit shared-state constraint");
+  assert.ok(cases.some((routeCase) =>
+    routeCase.requirements.includes("network-allowlist-containment") &&
+    routeCase.expectedRoute === "managed-agent-browser" &&
+    !routeCase.fallback.includes("profile")),
+    "a containment route must not fall back to a persistent profile");
   assert.ok(cases.some((routeCase) =>
     routeCase.requirements.includes("in-app-unavailable") &&
     routeCase.requirements.includes("real-lifecycle") &&
@@ -393,6 +410,8 @@ const INVARIANTS = [
     "the skill must route allowlist containment to a fresh context"],
   [ADAPTERS, /properties of the\s+installed build, not of the adapter category/s,
     "adapters must require per-build measurement"],
+  [BROWSER, /a dedicated persistent profile is one of the rejected modes, so it is not an\s+eligible fallback here/s,
+    "a containment route must not fall back to a persistent profile"],
 ];
 
 // Match prose independently of soft wrapping while preserving Markdown block

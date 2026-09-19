@@ -44,8 +44,33 @@
     "surface": "web-dom",
     "requirements": ["network-allowlist-containment", "isolation", "headless"],
     "expectedRoute": "managed-agent-browser",
-    "fallback": "dedicated-playwright-profile",
+    "fallback": "ephemeral-playwright-context",
     "verification": "dom-predicate"
+  },
+  {
+    "name": "network allowlist containment with a CDP attach",
+    "surface": "web-dom",
+    "requirements": ["network-allowlist-containment", "cdp-attach", "isolation"],
+    "expectedRoute": "report-requirement-conflict",
+    "fallback": "none",
+    "verification": "requirements-conflict-readback"
+  },
+  {
+    "name": "network allowlist containment with state replay",
+    "surface": "web-dom",
+    "requirements": ["network-allowlist-containment", "state-replay", "repeatability"],
+    "expectedRoute": "report-requirement-conflict",
+    "fallback": "none",
+    "verification": "requirements-conflict-readback"
+  },
+  {
+    "name": "network allowlist containment under a shared-state constraint",
+    "surface": "web-dom",
+    "interfaceConstraint": "shared-state-dom",
+    "requirements": ["network-allowlist-containment"],
+    "expectedRoute": "report-requirement-conflict",
+    "fallback": "none",
+    "verification": "requirements-conflict-readback"
   },
   {
     "name": "parallel signed-in worktrees",
@@ -158,19 +183,19 @@
     "name": "ordinary native app in Codex",
     "surface": "native-ui",
     "requirements": ["ordinary-accessibility"],
-    "host": "codex",
     "expectedRoute": "host-first-party-computer-use",
     "fallback": "peekaboo",
-    "verification": "accessibility-predicate"
+    "verification": "accessibility-predicate",
+    "host": "codex"
   },
   {
     "name": "native app in another harness",
     "surface": "native-ui",
     "requirements": ["no-first-party-computer-use", "background-accessibility"],
-    "host": "non-codex",
     "expectedRoute": "healthy-codex-cua-bridge",
     "fallback": "peekaboo",
-    "verification": "accessibility-predicate"
+    "verification": "accessibility-predicate",
+    "host": "non-codex"
   },
   {
     "name": "macOS system surface",
