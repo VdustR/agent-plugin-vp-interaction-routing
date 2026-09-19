@@ -216,6 +216,23 @@ check("routing cases cover every capability leaf with explicit verification", ()
     routeCase.requirements.includes("required-session-absent") &&
     routeCase.verification.includes("session-predicate-before-action")),
     "a managed identity needs session verification before action");
+  for (const token of ["cdp-attach", "state-replay", "current-login"]) {
+    assert.ok(cases.some((routeCase) =>
+      routeCase.requirements.includes("network-allowlist-containment") &&
+      routeCase.requirements.includes(token) &&
+      routeCase.expectedRoute === "report-requirement-conflict"),
+      `allowlist containment must have a conflict case for ${token}`);
+  }
+  assert.ok(cases.some((routeCase) =>
+    routeCase.interfaceConstraint === "shared-state-dom" &&
+    routeCase.requirements.includes("network-allowlist-containment") &&
+    routeCase.expectedRoute === "report-requirement-conflict"),
+    "allowlist containment must conflict with an explicit shared-state constraint");
+  assert.ok(cases.some((routeCase) =>
+    routeCase.requirements.includes("network-allowlist-containment") &&
+    routeCase.expectedRoute === "managed-agent-browser" &&
+    !routeCase.fallback.includes("profile")),
+    "a containment route must not fall back to a persistent profile");
   assert.ok(cases.some((routeCase) =>
     routeCase.requirements.includes("in-app-unavailable") &&
     routeCase.requirements.includes("real-lifecycle") &&
@@ -361,6 +378,44 @@ const INVARIANTS = [
     "file captures must preserve their measured fidelity recipe"],
   [SKILL, /do not add confirmation gates.*without prompting/s,
     "routing must honor permissive user authorization preferences"],
+  [BROWSER, /An existing login on its own is not on that list/,
+    "a login must not by itself select the user's live browser"],
+  [BROWSER, /copies the named Chrome profile into a\s+temporary user-data directory/s,
+    "carrying a login must record the measured profile-copy mechanism"],
+  [BROWSER, /a copy\s+is a point-in-time snapshot and a state file can be stale, partial, or expired/s,
+    "a carried login must be verified rather than assumed"],
+  [BROWSER, /rejects `--allowed-domains` together with CDP, auto-connect,\s+Chrome profiles/s,
+    "allowlist containment must record which modes it excludes"],
+  [BROWSER, /Containment and a carried login are a real\s+requirement conflict/s,
+    "containment plus a carried login must be reported, not silently resolved"],
+  [BROWSER, /Foreground cost is a property of a specific client build, not of the category/,
+    "foreground cost must be re-measured per build rather than inherited"],
+  [BROWSER, /\| Tab created in an existing window, never selected \|[\s\S]*\| After one `computer screenshot` on that tab \|[\s\S]*\| Tab selected in an on-screen window \|/,
+    "shared-state lifecycle must record every measured condition"],
+  [BROWSER, /A real Chrome window does not by itself give a page real lifecycle/,
+    "a real browser must not be treated as proof of real lifecycle"],
+  [BROWSER, /activation and the\s+integration are confounded there/s,
+    "a confounded focus reading must not be routed on"],
+  [BROWSER, /delivered image pixels per CSS pixel/,
+    "capture routes must be compared in image pixels per CSS pixel"],
+  [BROWSER, /only measured route\s+whose scale factor is an input rather than a property of the window/s,
+    "the settable-scale capture route must stay identified"],
+  [BROWSER, /The extra pixels carry real detail rather than an upscale/,
+    "the capture ratio must be backed by a resolved-detail measurement"],
+  [BROWSER, /four mid-gray\s+antialiased pixels.*six pure-black\s+pixels and no mid-gray at all/s,
+    "the resolved-detail measurement must record both scale factors"],
+  [BROWSER, /\| `mcp__Control_Chrome__\*` reads \|[\s\S]*\| `mcp__Control_Chrome__\*` `open_url` \|/,
+    "Control_Chrome foreground cost must be split by operation, not assumed"],
+  [BROWSER, /refused a tab outside its tab group and accepted a tab it did not create once\s+that tab was inside the group/s,
+    "the shared-state sandbox must be recorded as a container, not an origin rule"],
+  [SKILL, /A login alone\s+does not require the user's browser and does not conflict with isolation/s,
+    "the skill must separate a login from the live browser"],
+  [SKILL, /domain-allowlist containment: a fresh context only/,
+    "the skill must route allowlist containment to a fresh context"],
+  [ADAPTERS, /properties of the\s+installed build, not of the adapter category/s,
+    "adapters must require per-build measurement"],
+  [BROWSER, /a dedicated persistent profile is one of the rejected modes, so it is not an\s+eligible fallback here/s,
+    "a containment route must not fall back to a persistent profile"],
 ];
 
 // Match prose independently of soft wrapping while preserving Markdown block
