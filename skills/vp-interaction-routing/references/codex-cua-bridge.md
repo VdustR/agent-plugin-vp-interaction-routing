@@ -125,10 +125,10 @@ naming what is missing, so a renamed upstream function is reported rather than
 passing silently. Both prefixes are asserted by the test suites, so match on the
 prefix and treat the text after it as a reason for a human.
 
-**A `healthy` verdict does not mean a call will succeed.** Every check above is
-the app-server handshake or the reflected `@oai/sky` surface; none of them
-performs a Computer Use action. Measured on a host where the service refused
-every call for seven minutes with
+**A bare `health` proves compatibility, not that the service will serve.** Every
+check above is the app-server handshake or the reflected `@oai/sky` surface;
+none of them performs a Computer Use action. Measured on a host where the
+service refused every call for seven minutes with
 `error: This application session has been explicitly stopped by the user for
 this turn`: `health` reported
 `healthy: Computer Use is reachable through this bridge` throughout, across
@@ -136,9 +136,21 @@ twenty freshly spawned app-server processes, and the refusal cleared only when
 the `SkyComputerUseService` process was restarted with
 `pkill -f SkyComputerUseService`, after which it respawned on the next call.
 That service is spawned on demand and exits when idle, so finding no such
-process is normal while Computer Use is working. Use `health` to check
-compatibility, and one real `get_app_state` to check that the service is
-serving.
+process is normal while Computer Use is working.
+
+Pass `probe_app` to close that gap. `health` then also reads that app and the
+verdict reflects the answer:
+
+| Call | Verdict |
+|------|---------|
+| `health` | `healthy: ... though no Computer Use call was made; pass probe_app to check that too` |
+| `health` with `probe_app` that reads | `healthy: Computer Use answered a read of <app>` |
+| `health` with `probe_app` that does not | `unhealthy: the surface loaded but reading <app> failed: <upstream reason>` |
+
+The failure verdict quotes the upstream reason rather than diagnosing a cause,
+because a refusing service and a misspelled app name both land there:
+`Invalid app: Foo` means the service answered. The probe is opt-in because it
+activates the app and costs a real read and screenshot.
 
 Two further messages, `error: Sky Computer Use native pipe startup failed` and
 `error: Sky Computer Use native pipe closed before response`, were seen under

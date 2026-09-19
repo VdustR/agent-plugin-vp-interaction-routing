@@ -163,6 +163,35 @@ test("health reports the live upstream inventory rather than a hardcoded list", 
     );
     assert.ok(report.chatgpt_app_version, "the ChatGPT.app version is reported");
     assert.match(report.routing_notice, /do not use this bridge/i);
+
+    // Without a probe the verdict must not claim a Computer Use call succeeded:
+    // none was made. The service has been observed refusing every call while
+    // every check above stayed green.
+    assert.ok(!("probe" in report.checks), "no probe unless one was asked for");
+    assert.match(report.verdict, /no\s+Computer Use call was made/);
+  });
+});
+
+test("health with probe_app proves the service answers, and says which app", { skip }, async () => {
+  await withSession(async (client) => {
+    const response = await client.callTool("health", { probe_app: APP }, 90000);
+    const report = JSON.parse(toolText(response));
+    assert.match(report.verdict, new RegExp(`^healthy: Computer Use answered a read of ${APP}`));
+    assert.equal(report.checks.probe.app, APP);
+    // The recorded answer must be the real read, not a placeholder.
+    assert.match(report.checks.probe.answer, /Calculator/);
+    assert.notEqual(response.result.isError, true);
+
+    // A probe that does not succeed must flip the verdict and carry the
+    // upstream reason verbatim, rather than diagnosing a cause it cannot know:
+    // a refusing service and a misspelled app both arrive here.
+    const bad = await client.callTool("health", { probe_app: "NoSuchAppXYZ" }, 90000);
+    const badReport = JSON.parse(toolText(bad));
+    assert.match(badReport.verdict, /^unhealthy: /);
+    assert.match(badReport.verdict, /reading NoSuchAppXYZ failed: /);
+    assert.equal(bad.result.isError, true);
+    assert.ok(badReport.checks.probe.failed, "the upstream failure is recorded");
+    assert.deepEqual(badReport.checks.missing_sky_functions, [], "the surface itself was fine");
   });
 });
 
