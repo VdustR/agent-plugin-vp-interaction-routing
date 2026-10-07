@@ -3,6 +3,8 @@ import { existsSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { codexBinaryCandidates } from "../../skills/vp-interaction-routing/scripts/codex-installation.mjs";
+
 export const pluginRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 export const bridgePath = join(
   pluginRoot,
@@ -13,10 +15,7 @@ export const bridgePath = join(
 );
 export const fakeAppServerPath = join(pluginRoot, "tests", "helpers", "fake-app-server.mjs");
 
-const CODEX_CANDIDATES = [
-  "/Applications/ChatGPT.app/Contents/Resources/codex",
-  join(process.env.HOME ?? "", "Applications/ChatGPT.app/Contents/Resources/codex"),
-];
+const CODEX_CANDIDATES = codexBinaryCandidates();
 
 /**
  * Why the live suite is unavailable here from what the host looks like, or null

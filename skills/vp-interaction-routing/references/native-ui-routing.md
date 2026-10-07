@@ -22,7 +22,7 @@ resource and the client action required to release it.
 
 Prefer Codex first-party Computer Use for native application work when operating
 as Codex. In another agent, prefer that agent's first-party computer use when it
-is available; otherwise use the Codex Computer Use bridge through Codex
+supports the operation; otherwise use the Codex Computer Use bridge through Codex
 app-server when it is registered and healthy. Typical operations include
 reading an application's accessibility state, clicking controls, entering text,
 scrolling, dragging, and reading back the result.

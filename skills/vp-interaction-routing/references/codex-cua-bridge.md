@@ -31,6 +31,13 @@ and refuses tool calls when the connecting client identifies as Codex. The
   code signature, so an unsigned parent is rejected with `Sender process is not
   authenticated`.
 
+The bundled executable may use the current
+`Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS/codex` layout or the
+legacy `Contents/Resources/codex` layout. The bridge discovers both under
+`/Applications/ChatGPT.app` and `~/Applications/ChatGPT.app`; its health report
+reads the version from the outer ChatGPT.app bundle. For another install path,
+set `CODEX_CUA_BRIDGE_CODEX_BIN` to the signed executable inside that bundle.
+
 ## What it cannot do
 
 Computer Use refuses to operate on Codex itself. Any tool call targeting
@@ -299,7 +306,7 @@ cannot approve an unclassified request. Set it only deliberately.
 
 | Variable | Default | Purpose |
 |----------|---------|---------|
-| `CODEX_CUA_BRIDGE_CODEX_BIN` | app-bundle search | path to `Contents/Resources/codex` |
+| `CODEX_CUA_BRIDGE_CODEX_BIN` | app-bundle search | path to the signed bundled Codex executable |
 | `CODEX_CUA_BRIDGE_MAX_CHARS` | `40000` | text cap per response |
 | `CODEX_CUA_BRIDGE_MAX_IMAGE_BYTES` | `1500000` | above this a screenshot is returned as a path |
 | `CODEX_CUA_BRIDGE_MAX_FRAME_CHARS` | `33554432` | maximum unterminated JSON-RPC input buffered on either side |
