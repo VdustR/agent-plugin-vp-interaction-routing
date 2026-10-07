@@ -259,8 +259,9 @@ export class BridgeClient {
     this.child.stdin.end();
     this.child.kill();
     await new Promise((resolvePromise) => {
-      const escalate = setTimeout(() => this.child.kill("SIGKILL"), 1000);
-      const giveUp = setTimeout(resolvePromise, 4000);
+      // Give the bridge its two-second bounded upstream cleanup before killing it.
+      const escalate = setTimeout(() => this.child.kill("SIGKILL"), 3000);
+      const giveUp = setTimeout(resolvePromise, 5000);
       this.child.once("exit", () => {
         clearTimeout(escalate);
         clearTimeout(giveUp);

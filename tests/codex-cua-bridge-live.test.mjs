@@ -7,6 +7,7 @@
 
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
+import { once } from "node:events";
 import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
@@ -476,5 +477,36 @@ test("the bridge recovers when its app-server child dies mid-session", { skip },
       .filter(Boolean);
     assert.equal(after.length, 1, "exactly one replacement child");
     assert.notDeepEqual(after, before, "it is a new process");
+  });
+});
+
+test("shutdown reaps the real app-server and a fresh session can read and act", { skip }, async () => {
+  const client = new BridgeClient();
+  try {
+    await client.initialize();
+    assert.match(await readTree(client), /Window: "Calculator"/);
+    const children = spawnSync("pgrep", ["-P", String(client.child.pid)], { encoding: "utf8" });
+    assert.equal(children.status, 0, children.stderr);
+    const pids = children.stdout.trim().split("\n").map(Number);
+    assert.equal(pids.length, 1, "exactly one task-owned app-server");
+    const pid = pids[0];
+    assert.ok(Number.isInteger(pid) && pid > 0);
+    const exited = once(client.child, "exit", { signal: AbortSignal.timeout(5000) });
+    client.child.kill("SIGTERM");
+    assert.equal((await exited)[0], 0);
+    assert.throws(() => process.kill(pid, 0), { code: "ESRCH" }, "the real app-server must be reaped");
+  } finally {
+    await client.close();
+  }
+  // A process exit alone does not establish that the native service still works.
+  await withSession(async (fresh) => {
+    const cleared = await resetCalculator(fresh);
+    const tree = await readTree(fresh);
+    const response = await fresh.callTool("click", {
+      app: APP, element_index: findIndex(tree, "ID: Seven"),
+    }, 90000);
+    assert.notEqual(response.result?.isError, true, toolText(response));
+    assert.notEqual(displayValue(await readTree(fresh)), cleared, "the new session changed the UI");
+    await resetCalculator(fresh);
   });
 });

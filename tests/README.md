@@ -18,6 +18,17 @@ tested without ChatGPT.app: reverse approval requests, the output cap, and the
 timeout that tears down the shared session. Point the bridge at it with
 `CODEX_CUA_BRIDGE_CODEX_BIN`.
 
+The runtime suite also uses an upstream that ignores SIGTERM. It checks the
+upstream PID is gone after stdin EOF, SIGINT or SIGTERM shutdown, CLI success,
+tool failure, startup failure, and timeout replacement. This verifies process
+cleanup, not native Computer Use turn-ended behavior. A queued-shutdown case
+also proves an in-flight read cannot release a queued click or start a replacement
+while cleanup is running. The live suite confirms the real app-server exits
+and a new session can read and change Calculator afterward. These checks do not
+prove cursor removal, explicit native Stop, or harness turn-ended hooks.
+The test client allows the bridge's two-second cleanup
+window before escalating termination of the bridge itself.
+
 The installation suite checks discovery of current nested and legacy executable
 layouts, per-user app installations, explicit overrides, and outer-app version
 metadata. The live guard uses the same discovery function as the bridge so a new

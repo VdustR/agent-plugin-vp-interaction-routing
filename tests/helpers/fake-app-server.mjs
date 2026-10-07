@@ -13,6 +13,10 @@
 //   FAKE_HANG            never answer a tool call, to exercise the timeout path
 //   FAKE_ARGS_LOG        append the arguments of each tool call, as JSON lines
 //   FAKE_PID_LOG         append this process's pid on startup, to prove replacement
+//   FAKE_IGNORE_SIGTERM  ignore graceful termination, to exercise cleanup escalation
+//   FAKE_TOOL_ERROR      return an upstream MCP tool error
+//   FAKE_HANG_INITIALIZE never answer initialize, to exercise startup cleanup
+//   FAKE_HANG_AFTER_CALLS answer this many tool calls, then hang
 
 import { appendFileSync } from "node:fs";
 import { createInterface } from "node:readline";
@@ -29,9 +33,15 @@ if (process.env.FAKE_PID_LOG) {
 
 const textLength = Number.parseInt(process.env.FAKE_TEXT_LENGTH ?? "", 10);
 const hang = process.env.FAKE_HANG === "1";
+const hangAfterCalls = Number(process.env.FAKE_HANG_AFTER_CALLS ?? Infinity);
+let toolCalls = 0;
+if (process.env.FAKE_IGNORE_SIGTERM === "1") process.on("SIGTERM", () => {});
 
 /** A tool result, padded when the test is exercising the output cap. */
 function toolResult() {
+  if (process.env.FAKE_TOOL_ERROR === "1") {
+    return { isError: true, content: [{ type: "text", text: "fake upstream failure" }] };
+  }
   if (process.env.FAKE_TEXT !== undefined) {
     return { content: [{ type: "text", text: process.env.FAKE_TEXT }] };
   }
@@ -75,6 +85,7 @@ createInterface({ input: process.stdin }).on("line", (line) => {
   }
 
   if (message.method === "initialize") {
+    if (process.env.FAKE_HANG_INITIALIZE === "1") return;
     send({ id: message.id, result: { userAgent: "fake-app-server" } });
     return;
   }
@@ -96,7 +107,7 @@ createInterface({ input: process.stdin }).on("line", (line) => {
         `${JSON.stringify(message.params?.arguments ?? null)}\n`,
       );
     }
-    if (hang) return; // exercise the caller's timeout and session reset
+    if (hang || toolCalls++ >= hangAfterCalls) return; // exercise timeout and shutdown
     if (reverseMethod) {
       const id = reverseId++;
       awaitingReverse.set(id, { method: reverseMethod, toolCallId: message.id });
