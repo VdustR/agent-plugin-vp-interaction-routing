@@ -31,6 +31,8 @@ import { homedir, tmpdir } from "node:os";
 import { basename, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { resolveCodexBinary, readAppVersion } from "./codex-installation.mjs";
+
 const BRIDGE_NAME = "codex-cua-bridge";
 const BRIDGE_VERSION = "0.1.0";
 const MCP_PROTOCOL_VERSION = "2025-06-18";
@@ -129,43 +131,8 @@ function readFrames(stream, { maxChars, onFrame, onOverflow }) {
  * Codex binary resolution
  * ------------------------------------------------------------------ */
 
-const CODEX_CANDIDATES = [
-  "/Applications/ChatGPT.app/Contents/Resources/codex",
-  join(homedir(), "Applications/ChatGPT.app/Contents/Resources/codex"),
-];
-
-function resolveCodexBin() {
-  const override = process.env.CODEX_CUA_BRIDGE_CODEX_BIN;
-  if (override) {
-    if (!existsSync(override)) {
-      throw new Error(`CODEX_CUA_BRIDGE_CODEX_BIN does not exist: ${override}`);
-    }
-    return override;
-  }
-  for (const candidate of CODEX_CANDIDATES) {
-    if (existsSync(candidate)) return candidate;
-  }
-  throw new Error(
-    "Could not find the Codex binary inside ChatGPT.app. Install the ChatGPT " +
-      "desktop app with the Computer Use component, or set " +
-      "CODEX_CUA_BRIDGE_CODEX_BIN to its `Contents/Resources/codex` path.",
-  );
-}
-
 function resolveCodexHome() {
   return process.env.CODEX_HOME || join(homedir(), ".codex");
-}
-
-function readAppVersion(codexBin) {
-  if (!codexBin) return null;
-  // codexBin is <bundle>/Contents/Resources/codex
-  const plist = codexBin.replace(/\/Contents\/Resources\/codex$/, "/Contents/Info.plist");
-  if (!existsSync(plist)) return null;
-  const xml = readFileSync(plist, "utf8");
-  const match = xml.match(
-    /<key>CFBundleShortVersionString<\/key>\s*<string>([^<]*)<\/string>/,
-  );
-  return match ? match[1] : null;
 }
 
 /* ------------------------------------------------------------------ *
@@ -204,7 +171,7 @@ class AppServerClient {
     this.codexBin = null;
     this.codexBinError = null;
     try {
-      this.codexBin = resolveCodexBin();
+      this.codexBin = resolveCodexBinary();
     } catch (err) {
       this.codexBinError = err;
     }
@@ -1440,7 +1407,7 @@ Usage:
   ${BRIDGE_NAME} --help
 
 Environment:
-  CODEX_CUA_BRIDGE_CODEX_BIN     path to ChatGPT.app/Contents/Resources/codex
+  CODEX_CUA_BRIDGE_CODEX_BIN     path to the signed Codex executable inside ChatGPT.app
   CODEX_CUA_BRIDGE_MAX_CHARS     text cap per response (default 40000)
   CODEX_CUA_BRIDGE_TIMEOUT_MS    per-call timeout (default 60000)
   CODEX_CUA_BRIDGE_AUTO_APPROVE  set to 1 to approve app-server approval requests
