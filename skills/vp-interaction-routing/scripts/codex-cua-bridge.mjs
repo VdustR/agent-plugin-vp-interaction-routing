@@ -182,18 +182,18 @@ class AppServerClient {
     this.threadPromise = null;
     this.interceptedServerRequests = [];
     this.startPromise = null;
+    this.cleanupPromise = null;
   }
 
   async start() {
+    // Never replace an upstream while its previous process may still execute.
+    if (this.cleanupPromise) await this.cleanupPromise;
     if (this.startPromise) return this.startPromise;
     // A cached rejected promise would wedge every later call, and the child's
     // exit handler cannot clear it when the child is still alive and only the
     // initialize handshake failed.
-    this.startPromise = this.#start().catch((err) => {
-      this.startPromise = null;
-      const child = this.child;
-      this.child = null;
-      child?.kill();
+    this.startPromise = this.#start().catch(async (err) => {
+      await this.reset(`startup failed: ${err.message}`);
       throw err;
     });
     return this.startPromise;
@@ -420,6 +420,7 @@ class AppServerClient {
    * state, so the session cannot be reused.
    */
   async reset(reason) {
+    if (this.cleanupPromise) return this.cleanupPromise;
     log(`resetting app-server session: ${reason}`);
     const child = this.child;
     this.child = null;
@@ -431,20 +432,27 @@ class AppServerClient {
       entry.reject(new Error(`app-server session reset: ${reason}`));
     }
     this.pending.clear();
-    if (!child) return;
-    await new Promise((resolve) => {
+    if (!child || child.exitCode !== null || child.signalCode !== null) return;
+    this.cleanupPromise = new Promise((resolve, reject) => {
       const escalate = setTimeout(() => {
         log("app-server did not exit on SIGTERM; sending SIGKILL");
         child.kill("SIGKILL");
       }, 1000);
-      const done = setTimeout(resolve, 2000);
-      child.once("exit", () => {
+      const onExit = () => {
         clearTimeout(escalate);
         clearTimeout(done);
         resolve();
-      });
+      };
+      const done = setTimeout(() => {
+        clearTimeout(escalate);
+        child.removeListener("exit", onExit);
+        reject(new Error("app-server did not exit after SIGKILL; refusing to start a replacement"));
+      }, 2000);
+      child.once("exit", onExit);
       child.kill();
     });
+    await this.cleanupPromise;
+    this.cleanupPromise = null;
   }
 
   stop() {
@@ -1156,16 +1164,20 @@ function startMcpServer() {
   let clientName = null;
 
   let initialized = false;
+  let shuttingDown = false;
   // Request id -> cancellation token, so notifications/cancelled can reach a
   // call that is still queued behind the serialization lock.
   const inFlight = new Map();
 
-  const send = (obj) => process.stdout.write(`${JSON.stringify(obj)}\n`);
+  const send = (obj) => {
+    if (!shuttingDown) process.stdout.write(`${JSON.stringify(obj)}\n`);
+  };
   const reply = (id, result) => send({ jsonrpc: "2.0", id, result });
   const replyError = (id, code, message) =>
     send({ jsonrpc: "2.0", id, error: { code, message } });
 
   const handleFrame = async (line) => {
+    if (shuttingDown) return;
     const trimmed = line.trim();
     if (!trimmed) return;
     let msg;
@@ -1378,13 +1390,22 @@ function startMcpServer() {
     },
   });
 
-  const shutdown = () => {
-    appServer.stop();
-    process.exit(0);
+  const shutdown = async () => {
+    if (shuttingDown) return;
+    shuttingDown = true;
+    for (const token of inFlight.values()) token.cancelled = true;
+    try {
+      await appServer.reset("bridge shutdown");
+      process.exit(0);
+    } catch (err) {
+      log(`shutdown failed: ${err.message}`);
+      process.exit(1);
+    }
   };
   process.on("SIGINT", shutdown);
   process.on("SIGTERM", shutdown);
   process.stdin.on("close", shutdown);
+  process.stdin.on("end", shutdown);
   process.on("exit", () => appServer.stop());
   process.on("unhandledRejection", (err) => log(`unhandled rejection: ${err}`));
 }
@@ -1445,12 +1466,17 @@ async function main() {
         if (part.type === "text") process.stdout.write(`${part.text}\n`);
         else process.stdout.write(`[${part.type} ${part.mimeType} ${part.data?.length ?? 0}b]\n`);
       }
-      appServer.stop();
-      process.exit(result.isError ? 1 : 0);
+      process.exitCode = result.isError ? 1 : 0;
     } catch (err) {
       process.stderr.write(`error: ${err.message}\n`);
-      appServer.stop();
-      process.exit(1);
+      process.exitCode = 1;
+    } finally {
+      try {
+        await appServer.reset("standalone CLI finished");
+      } catch (err) {
+        process.stderr.write(`error: cleanup failed: ${err.message}\n`);
+        process.exitCode = 1;
+      }
     }
     return;
   }

@@ -5,7 +5,8 @@
 
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { once } from "node:events";
+import { mkdtempSync, readFileSync, rmSync, watch } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -26,6 +27,118 @@ function forwardedArgs(argsLog) {
 function fakeEnv(extra = {}) {
   return { CODEX_CUA_BRIDGE_CODEX_BIN: fakeAppServerPath, ...extra };
 }
+
+function assertProcessExited(pid) {
+  assert.ok(Number.isInteger(pid) && pid > 0, "the upstream PID must be valid");
+  assert.throws(() => process.kill(pid, 0), { code: "ESRCH" }, `upstream ${pid} survived cleanup`);
+}
+
+function killIfAlive(pid) {
+  if (!pid) return;
+  try {
+    process.kill(pid, "SIGKILL");
+  } catch (error) {
+    if (error.code !== "ESRCH") throw error;
+  }
+}
+
+for (const shutdown of ["stdin", "SIGINT", "SIGTERM"]) {
+  test(`${shutdown} shutdown waits for a SIGTERM-resistant upstream to exit`, async () => {
+    const dir = mkdtempSync(join(tmpdir(), "codex-cua-shutdown-"));
+    const pidLog = join(dir, "pids");
+    const client = new BridgeClient({ env: fakeEnv({ FAKE_PID_LOG: pidLog, FAKE_IGNORE_SIGTERM: "1" }) });
+    let pid;
+    try {
+      await client.initialize();
+      const response = await client.callTool("list_apps", {}, 30000);
+      assert.notEqual(response.result?.isError, true, toolText(response));
+      pid = Number(readFileSync(pidLog, "utf8").trim());
+      const exited = once(client.child, "exit", { signal: AbortSignal.timeout(5000) });
+      if (shutdown === "stdin") client.child.stdin.end();
+      else client.child.kill(shutdown);
+      const [code] = await exited;
+      assert.equal(code, 0);
+      assertProcessExited(pid);
+    } finally {
+      await client.close();
+      killIfAlive(pid);
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+}
+
+for (const outcome of ["success", "tool failure", "startup failure"]) {
+  test(`CLI ${outcome} waits for its upstream to exit`, () => {
+    const dir = mkdtempSync(join(tmpdir(), "codex-cua-cli-cleanup-"));
+    const pidLog = join(dir, "pids");
+    let pid;
+    try {
+      const result = spawnSync(process.execPath, [bridgePath, "--call", "list_apps", "{}"], {
+        encoding: "utf8", timeout: 10000,
+        env: { ...process.env, ...fakeEnv({ FAKE_PID_LOG: pidLog, FAKE_IGNORE_SIGTERM: "1",
+          CODEX_CUA_BRIDGE_TIMEOUT_MS: "1000",
+          FAKE_HANG_INITIALIZE: outcome === "startup failure" ? "1" : "0",
+          FAKE_TOOL_ERROR: outcome === "tool failure" ? "1" : "0" }) },
+      });
+      pid = Number(readFileSync(pidLog, "utf8").trim());
+      assert.equal(result.status, outcome === "success" ? 0 : 1, result.stderr);
+      if (outcome === "tool failure") assert.match(result.stderr, /fake upstream failure/);
+      if (outcome === "startup failure") assert.match(result.stderr, /timed out.*initialize/);
+      assertProcessExited(pid);
+    } finally {
+      killIfAlive(pid);
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+}
+
+test("shutdown cancels queued mutations and starts no replacement upstream", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "codex-cua-queued-shutdown-"));
+  const pidLog = join(dir, "pids");
+  const argsLog = join(dir, "args");
+  const client = new BridgeClient({ env: fakeEnv({
+    FAKE_PID_LOG: pidLog, FAKE_ARGS_LOG: argsLog,
+    FAKE_IGNORE_SIGTERM: "1", FAKE_HANG_AFTER_CALLS: "1",
+  }) });
+  let pid;
+  let watcher;
+  let timer;
+  try {
+    await client.initialize();
+    assert.notEqual((await client.callTool("list_apps", {}, 30000)).result?.isError, true);
+    pid = Number(readFileSync(pidLog, "utf8").trim());
+    // Wait for the fake to record the in-flight read, not an arbitrary sleep.
+    const readStarted = new Promise((resolve, reject) => {
+      watcher = watch(argsLog, () => {
+        const calls = readFileSync(argsLog, "utf8").trim().split("\n");
+        if (calls.length === 2) resolve();
+      });
+      timer = setTimeout(() => reject(new Error("the queued shutdown read never started")), 5000);
+    });
+    const pendingRead = client.callTool("get_app_state", { app: "X" }, 30000);
+    const pendingClick = client.callTool("click", { app: "X", element_index: 7 }, 30000);
+    await readStarted;
+    clearTimeout(timer);
+    watcher.close();
+    const exited = once(client.child, "exit", { signal: AbortSignal.timeout(5000) });
+    client.child.kill("SIGTERM");
+    client.child.stdin.end(); // A second shutdown event must reuse the cleanup.
+    assert.equal((await exited)[0], 0);
+    assertProcessExited(pid);
+    assert.equal(readFileSync(pidLog, "utf8").trim().split("\n").length, 1);
+    const calls = readFileSync(argsLog, "utf8").trim().split("\n").map(JSON.parse);
+    assert.equal(calls.length, 2, "only the warmup and in-flight read reached the upstream");
+    assert.ok(calls.every(call => !call.code.includes("sky.click")), "the queued mutation never ran");
+    await client.close();
+    await Promise.all([pendingRead, pendingClick]);
+  } finally {
+    clearTimeout(timer);
+    watcher?.close();
+    await client.close();
+    killIfAlive(pid);
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
 
 async function withFake(env, run) {
   const client = new BridgeClient({ env: fakeEnv(env) });
@@ -60,7 +173,8 @@ test("a timed-out call actually replaces the upstream session", async () => {
   const pidLog = join(dir, "pids");
   try {
     await withFake(
-      { CODEX_CUA_BRIDGE_TIMEOUT_MS: "1000", FAKE_HANG: "1", FAKE_PID_LOG: pidLog },
+      { CODEX_CUA_BRIDGE_TIMEOUT_MS: "1000", FAKE_HANG: "1", FAKE_PID_LOG: pidLog,
+        FAKE_IGNORE_SIGTERM: "1" },
       async (client) => {
         const timedOut = await client.callTool("list_apps", {}, 30000);
         assert.equal(timedOut.result.isError, true);
@@ -76,6 +190,7 @@ test("a timed-out call actually replaces the upstream session", async () => {
         const pids = readFileSync(pidLog, "utf8").trim().split("\n").filter(Boolean);
         assert.equal(pids.length, 2, `expected two upstream processes, saw ${pids.join()}`);
         assert.notEqual(pids[0], pids[1], "the hung process must be replaced, not reused");
+        for (const pid of pids) assertProcessExited(Number(pid));
       },
     );
   } finally {

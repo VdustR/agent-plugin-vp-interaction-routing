@@ -258,6 +258,15 @@ file path unless `include_screenshot` is set.
   and its `node_repl` session before releasing the queue. The next call starts a
   fresh session; the accessibility-tree diff baseline survives because it lives
   in the Computer Use service, not in the REPL.
+- **Cleanup waits for the app-server child to exit.** On a startup failure,
+  timeout, stdin EOF,
+  SIGINT, SIGTERM, or standalone CLI completion (including failure), the bridge
+  sends SIGTERM, escalates to SIGKILL after one second if needed, and waits up to
+  two seconds for the exit event. If exit cannot be confirmed, cleanup fails and
+  the bridge refuses to start a replacement. Shutdown cancels queued calls
+  before teardown. This confirms the task-owned app-server process exited; it
+  does not prove native Computer Use turn cleanup or termination of every
+  descendant. The bridge has no harness turn-ended hook.
 
 ## Protocol notes
 
