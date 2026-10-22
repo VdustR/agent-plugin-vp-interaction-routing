@@ -16,8 +16,11 @@ open the capability to other harnesses.
 - **Claude Code, Antigravity, or another MCP client**: this bridge is the
   supported path.
 
-The bridge states this in its MCP `initialize` instructions, warns on stderr,
-and refuses tool calls when the connecting client identifies as Codex. The
+The plugin's Codex manifest declares `"mcpServers": {}`, so installing the
+plugin on Codex registers no bridge. The bridge also states the rule in its MCP
+`initialize` instructions, warns on stderr, and refuses tool calls when the
+connecting client identifies as Codex. That covers a manual registration and a
+Codex build that ignores the manifest field. The
 `CODEX_CUA_BRIDGE_ALLOW_CODEX=1` override exists only for testing the bridge.
 
 ## Requirements

@@ -1,6 +1,6 @@
 {
   "name": "vp-interaction-routing",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "description": "Interaction routing for agents, with a bridge that exposes macOS Codex Computer Use as MCP tools.",
   "author": {
     "name": "VdustR"
@@ -17,6 +17,7 @@
     "routing"
   ],
   "skills": "./skills/",
+  "mcpServers": {},
   "interface": {
     "displayName": "Interaction Routing",
     "shortDescription": "Choose the lowest-cost reliable interface for an app or service"

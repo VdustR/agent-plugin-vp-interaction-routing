@@ -1329,9 +1329,9 @@ function startMcpServer() {
             return;
           }
           if (isCodexClient(clientName) && !ALLOW_CODEX) {
-            // Codex picks this server up from the same `.mcp.json` Claude Code
-            // uses, so packaging cannot keep it away. Refusing here is what
-            // actually enforces the routing rule the skill states.
+            // The Codex manifest declares no MCP server, but a Codex build that
+            // ignores that field, or a manual registration, still reaches this
+            // server. Refusing here keeps the routing rule the skill states.
             reply(id, {
               content: [{
                 type: "text",

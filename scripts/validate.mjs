@@ -68,11 +68,18 @@ check("package metadata and all three manifests agree", () => {
   assert.equal(pkg.description, a.description, "description differs in package.json");
 });
 
-check("the Codex refusal is enforced at runtime, not by packaging", () => {
-  // Codex reads the same `.mcp.json` Claude Code does, verified by installing
-  // probe plugins that each carried exactly one MCP config filename: only
-  // `.mcp.json` was picked up. Packaging therefore cannot keep the server away
-  // from Codex, so the routing rule has to be enforced in the bridge.
+check("the Codex manifest declares no MCP server", () => {
+  // Left unset, Codex falls back to the `.mcp.json` Claude Code reads and starts
+  // the bridge for every thread. Any declaration replaces that fallback, so an
+  // empty object keeps the server away from Codex. A path or a non-empty object
+  // would bring it back. tests/codex-plugin-packaging-live.test.mjs checks what
+  // a real Codex install registers.
+  assert.deepEqual(read(".codex-plugin/plugin.json").mcpServers, {});
+});
+
+check("the Codex refusal is still enforced at runtime", () => {
+  // Defense in depth for a Codex build that ignores the manifest field, and for
+  // a manual registration: the routing rule must hold in the bridge too.
   const bridge = readFileSync(
     join(root, "skills/vp-interaction-routing/scripts/codex-cua-bridge.mjs"), "utf8");
   assert.match(bridge, /function isCodexClient/, "the bridge must detect a Codex client");

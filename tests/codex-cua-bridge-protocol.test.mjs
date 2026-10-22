@@ -57,10 +57,10 @@ test("a client identifying as Codex is told to use its own surface", async () =>
   });
 });
 
-test("a Codex client is refused, because packaging cannot keep the server away", async () => {
-  // Codex reads the same .mcp.json Claude Code does, so it registers this server
-  // whether or not the plugin means it to. Refusing here is the only layer that
-  // can enforce the routing rule the skill states.
+test("a Codex client is refused even when it reaches the server", async () => {
+  // Packaging keeps the server out of a Codex install, but a Codex build that
+  // ignores the manifest field, or a manual registration, still connects.
+  // Refusing here is the layer that holds in every case.
   for (const name of ["codex", "codex-cli", "Codex Desktop"]) {
     await withClient(async (client) => {
       await client.initialize(name);

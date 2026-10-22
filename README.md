@@ -51,26 +51,33 @@ do not collide, so both ship from one tree:
 |---|---|---|---|
 | [Agent Plugins](https://agent-plugins.org/) | `plugin.json` | `mcp.json` | `${PLUGIN_ROOT}` |
 | [Claude Code](https://code.claude.com/docs/en/plugins-reference) | `.claude-plugin/plugin.json` | `.mcp.json` | `${CLAUDE_PLUGIN_ROOT}` |
-| Codex | `.codex-plugin/plugin.json` | `.mcp.json`, shared with Claude Code | `${CLAUDE_PLUGIN_ROOT}` |
+| Codex | `.codex-plugin/plugin.json` | none: the manifest declares `"mcpServers": {}` | n/a |
 | Antigravity | `plugin.json`, shared with Agent Plugins | `mcp_config.json` | `${PLUGIN_ROOT}` |
 
 Every client reads `skills/<name>/SKILL.md`, so that directory is shared rather
 than duplicated.
 
 Codex must not use this bridge: it reaches Computer Use through the first-party
-skill and tools exposed in its current session. That cannot be arranged by
-packaging, because Codex reads the same `.mcp.json` Claude Code does. Verified by
-installing probe plugins carrying exactly one MCP config filename each:
-`.mcp.json` was picked up, `mcp.json` and `mcp_config.json` were not. The rule is
-therefore enforced in the bridge, which refuses tool calls from a client
-identifying as Codex unless `CODEX_CUA_BRIDGE_ALLOW_CODEX=1` is set for testing
-the bridge itself.
+skill and tools exposed in its current session. Without a declaration, Codex
+falls back to the same `.mcp.json` Claude Code reads. Probe plugins carrying
+exactly one MCP config filename each showed `.mcp.json` was picked up, and
+`mcp.json` and `mcp_config.json` were not. Codex looks for that file only when
+its manifest leaves `mcpServers` unset, so `.codex-plugin/plugin.json` declares
+an empty `"mcpServers": {}` and Codex registers no server from this plugin.
+Measured on `codex-cli` 0.163.0-alpha.10.2: `plugin/read` reported
+`["codex-cua"]` without the declaration and `[]` with it. Before this fix, every
+Codex thread, and every app-server the bridge spawned, started an idle bridge
+of its own.
+
+The bridge still refuses tool calls from a client identifying as Codex, unless
+`CODEX_CUA_BRIDGE_ALLOW_CODEX=1` is set for testing the bridge itself. That
+covers a Codex build that ignores the manifest field and a manual registration.
 
 Anthropic is not among the Agent Plugins maintainers and Claude Code keeps its
 own format, so no single manifest reaches every client. `npm run validate`
 asserts they stay consistent: the manifests agree on name, version and
-description, and all three MCP configs describe the same server, differing only
-by the root variable.
+description, all three MCP configs describe the same server, differing only by
+the root variable, and the Codex manifest keeps its empty `mcpServers`.
 
 Skills use the [Agent Skills](https://agentskills.io/) format, which both
 specifications share, so that directory is not duplicated.
@@ -103,9 +110,10 @@ codex plugin marketplace add VdustR/agent-plugin-vp-interaction-routing
 codex plugin add vp-interaction-routing@vp-agent-plugins
 ```
 
-Codex will also register the MCP server, because it reads the same `.mcp.json`.
-The bridge refuses its calls, so Codex gets the routing guidance and is told to
-use its own Computer Use surface. Remove with
+Codex installs the skill and registers no MCP server, because its manifest
+declares an empty `mcpServers`. It reaches Computer Use through its own
+first-party surface. If an installed copy from 0.3.2 or earlier still lists
+`codex-cua`, update the plugin and start a new Codex thread. Remove with
 `codex plugin remove vp-interaction-routing@vp-agent-plugins`.
 
 ### Antigravity

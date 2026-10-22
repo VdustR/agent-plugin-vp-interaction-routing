@@ -10,6 +10,7 @@ Coverage for `skills/vp-interaction-routing/scripts/codex-cua-bridge.mjs`.
 | `codex-cua-bridge-live.test.mjs` | macOS, ChatGPT.app with the Computer Use component | `npm run validate` on a capable host; skips elsewhere |
 | `live-guard.test.mjs` | Node only, via a fake upstream | `npm run validate`, including CI |
 | `codex-installation.test.mjs` | Node only, via temporary app bundles | `npm run validate`, including CI |
+| `codex-plugin-packaging-live.test.mjs` | macOS, the Codex binary inside ChatGPT.app | `npm run validate` on a capable host; skips elsewhere |
 | `invariant-matcher.test.mjs` | Node only | `npm run validate`, including CI |
 
 `helpers/fake-app-server.mjs` stands in for the Codex binary. The bridge spawns
@@ -33,6 +34,13 @@ The installation suite checks discovery of current nested and legacy executable
 layouts, per-user app installations, explicit overrides, and outer-app version
 metadata. The live guard uses the same discovery function as the bridge so a new
 layout cannot silently skip all native coverage.
+
+The packaging suite installs a copy of the plugin into a throwaway `CODEX_HOME`
+with the real Codex CLI. It asserts that `plugin/read` reports no MCP server,
+because the Codex manifest declares an empty `mcpServers`. A control copy
+without that declaration must report `codex-cua`, so the suite fails rather than
+passes if the probe cannot see servers at all. It needs the Codex binary only,
+not the Computer Use service.
 
 The protocol suite covers everything the bridge answers before it reaches
 Computer Use: JSON-RPC framing and error codes, `initialize` validation and
