@@ -182,28 +182,129 @@
   {
     "name": "ordinary native app in Codex",
     "surface": "native-ui",
-    "requirements": ["ordinary-accessibility"],
+    "requirements": [
+      "accessibility"
+    ],
     "expectedRoute": "host-first-party-computer-use",
-    "fallback": "peekaboo",
+    "fallback": "agent-desktop",
     "verification": "accessibility-predicate",
-    "host": "codex"
+    "host": "codex",
+    "nativeCandidates": [
+      {
+        "route": "host-first-party-computer-use",
+        "capabilities": [
+          "accessibility"
+        ],
+        "platforms": [
+          "macos"
+        ],
+        "available": true,
+        "eligible": true
+      },
+      {
+        "route": "agent-desktop",
+        "capabilities": [
+          "accessibility"
+        ],
+        "platforms": [
+          "macos"
+        ],
+        "available": true,
+        "eligible": true
+      },
+      {
+        "route": "peekaboo",
+        "capabilities": [
+          "accessibility"
+        ],
+        "platforms": [
+          "macos"
+        ],
+        "available": true,
+        "eligible": true
+      }
+    ]
   },
   {
-    "name": "native app in another harness",
+    "name": "native app outside Codex without an eligible CLI",
     "surface": "native-ui",
-    "requirements": ["no-first-party-computer-use", "background-accessibility"],
+    "requirements": [
+      "background-accessibility"
+    ],
     "expectedRoute": "healthy-codex-cua-bridge",
     "fallback": "peekaboo",
     "verification": "accessibility-predicate",
-    "host": "non-codex"
+    "host": "non-codex",
+    "nativeCandidates": [
+      {
+        "route": "agent-desktop",
+        "capabilities": [
+          "background-accessibility"
+        ],
+        "platforms": [
+          "macos"
+        ],
+        "available": false,
+        "eligible": true
+      },
+      {
+        "route": "healthy-codex-cua-bridge",
+        "capabilities": [
+          "background-accessibility"
+        ],
+        "platforms": [
+          "macos"
+        ],
+        "available": true,
+        "eligible": true
+      },
+      {
+        "route": "peekaboo",
+        "capabilities": [
+          "background-accessibility"
+        ],
+        "platforms": [
+          "macos"
+        ],
+        "available": true,
+        "eligible": true
+      }
+    ]
   },
   {
     "name": "macOS system surface",
     "surface": "native-ui",
-    "requirements": ["window-menu-space-or-dialog"],
+    "requirements": [
+      "space-control"
+    ],
     "expectedRoute": "peekaboo",
-    "fallback": "screenshot-coordinates",
-    "verification": "accessibility-or-window-predicate"
+    "fallback": "none",
+    "verification": "accessibility-or-window-predicate",
+    "nativeCandidates": [
+      {
+        "route": "agent-desktop",
+        "capabilities": [
+          "accessibility",
+          "window-management"
+        ],
+        "platforms": [
+          "macos"
+        ],
+        "available": true,
+        "eligible": true
+      },
+      {
+        "route": "peekaboo",
+        "capabilities": [
+          "space-control"
+        ],
+        "platforms": [
+          "macos"
+        ],
+        "available": true,
+        "eligible": true
+      }
+    ]
   },
   {
     "name": "no semantic surface",
@@ -245,5 +346,56 @@
     "expectedRoute": "report-requirement-conflict",
     "fallback": "none",
     "verification": "requirements-conflict-readback"
+  },
+  {
+    "name": "verified native CLI workflow",
+    "surface": "native-ui",
+    "host": "codex",
+    "platform": "macos",
+    "requirements": [
+      "cli-workflow",
+      "accessibility"
+    ],
+    "nativeCandidates": [
+      {
+        "route": "agent-desktop",
+        "capabilities": [
+          "cli-workflow",
+          "accessibility"
+        ],
+        "platforms": [
+          "macos"
+        ],
+        "available": true,
+        "eligible": true
+      }
+    ],
+    "expectedRoute": "agent-desktop",
+    "fallback": "none",
+    "verification": "accessibility-predicate"
+  },
+  {
+    "name": "strict semantic requirement without a proven candidate",
+    "surface": "native-ui",
+    "host": "codex",
+    "requirements": [
+      "no-synthetic-input"
+    ],
+    "nativeCandidates": [
+      {
+        "route": "peekaboo",
+        "capabilities": [
+          "accessibility"
+        ],
+        "platforms": [
+          "macos"
+        ],
+        "available": true,
+        "eligible": true
+      }
+    ],
+    "expectedRoute": "report-capability-unavailable",
+    "fallback": "none",
+    "verification": "capability-inventory-readback"
   }
 ]

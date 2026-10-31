@@ -160,6 +160,13 @@ check("every reference file is linked from its SKILL.md", () => {
   }
 });
 
+check("skill routing diagrams match the shared harness priority source", () => {
+  execFileSync(process.execPath, ["scripts/generate-routing-diagrams.mjs", "--check"], {
+    cwd: root,
+    stdio: "pipe",
+  });
+});
+
 check("routing cases cover every capability leaf with explicit verification", () => {
   const cases = read("fixtures/routing-cases.json");
   assert.ok(Array.isArray(cases) && cases.length > 0, "routing cases must be a non-empty array");
@@ -309,35 +316,12 @@ const INVARIANTS = [
     "must require authorization before bridge installation"],
   [NATIVE, /session that existed before the task remains user-owned.*success, failure, cancellation, or\s+handoff.*confirm that the session ended/s,
     "native UI guidance must close and verify task-owned sessions on every exit path"],
-  [NATIVE, /bridge are unavailable on macOS/, "must preserve the Peekaboo fallback"],
-  [NATIVE, /Peekaboo.*contend with the user's own interaction/s,
-    "must account for Peekaboo contention with the user"],
-  [NATIVE, /Prefer background accessibility actions.*Use foreground interaction only/s,
-    "must prefer background Peekaboo actions"],
-  [NATIVE, /Always pass `--app`\s+or `--pid`/s,
-    "Peekaboo background input must name its target process"],
-  [NATIVE, /refuses a cold background `app launch`.*`open -g -a <App>`/s,
-    "cold background app launch must route outside Peekaboo"],
-  [NATIVE, /Untargeted\s+background input is refused rather than delivered/s,
-    "untargeted Peekaboo input must be recorded as refused, not misdelivered"],
-  [NATIVE, /`--app`\s+with a bare number is read as an application name/s,
-    "process ids must not be passed through --app as bare numbers"],
-  [NATIVE, /menu list --pid <pid>.*process-targeted `press` and `type`.*coordinate clicks only as a last resort/s,
-    "Electron routing must prefer menu-discovered keyboard paths"],
-  [NATIVE, /Background keyboard delivery into Electron web\s+content is not reliable/s,
-    "Electron background keyboard input must be recorded as unreliable"],
-  [NATIVE, /Probe the app with `see` before relying on it/,
-    "background coordinate clicks must probe the target app's accessibility exposure"],
-  [NATIVE, /a property of the app, not of Electron/,
-    "Electron background-input limits must be scoped to the measured app"],
-  [NATIVE, /measured against Peekaboo 4\.0\.0.*re-derive it from\s+the installed build/s,
-    "Peekaboo observations must carry the build they were measured on"],
-  [NATIVE, /native file or folder picker.*unavoidable foreground interruption/s,
-    "Electron routing must budget native-picker foreground cost"],
-  [NATIVE, /`effect: unverifiable` is not evidence of success.*compare\s+a follow-up capture.*semantic\s+readback/s,
-    "material Peekaboo effects must have capture-and-compare readback"],
-  [NATIVE, /`--snapshot` from a fresh\s+`see` capture of that\s+exact target window/s,
-    "background coordinate clicks must use a fresh exact-window snapshot"],
+  [NATIVE, /Apply the same filters to fallbacks/,
+    "native fallback eligibility must retain the original requirements"],
+  [NATIVE, /macOS `press` explicitly uses physical keyboard input/,
+    "headless must not imply semantic delivery for every command"],
+  [NATIVE, /AX-only snapshot can support semantic mutation.*host reports mutation targeting available/s,
+    "native guidance must gate AX-only semantic mutation on the current host capability"],
   [BROWSER, /page lifecycle is not one fixed state[\s\S]*Measure it instead of assuming it/,
     "browser guidance must treat the pane lifecycle as measured, not fixed"],
   [BROWSER, /\| Pane hidden \|[\s\S]*\| Pane displayed, tab never selected \|[\s\S]*\| Pane displayed, tab selected \|/,
@@ -462,15 +446,6 @@ check("authenticated browser routing must preserve the preferred order", () => {
   const desktop = guidance.indexOf("desktop automation only");
   assert.ok(sharedChrome >= 0 && sharedChrome < agentBrowser && agentBrowser < desktop,
     "shared Chrome must precede agent-browser, which must precede desktop automation");
-});
-
-check("native UI routing must preserve the low-contention order", () => {
-  const guidance = readFileSync(join(root, NATIVE), "utf8");
-  const firstParty = guidance.indexOf("Prefer Codex first-party Computer Use");
-  const bridge = guidance.indexOf("otherwise use the Codex Computer Use bridge");
-  const peekaboo = guidance.indexOf("Use the installed `peekaboo`");
-  assert.ok(firstParty >= 0 && firstParty < bridge && bridge < peekaboo,
-    "first-party Computer Use must precede the bridge, which must precede Peekaboo");
 });
 
 check("bridge internals must keep their upstream implementation contract", () => {

@@ -4,7 +4,7 @@ description: >-
   Select the lowest-cost reliable interface for interacting with applications
   and services. Use before browser or desktop automation, especially when
   choosing among connectors, APIs, CLIs, Chrome session sharing, agent-browser,
-  first-party computer use, the Codex Computer Use bridge, and Peekaboo.
+  first-party computer use, agent-desktop, the Codex Computer Use bridge, and Peekaboo.
   Boundary: route interactions only; use the directly matching browser,
   profile-management, desktop-automation, or recording skill to execute them.
 ---
@@ -14,6 +14,16 @@ description: >-
 Choose the interface that provides the strongest semantics and verification at
 the lowest operational cost. Authorization and correctness take precedence over
 token or latency savings.
+
+## Use the decision trees
+
+Before choosing an interface, follow the entry gates and relevant branch in the
+[complete decision tree](references/decision-tree.md). For native apps, browser
+chrome or OS UI, also read the
+[native decision tree](references/native-decision-tree.md) and apply its shared order with the current harness
+identity and eligibility. These are execution guidance, not optional illustrations.
+The [native priority source](references/native-route-order.json) drives the
+candidate order and generated diagrams.
 
 ## Route
 
@@ -43,13 +53,18 @@ token or latency savings.
      conflict instead of dropping either requirement;
    - public background DOM work: an available in-app DOM browser whose measured
      lifecycle satisfies the page;
-   - ordinary native UI: the host's first-party computer use;
-   - macOS window, menu, Dock, Space, system-dialog, deep accessibility,
-     capture, or troubleshooting work: Peekaboo;
-   - native UI from a non-Codex harness when first-party computer use is
-     unavailable or materially insufficient for the operation: a registered and
-     healthy Codex Computer Use bridge when it supplies the required capability,
-     otherwise Peekaboo on macOS.
+   - native UI in every harness: the current host's first-party computer use
+     first whenever capable; in Codex, this is Codex Computer Use. A measured
+     driver timing or visible cursor preference does not override this principle;
+   - after an ineligible first-party route: verified agent-desktop, then an
+     eligible registered healthy bridge outside Codex, then Peekaboo;
+   - native fallback or an explicitly requested CLI workflow: agent-desktop
+     before Peekaboo when its installed adapter and exact operation are verified;
+     enable the session cursor overlay when visible feedback is wanted;
+   - strict no-synthetic-input work: only a verified semantic AX action; a
+     headless label alone does not qualify a command;
+   - macOS system orchestration, Dock, Space, deep accessibility or diagnostics:
+     retain Peekaboo for requirements the preceding candidates cannot satisfy;
 5. Map the selected capability to currently available product tools using
    [references/agent-adapters.md](references/agent-adapters.md). Discover the
    tool inventory; a product label does not prove availability or shared state.
@@ -60,8 +75,10 @@ token or latency savings.
 7. Use screenshot-coordinate interaction only when semantic, DOM, and
    accessibility interfaces cannot complete the operation.
 
-For the complete decision tree, capability comparison, and route examples, read
-[references/decision-tree.md](references/decision-tree.md).
+PK reports and raw observations are repository research under
+`docs/research/desktop-automation/`, not per-task skill reading or current
+inventory. Promote only verified operational constraints into this skill and its
+references. Use the repository research index when refreshing a tool comparison.
 
 ## Switching And Verification
 

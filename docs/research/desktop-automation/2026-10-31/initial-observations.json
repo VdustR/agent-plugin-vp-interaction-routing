@@ -1,0 +1,93 @@
+{
+  "observedDate": "2026-10-31",
+  "timezone": "Asia/Taipei",
+  "os": "26.6.2",
+  "agentDesktop": {
+    "installedOnPath": false,
+    "runtimeTested": false,
+    "sourceRevision": "a47ed664e0db00d1d4df364eb3fe8a5599882f3c"
+  },
+  "codex": {
+    "interface": "cua_repl native App API",
+    "fixture": "Calculator",
+    "sequence": [
+      "observe 0",
+      "click Seven",
+      "AX diff 7",
+      "click fresh Clear",
+      "AX diff 0"
+    ],
+    "focusMeasured": false,
+    "nativeEndMethodExposed": false
+  },
+  "peekaboo": {
+    "cliVersion": "4.4.0",
+    "cliRevision": "d82dbd888",
+    "observationHost": "onDemand daemon 4.4.0",
+    "fixture": "Calculator",
+    "observations": [
+      {
+        "phase": "pb-calc-tree",
+        "mutationTargetingAvailable": true,
+        "display": [
+          {
+            "role": "other",
+            "label": "\u200e0"
+          }
+        ]
+      },
+      {
+        "phase": "pb-calc-after",
+        "mutationTargetingAvailable": true,
+        "display": [
+          {
+            "role": "other",
+            "label": "\u200e7"
+          }
+        ]
+      },
+      {
+        "phase": "pb-calc-restored",
+        "mutationTargetingAvailable": true,
+        "display": [
+          {
+            "role": "other",
+            "label": "\u200e0"
+          }
+        ]
+      }
+    ],
+    "actionOutcome": {
+      "delivery_mechanism": "accessibility_action",
+      "effect": "unverifiable",
+      "requires_fresh_observation": true,
+      "dispatch_state": "dispatched",
+      "retry_safety": "unsafe",
+      "dispatched_unit_count": 1,
+      "state": "dispatched_unverified",
+      "evidence": "delivery_accepted",
+      "mutation_dispatched": true,
+      "escalation": "observe_before_retry",
+      "route": "bridge",
+      "delivery_mode": "background",
+      "retry_safe": false
+    },
+    "restorationIndependentReadback": "Codex full AX state showed 0"
+  },
+  "limits": [
+    "No runtime agent-desktop comparison",
+    "No comparative latency or token measurements",
+    "No focus/pointer trace",
+    "No cross-platform or locked-use test"
+  ],
+  "cleanup": {
+    "calculatorRestoredTo": "0",
+    "peekabooTaskDaemonStopped": true,
+    "peekabooReadbackRunning": false,
+    "codexJsBindingsReset": true,
+    "codexNativeSessionEndVerified": false,
+    "codexNativeSessionLimit": "No App end/disconnect method exposed. Use the client Stop control to release native access."
+  },
+  "observationPhase": "Initial research, before mise installation in the referenced chat",
+  "supersededAvailabilityAndRuntimeBy": "pk-observations.json"
+}

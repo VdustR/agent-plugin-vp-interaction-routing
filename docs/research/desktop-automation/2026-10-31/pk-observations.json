@@ -1,0 +1,665 @@
+{
+  "observedAt": "2026-10-31T09:48:02.379138+08:00",
+  "os": "26.6.2",
+  "architecture": "arm64",
+  "fixture": "Owned AppKit app: Routing PK Fixture",
+  "measurement": {
+    "samplesPerDriver": 3,
+    "workflow": [
+      "full AX read at 0",
+      "click Increment",
+      "full AX read at 1",
+      "click Reset fixture",
+      "full AX read at 0"
+    ],
+    "timing": "Sum of awaited driver work excluding model/tool-wrapper round trips; CLI includes mise/CLI process startup, Codex uses persistent App binding; warm native backends",
+    "witness": "Own app state, target-frontmost boolean, pointer endpoint coordinates and clipboard change count only; 50ms sampling, no keyboard event monitor",
+    "order": [
+      "codex",
+      "agent-desktop",
+      "peekaboo"
+    ],
+    "randomized": false,
+    "coldSetupExcluded": true,
+    "modelTokenCostsMeasured": false
+  },
+  "drivers": {
+    "codex": {
+      "version": "session cua_repl App API",
+      "rounds": [
+        {
+          "driverMs": 2275,
+          "callMs": [
+            178,
+            172,
+            841,
+            113,
+            969
+          ],
+          "observationCharacters": 1902,
+          "passed": true
+        },
+        {
+          "driverMs": 1978,
+          "callMs": [
+            101,
+            110,
+            837,
+            112,
+            817
+          ],
+          "observationCharacters": 1902,
+          "passed": true
+        },
+        {
+          "driverMs": 2161,
+          "callMs": [
+            106,
+            112,
+            712,
+            135,
+            1096
+          ],
+          "observationCharacters": 1902,
+          "passed": true
+        }
+      ],
+      "medianWorkflowMs": 2161,
+      "text": {
+        "passed": true,
+        "driverMs": 677
+      },
+      "checkbox": {
+        "passed": true,
+        "driverMs": 1393
+      },
+      "endpointWitness": {
+        "fixtureFrontmostBefore": false,
+        "fixtureFrontmostAfter": false,
+        "pointerSameAtEndpoints": true,
+        "clipboardChangeCountDelta": 0
+      },
+      "logicalStateBefore": {
+        "counter": 0,
+        "secondaryCounter": 0,
+        "text": "seed",
+        "checked": false,
+        "secondaryVisible": false,
+        "fixtureFrontmost": false
+      },
+      "logicalStateAfter": {
+        "counter": 0,
+        "secondaryCounter": 0,
+        "text": "pk-value",
+        "checked": true,
+        "secondaryVisible": false,
+        "fixtureFrontmost": false
+      },
+      "humanVisibleCursorConfirmation": true
+    },
+    "agent-desktop": {
+      "version": "1.0.1 (mise, macos aarch64)",
+      "rounds": [
+        {
+          "round": 1,
+          "driverMs": 1730.553,
+          "callMs": [
+            323.659,
+            335.236,
+            334.017,
+            397.176,
+            338.906
+          ],
+          "observationCharacters": 5280,
+          "passed": true
+        },
+        {
+          "round": 2,
+          "driverMs": 1650.554,
+          "callMs": [
+            468.76,
+            310.451,
+            287.004,
+            357.684,
+            225.608
+          ],
+          "observationCharacters": 5280,
+          "passed": true
+        },
+        {
+          "round": 3,
+          "driverMs": 1140.914,
+          "callMs": [
+            234.121,
+            213.104,
+            269.477,
+            209.422,
+            214.223
+          ],
+          "observationCharacters": 5289,
+          "passed": true
+        }
+      ],
+      "medianWorkflowMs": 1650.554,
+      "text": {
+        "passed": true,
+        "driverMs": 492.106,
+        "actionMetadata": {
+          "disposition": {
+            "delivery": "delivered_verified",
+            "retry": "unsafe"
+          },
+          "steps": [
+            {
+              "label": "AXValue",
+              "mechanism": "semantic_api",
+              "outcome": "succeeded",
+              "verified": true
+            }
+          ],
+          "post_state": {
+            "enabled": true,
+            "hidden": false,
+            "offscreen": false,
+            "role": "textfield",
+            "states": [
+              "focused"
+            ],
+            "value": "pk-value"
+          },
+          "details": {
+            "application_commit": "not_verified",
+            "auto_wait": {
+              "lease_contention_count": 0,
+              "lease_hold_ms": 39,
+              "read_only_preflight_attempts": 1,
+              "read_only_resolve_attempts": 1
+            },
+            "verification_scope": "element_value"
+          }
+        }
+      },
+      "checkbox": {
+        "passed": true,
+        "driverMs": 672.587,
+        "actionMetadata": {
+          "disposition": {
+            "delivery": "delivered_unverified",
+            "retry": "unsafe"
+          },
+          "steps": [
+            {
+              "label": "AXPress",
+              "mechanism": "semantic_api",
+              "outcome": "succeeded",
+              "verified": false
+            }
+          ],
+          "details": {
+            "auto_wait": {
+              "lease_contention_count": 0,
+              "lease_hold_ms": 244,
+              "read_only_preflight_attempts": 1,
+              "read_only_resolve_attempts": 1
+            }
+          }
+        }
+      },
+      "endpointWitness": {
+        "fixtureFrontmostBefore": false,
+        "fixtureFrontmostAfter": false,
+        "pointerSameAtEndpoints": true,
+        "clipboardChangeCountDelta": 0
+      },
+      "logicalStateBefore": {
+        "counter": 0,
+        "secondaryCounter": 0,
+        "text": "seed",
+        "checked": false,
+        "secondaryVisible": false,
+        "fixtureFrontmost": false
+      },
+      "logicalStateAfter": {
+        "counter": 0,
+        "secondaryCounter": 0,
+        "text": "pk-value",
+        "checked": true,
+        "secondaryVisible": false,
+        "fixtureFrontmost": false
+      }
+    },
+    "peekaboo": {
+      "version": "4.4.0 d82dbd888; GUI/onDemand 4.4.0",
+      "rounds": [
+        {
+          "round": 1,
+          "driverMs": 7831.662,
+          "callMs": [
+            1401.012,
+            2202.495,
+            728.731,
+            2617.901,
+            879.41
+          ],
+          "observationCharacters": 20607,
+          "passed": true
+        },
+        {
+          "round": 2,
+          "driverMs": 6134.501,
+          "callMs": [
+            693.163,
+            1923.389,
+            926.039,
+            1802.693,
+            787.295
+          ],
+          "observationCharacters": 20605,
+          "passed": true
+        },
+        {
+          "round": 3,
+          "driverMs": 5927.308,
+          "callMs": [
+            821.502,
+            1710.431,
+            730.254,
+            1915.875,
+            748.105
+          ],
+          "observationCharacters": 20604,
+          "passed": true
+        }
+      ],
+      "medianWorkflowMs": 6134.501,
+      "text": {
+        "passed": true,
+        "driverMs": 3953.098,
+        "actionMetadata": {
+          "retry_safety": "not_applicable",
+          "requires_fresh_observation": false,
+          "effect": "confirmed",
+          "dispatched_unit_count": 1,
+          "evidence": "verified_change",
+          "escalation": "none",
+          "mutation_dispatched": true,
+          "dispatch_state": "dispatched",
+          "delivery_mode": "background",
+          "route": "bridge",
+          "retry_safe": false,
+          "state": "confirmed_change",
+          "delivery_mechanism": "accessibility_value"
+        }
+      },
+      "checkbox": {
+        "passed": true,
+        "driverMs": 2656.365,
+        "actionMetadata": {
+          "effect": "unverifiable",
+          "retry_safe": false,
+          "evidence": "delivery_accepted",
+          "dispatch_state": "dispatched",
+          "mutation_dispatched": true,
+          "delivery_mechanism": "accessibility_action",
+          "requires_fresh_observation": true,
+          "route": "bridge",
+          "delivery_mode": "background",
+          "dispatched_unit_count": 1,
+          "retry_safety": "unsafe",
+          "state": "dispatched_unverified",
+          "escalation": "observe_before_retry"
+        }
+      },
+      "endpointWitness": {
+        "fixtureFrontmostBefore": false,
+        "fixtureFrontmostAfter": false,
+        "pointerSameAtEndpoints": false,
+        "clipboardChangeCountDelta": 0
+      },
+      "logicalStateBefore": {
+        "counter": 0,
+        "secondaryCounter": 0,
+        "text": "seed",
+        "checked": false,
+        "secondaryVisible": false,
+        "fixtureFrontmost": false
+      },
+      "logicalStateAfter": {
+        "counter": 0,
+        "secondaryCounter": 0,
+        "text": "pk-value",
+        "checked": true,
+        "secondaryVisible": false,
+        "fixtureFrontmost": false
+      }
+    },
+    "agent-desktop-overlay": {
+      "version": "1.0.1, same task session",
+      "rounds": [
+        {
+          "round": 1,
+          "driverMs": 2392.857,
+          "callMs": [
+            244.578,
+            942.216,
+            640.712,
+            314.083,
+            250.327
+          ],
+          "observationCharacters": 5280,
+          "passed": true
+        },
+        {
+          "round": 2,
+          "driverMs": 1985.864,
+          "callMs": [
+            219.553,
+            360.248,
+            288.041,
+            518.547,
+            596.614
+          ],
+          "observationCharacters": 5280,
+          "passed": true
+        },
+        {
+          "round": 3,
+          "driverMs": 4638.451,
+          "callMs": [
+            1198.725,
+            395.43,
+            755.489,
+            2001.189,
+            279.432
+          ],
+          "observationCharacters": 5280,
+          "passed": true
+        }
+      ],
+      "medianWorkflowMs": 2392.857,
+      "textPassed": true,
+      "checkboxPassed": true,
+      "rendererAcknowledgement": true,
+      "humanVisualConfirmation": false,
+      "endpointWitness": {
+        "fixtureFrontmostBefore": false,
+        "fixtureFrontmostAfter": false,
+        "pointerSameAtEndpoints": false,
+        "clipboardChangeCountDelta": 0
+      },
+      "mode": "Overlay requested through npm launcher; later proven no renderer was spawned",
+      "rendererActuallyStarted": false
+    },
+    "agent-desktop-actual-visible": {
+      "version": "Same 1.0.1 native bytes, temporary correctly named executable with official paired helper",
+      "persistentInstallationChanged": false,
+      "rounds": [
+        {
+          "round": 1,
+          "driverMs": 2339.211,
+          "callMs": [
+            130.307,
+            695.146,
+            595.089,
+            620.465,
+            296.021
+          ],
+          "observationCharacters": 5256,
+          "passed": true
+        },
+        {
+          "round": 2,
+          "driverMs": 2308.187,
+          "callMs": [
+            165.5,
+            1084.263,
+            267.321,
+            537.66,
+            251.998
+          ],
+          "observationCharacters": 5238,
+          "passed": true
+        },
+        {
+          "round": 3,
+          "driverMs": 1443.657,
+          "callMs": [
+            153.062,
+            468.69,
+            155.667,
+            493.796,
+            169.792
+          ],
+          "observationCharacters": 5256,
+          "passed": true
+        }
+      ],
+      "medianWorkflowMs": 2308.187,
+      "textPassed": true,
+      "checkboxPassed": true,
+      "rendererSocketPresentBeforeTrials": true,
+      "humanVisibleRendererConfirmation": "User confirmed the same renamed-binary renderer in the preceding demonstration",
+      "endpointWitness": {
+        "fixtureFrontmostBefore": false,
+        "fixtureFrontmostAfter": false,
+        "pointerSameAtEndpoints": false,
+        "clipboardChangeCountDelta": 0
+      }
+    }
+  },
+  "extraChecks": {
+    "peekabooIsolatedAXClick": {
+      "endpointWitness": {
+        "fixtureFrontmostBefore": false,
+        "fixtureFrontmostAfter": false,
+        "pointerSameAtEndpoints": true,
+        "clipboardChangeCountDelta": 0
+      },
+      "counterBefore": 0,
+      "counterAfter": 1,
+      "outcome": {
+        "evidence": "delivery_accepted",
+        "dispatch_state": "dispatched",
+        "effect": "unverifiable",
+        "retry_safe": false,
+        "dispatched_unit_count": 1,
+        "escalation": "observe_before_retry",
+        "retry_safety": "unsafe",
+        "delivery_mode": "background",
+        "delivery_mechanism": "accessibility_action",
+        "state": "dispatched_unverified",
+        "requires_fresh_observation": true,
+        "mutation_dispatched": true,
+        "route": "bridge"
+      }
+    },
+    "peekabooConsumedSnapshot": {
+      "code": "SNAPSHOT_STALE",
+      "mutationDispatched": false,
+      "counterAfter": 1
+    },
+    "agentDesktopUnscopedMultiwindow": {
+      "code": "AMBIGUOUS_TARGET",
+      "candidateCount": 3,
+      "disposition": {
+        "delivery": "not_delivered",
+        "retry": "safe"
+      }
+    },
+    "agentDesktopExactSecondary": {
+      "passed": true,
+      "mainCounter": 0,
+      "secondaryCounter": 1
+    },
+    "peekabooExactSecondary": {
+      "passed": true,
+      "mainCounter": 0,
+      "secondaryCounter": 2
+    },
+    "codexBoundMainWithSecondaryOpen": {
+      "passed": true,
+      "mainCounter": 1,
+      "secondaryCounter": 2,
+      "explicitMacOSWindowIdSelectorExposed": false
+    },
+    "agentDesktopHiddenWindowOldRef": {
+      "code": "TIMEOUT",
+      "kind": "actionability_timeout",
+      "lastResolutionKind": "resolution_window_bridge_miss",
+      "disposition": {
+        "delivery": "not_delivered",
+        "retry": "safe"
+      },
+      "timeoutMs": 1500,
+      "freshMainControlSucceeded": true,
+      "mainCounterAfter": 0,
+      "secondaryCounterAfter": 0,
+      "limit": "This was not a STALE_REF result. Hidden window resolution remained unverified; counters did not change."
+    },
+    "agentDesktopWindowManagement": {
+      "before": {
+        "height": 332.0,
+        "width": 430.0,
+        "x": 420.0,
+        "y": 368.0
+      },
+      "after": {
+        "height": 360.0,
+        "width": 460.0,
+        "x": 440.0,
+        "y": 388.0
+      },
+      "moveOk": true,
+      "resizeOk": true,
+      "restored": true
+    },
+    "agentDesktopMenubar": {
+      "complete": true,
+      "refCount": 74,
+      "menuActivated": false
+    }
+  },
+  "screenshots": [
+    {
+      "driver": "agent-desktop",
+      "format": "png",
+      "width": 996,
+      "height": 800,
+      "bytes": 147841,
+      "sha256": "36ba1be69f3d56fe8da466c6fab87df422da47a41f8e299f7adae9465cb434ea",
+      "visuallyInspected": true
+    },
+    {
+      "driver": "peekaboo",
+      "format": "png",
+      "width": 430,
+      "height": 332,
+      "bytes": 22696,
+      "sha256": "5428bbf5c562a2eac7e221821a19c21a6f0a2a71ed881b4d787cdfcecd0bb635",
+      "visuallyInspected": true
+    },
+    {
+      "driver": "peekaboo-retina",
+      "format": "png",
+      "width": 860,
+      "height": 664,
+      "bytes": 40446,
+      "sha256": "bab3ff126f1fa867159cf28ad418842d80639d652f019342fd572b2b8dde126f",
+      "visuallyInspected": true
+    },
+    {
+      "driver": "codex",
+      "format": "jpeg",
+      "width": 860,
+      "height": 664,
+      "bytes": 39534,
+      "driverMs": 208,
+      "visuallyInspected": true
+    }
+  ],
+  "limits": [
+    "One small native AppKit fixture on one Mac",
+    "Three serial samples per workflow, no randomized or interleaved order",
+    "Raw output characters are not actual model token usage",
+    "No concurrent keyboard-event attribution or focus/pointer event trace",
+    "No real Electron/browser/system-surface/drag/locked-screen acceptance"
+  ],
+  "routingPreference": {
+    "source": "Direct user instructions in this chat",
+    "codex": "first-party Computer Use whenever capable; then capable agent-desktop; Peekaboo for remaining gaps",
+    "visibleCursor": "Prefer agent-desktop presentation for eligible fallback work; do not replace the Codex first-party default"
+  },
+  "cursorBasenameReproduction": {
+    "sha256": "7baf96a6fafdbe38ffe74f66ddf29475673b7bdbd6b8be36995068c12c7c35d7",
+    "checks": [
+      {
+        "executableName": "agent-desktop-darwin-arm64",
+        "rendered": true,
+        "rendererSocketCount": 0
+      },
+      {
+        "executableName": "agent-desktop",
+        "rendered": true,
+        "rendererSocketCount": 1
+      },
+      {
+        "executableName": "agent-desktop-darwin-arm64",
+        "rendered": true,
+        "rendererSocketCount": 0
+      }
+    ],
+    "limit": "Socket evidence is not pixel evidence",
+    "version": {
+      "os": "macos",
+      "target": "aarch64",
+      "version": "1.0.1"
+    },
+    "observedSocketSequence": [
+      0,
+      1,
+      0
+    ],
+    "reproduced": true,
+    "cleanup": {
+      "sessionEnded": true,
+      "rendererSocketsRemaining": 0
+    },
+    "sourceRevision": "3c3c8a956bd080497a90ba94a002b07409836e9a",
+    "officialNpmInstallationSupported": true,
+    "humanSawRenamedCursor": true,
+    "humanDidNotSeeNpmCursorOnTwoTrials": true,
+    "observedAt": "2026-10-31T10:10:53.285560+08:00",
+    "npmNativeExecutableName": "agent-desktop-darwin-arm64",
+    "requiredFilenameStemInSource": "agent-desktop"
+  },
+  "cleanup": {
+    "firstFixture": true,
+    "firstSessionEnded": true,
+    "peekabooDaemonReadbackRunning": false,
+    "replay": {
+      "fixtureRestored": true,
+      "fixtureGoneByProcessReadback": true,
+      "cursorDisabled": true,
+      "sessionEnded": true,
+      "appInventoryAfterClose": "TIMEOUT: NSWorkspace app inventory timed out; independent PID check showed app gone"
+    },
+    "basenameProbe": {
+      "cursorSocketsRemaining": 0,
+      "sessionEnded": true
+    },
+    "actualVisibleBenchmark": {
+      "fixtureStateRestored": true,
+      "fixtureProcessGone": true,
+      "cursorSocketsRemaining": 0,
+      "sessionEnded": true
+    },
+    "codexJsBindingsReset": true,
+    "nativeCodexEndMethodExposed": false,
+    "commandHostNote": "Session end was verified. Private command-host process termination was not verified; documented idle exit is separate from ending a manifest."
+  },
+  "installedStateReadback": {
+    "nativeBinaryHashUnchanged": true,
+    "miseAgentDesktopToolEntry": "latest",
+    "persistentRepairApplied": false
+  }
+}

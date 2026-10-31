@@ -16,10 +16,12 @@ The plugin selects a capability before mapping it to a product-specific tool:
    for the user's current login, tabs, extensions, or handoff; choose a managed
    agent-browser profile for isolation and repeatability; otherwise use an
    available in-app DOM browser whose lifecycle satisfies the page.
-3. Use the host's first-party computer use for ordinary native UI. From a
-   non-Codex harness without that capability, use a registered and healthy Codex
-   Computer Use bridge when it fits. Use Peekaboo for macOS system surfaces,
-   deep accessibility, capture, or missing capabilities.
+3. Filter native tools by verified operation, platform, permissions and input
+   mode. Every harness follows one order: its own first-party computer use,
+   agent-desktop, an eligible registered healthy Codex bridge, then Peekaboo.
+   Codex uses Codex Computer Use and must never use the bridge. Keep Peekaboo
+   for remaining capability gaps. Verify actual cursor visibility when wanted;
+   fallbacks must retain every original constraint.
 4. Use screenshot-coordinate interaction only when semantic, DOM, and
    accessibility routes cannot complete the operation.
 5. Read the resulting state after every action. Refresh once before switching,
@@ -29,12 +31,25 @@ The skill contains the executable policy. See the
 [complete decision tree and capability comparison](skills/vp-interaction-routing/references/decision-tree.md)
 for every branch, trade-off, representative route, and verification rule.
 
+The [research index](docs/research/desktop-automation/README.md) maintains dated
+PK reports, primary sources, local checks and unknowns outside the skill.
+The skill directly uses its
+[native decision tree](skills/vp-interaction-routing/references/native-decision-tree.md),
+with a shared first-party-first principle and harness-specific tool identities
+and bridge eligibility. The diagrams and executable
+candidate order share one JSON source; `npm run routing:check` detects drift. Use
+[`vp-tool-comparison`](skills/vp-tool-comparison/SKILL.md) to repeat a tool PK and
+update routing from evidence. These repository changes do not install or update
+any desktop tool or globally installed skill.
+
 ## What is in it
 
 | Component | Purpose |
 |-----------|---------|
 | `skills/vp-interaction-routing/` | Routing guidance: connectors and CLIs first, then browser surfaces, then native UI, then coordinates as a last resort |
+| `skills/vp-tool-comparison/` | Scenario-based tool comparison with versioned evidence, small checks, and conditional routing decisions |
 | `skills/vp-interaction-routing/scripts/codex-cua-bridge.mjs` | An MCP stdio server exposing macOS Codex Computer Use, so a non-Codex harness can call it as ordinary tools |
+| `docs/research/desktop-automation/` | Versioned research and PK observations, separate from skill execution guidance |
 | `tests/` | Repository checks; the ones needing macOS with Computer Use skip themselves elsewhere |
 | `.claude-plugin/marketplace.json` | Makes the repository installable by `claude plugin install`; Claude Code requires a marketplace manifest, not just a plugin manifest |
 
