@@ -124,23 +124,27 @@ flowchart TD
   R1 -->|Yes| M0
   R1 -->|No| AB
 
-  N0{Requires Peekaboo-specific macOS system,<br/>window, menu, Space, deep AX, or capture capability?}
-  N0 -->|Yes| Q
-  N0 -->|No| N{Host first-party computer use available,<br/>capable, and eligible?}
-  N -->|Yes| O[Use first-party computer use<br/><small>route: host-first-party-computer-use</small>]
-  N -->|No| P{Running as Codex?}
-  P -->|Yes| Q
-  P -->|No| R{Registered and healthy Codex CUA bridge<br/>provides the capability and is eligible?}
-  R -->|Yes| S[Use Codex CUA bridge<br/><small>route: healthy-codex-cua-bridge</small>]
-  R -->|No| RI{Compatible macOS host and upstream component present,<br/>and bridge eligible but unregistered or unhealthy?}
-  RI -->|Yes| RA[Offer the registration or repair command<br/>and request authorization]
-  RA --> RR{User authorized it and the bridge is now<br/>registered, healthy, capable, and eligible?}
-  RR -->|Yes| S
-  RR -->|No| Q
-  RI -->|No| Q
-  Q{Does available and eligible Peekaboo provide<br/>the required macOS capability?}
-  Q -->|Yes| T[Use Peekaboo<br/><small>route: peekaboo</small>]
-  Q -->|No| U0{Coordinate-capable acting surface available,<br/>eligible, and capable of all remaining requirements?}
+  %% BEGIN GENERATED NATIVE ROUTING
+  N0["Check original constraints, current inventory,<br/>platform, exact action, input mode and readback"] --> NQ0
+  NQ0{"This harness's first-party computer use<br/>available, capable and eligible?"}
+  NQ0 -->|Yes| O
+  NQ0 -->|No| NQ1
+  NQ1{"agent-desktop<br/>available, capable and eligible?"}
+  NQ1 -->|Yes| AD
+  NQ1 -->|No| NQ2
+  NQ2{"Identified non-Codex harness with a registered<br/>healthy, capable and eligible macOS Codex bridge?"}
+  NQ2 -->|Yes| S
+  NQ2 -->|No| NQ3
+  NQ3{"Peekaboo on macOS<br/>available, capable and eligible?"}
+  NQ3 -->|Yes| T
+  NQ3 -->|No| U0
+  O["Use the selected host's first-party Computer Use<br/><small>route: host-first-party-computer-use</small>"]
+  AD["Use agent-desktop<br/><small>route: agent-desktop</small>"]
+  S["Use the registered healthy Codex CUA bridge<br/><small>route: healthy-codex-cua-bridge</small>"]
+  T["Use Peekaboo<br/><small>route: peekaboo</small>"]
+  %% END GENERATED NATIVE ROUTING
+
+  U0{Coordinate-capable acting surface available,<br/>eligible, and capable of all remaining requirements?}
   U0 -->|Yes| U[Use screenshot interpretation and coordinates<br/><small>route: screenshot-coordinates</small>]
   U0 -->|No| BL
 
@@ -148,6 +152,7 @@ flowchart TD
   BL -->|Yes| LC[Report interface-constraint conflict<br/><small>route: report-constraint-conflict</small>]
   BL -->|No| LU[Report capability unavailable<br/><small>route: report-capability-unavailable</small>]
 
+  AD --> A1
   F --> A1[Act once]
   O --> A1
   S --> A1
@@ -194,6 +199,11 @@ from strongest requirement to weakest: Tier C, then Tier B, then Tier A. A
 later tier is considered only after the page is known not to require an earlier
 one.
 
+Native gates apply the original requirements to every candidate and fallback.
+Do not infer semantic delivery from a headless label. See the
+[native decision tree](native-decision-tree.md) for the shared priority and harness-specific eligibility. Research evidence is maintained
+separately under `docs/research/desktop-automation/`.
+
 ## Capability Comparison
 
 | Capability | Best fit | Authentication and data boundary | Semantics and verification | Isolation | Foreground and contention | Principal limitation |
@@ -204,6 +214,7 @@ one.
 | agent-browser with a managed profile | Repeatable, concurrent, headless, worktree-scoped, or persistent signed-in automation, including a login carried in from the user's browser | Dedicated profile with an explicit identity boundary; a carried login widens it to that session's scope | Strong DOM access and reproducibility, and the only measured route whose capture scale factor is an input | High | Usually none | Never attach it to the user's daily browser profile; a carried login is a snapshot to verify, and domain-allowlist containment cannot be combined with one |
 | Playwright or background Chromium | Real page lifecycle, animation, video, canvas, or transitions | Ephemeral or dedicated managed profile | Strong DOM and CDP readback | High | Can remain in the background | A real profile requires lock, port, process, and endpoint ownership checks |
 | Host first-party computer use | Ordinary native application interaction | Integrated with the host's policy and session | Accessibility semantics with read-after-act verification | Low to medium | Implementation-dependent | Capability and tool inventory vary by host session |
+| agent-desktop | Native CLI workflows, cross-harness automation and verified semantic AX | Host permissions and CLI policy; not the Codex app approval surface | Qualified refs, delivery/retry disposition and explicit readback | Live desktop; headless does not mean isolated | Semantic ref actions by default; macOS raw keys are physical | Optional installation; platform/action support and local app behavior must be verified |
 | Codex Computer Use bridge | Native UI from a non-Codex harness lacking first-party computer use | The caller retains the authorization boundary | Compact accessibility tree and diff readback | Low to medium | Background-safe | macOS-only, requires registration and health verification, and adds latency |
 | Peekaboo | macOS windows, menus, Dock, Spaces, dialogs, deep accessibility, capture, and troubleshooting | Operates on the live desktop | Broad accessibility and system-surface coverage | Low | Can contend with the user | State identifiers become stale; some background input can be an unverifiable no-op |
 | Screenshot interpretation and coordinates | No usable semantic, DOM, or accessibility path | Inherits the acting surface's boundary | Weakest; requires visible readback after every consequential action | Low | Usually highest | Requires a verified coordinate-capable acting surface and remains fragile under layout or state changes |
@@ -219,9 +230,10 @@ one.
 | Run signed-in checks in parallel worktrees | agent-browser with worktree-scoped managed profiles | Dedicated Playwright profiles |
 | Read a public documentation page in the background | In-app DOM browser | agent-browser when lifecycle evidence requires it |
 | Exercise canvas animation without taking the user's foreground | Playwright or background Chromium | A managed headed Chromium profile when extensions or persistent login are required |
-| Operate a native app from Codex | Codex first-party Computer Use | Peekaboo for missing macOS-specific capability |
-| Operate a native app from a harness without first-party computer use | Registered and healthy Codex Computer Use bridge | Peekaboo on macOS |
-| Move a window, choose a menu, or inspect a system dialog | Peekaboo | Screenshot coordinates only when no accessibility path exists |
+| Operate a native app from Codex | Codex first-party Computer Use whenever capable | Verified agent-desktop, then Peekaboo for remaining requirements |
+| Explicit CLI requirement that the host first-party tool cannot satisfy | Verified eligible agent-desktop | Another eligible native route satisfying the same requirements, otherwise report unavailable |
+| Operate a native app from a harness without first-party computer use | Verified agent-desktop, then an eligible registered healthy Codex Computer Use bridge | Capable Peekaboo on macOS |
+| Move a window, choose a menu, or inspect a system dialog | Codex first-party when capable, then verified agent-desktop | Peekaboo for missing capability; eligible coordinates only after semantic routes fail |
 
 ## Verification Contract
 

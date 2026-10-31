@@ -1,8 +1,25 @@
 // Executable policy for the representative routing fixtures. Runtime inventory
-// checks still happen at the decision-tree gates; fixtures assume named routes
-// are available unless a requirement explicitly says otherwise.
+// checks still happen at the decision-tree gates. Native cases require explicit
+// candidate inventories; other fixtures retain their stated availability assumptions.
+
+import nativeRouteOrder from "../skills/vp-interaction-routing/references/native-route-order.json" with { type: "json" };
 
 const hasAny = (requirements, names) => names.some((name) => requirements.has(name));
+
+// Inventory-backed cases admit only candidates that satisfy every original
+// requirement. Ranking and fallback share this gate, so a fallback cannot silently
+// weaken a no-synthetic-input requirement or an explicit interface constraint.
+function nativeRoutes(routeCase, constrainInterface = true) {
+  return nativeRouteOrder.filter((route) =>
+    routeCase.nativeCandidates.some((candidate) =>
+      candidate.route === route && candidate.available === true && candidate.eligible === true &&
+      candidate.platforms?.includes(routeCase.platform ?? "macos") &&
+      (!constrainInterface || !routeCase.interfaceConstraint || routeCase.interfaceConstraint === route) &&
+      (!(route === "peekaboo" || route === "healthy-codex-cua-bridge") ||
+        (routeCase.platform ?? "macos") === "macos") &&
+      (route !== "healthy-codex-cua-bridge" || routeCase.host === "non-codex") &&
+      routeCase.requirements.every((requirement) => candidate.capabilities?.includes(requirement))));
+}
 
 export function evaluateRoutingCase(routeCase) {
   const requirements = new Set(routeCase.requirements);
@@ -16,13 +33,9 @@ export function evaluateRoutingCase(routeCase) {
   }
 
   if (routeCase.surface === "native-ui") {
-    if (requirements.has("window-menu-space-or-dialog")) return "peekaboo";
-    if (routeCase.host === "codex" && requirements.has("ordinary-accessibility")) {
-      return "host-first-party-computer-use";
-    }
-    if (routeCase.host === "non-codex" &&
-        requirements.has("no-first-party-computer-use")) {
-      return "healthy-codex-cua-bridge";
+    if (routeCase.nativeCandidates) {
+      return nativeRoutes(routeCase)[0] ?? (routeCase.interfaceConstraint && nativeRoutes(routeCase, false).length
+        ? "report-constraint-conflict" : "report-capability-unavailable");
     }
     return "report-capability-unavailable";
   }
@@ -91,6 +104,9 @@ export function evaluateRoutingFallback(routeCase) {
   const primary = evaluateRoutingCase(routeCase);
 
   if (primary.startsWith("report-")) return "none";
+  if (routeCase.surface === "native-ui" && routeCase.nativeCandidates) {
+    return nativeRoutes(routeCase).find((route) => route !== primary) ?? "none";
+  }
   if (primary === "connector-api-cli") return "verified-shared-state-dom";
   if (primary === "verified-shared-state-dom") return "user-authentication-handoff";
   if (primary === "screenshot-coordinates") return "none";
@@ -160,7 +176,7 @@ export function evaluateRoutingVerification(routeCase) {
     return "page-readiness-predicate";
   }
   if (primary === "host-first-party-computer-use" ||
-      primary === "healthy-codex-cua-bridge") {
+      primary === "healthy-codex-cua-bridge" || primary === "agent-desktop") {
     return "accessibility-predicate";
   }
   if (primary === "peekaboo") return "accessibility-or-window-predicate";

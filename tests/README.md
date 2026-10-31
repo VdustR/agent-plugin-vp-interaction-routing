@@ -10,6 +10,7 @@ Coverage for `skills/vp-interaction-routing/scripts/codex-cua-bridge.mjs`.
 | `codex-cua-bridge-live.test.mjs` | macOS, ChatGPT.app with the Computer Use component | `npm run validate` on a capable host; skips elsewhere |
 | `live-guard.test.mjs` | Node only, via a fake upstream | `npm run validate`, including CI |
 | `codex-installation.test.mjs` | Node only, via temporary app bundles | `npm run validate`, including CI |
+| `native-routing.test.mjs` | Node only; capability eligibility, platform and constrained fallbacks | `npm run validate`, including CI |
 | `invariant-matcher.test.mjs` | Node only | `npm run validate`, including CI |
 
 `helpers/fake-app-server.mjs` stands in for the Codex binary. The bridge spawns
@@ -154,3 +155,61 @@ rather than silently deleting macOS coverage.
 - **Mutation-check an assertion you rely on.** Forcing `element_index` to zero in
   the bridge makes that test fail, which is how its value was confirmed rather
   than assumed.
+
+## Desktop comparison and routing checks
+
+`native-routing.test.mjs` uses explicit candidate inventories. A candidate's
+capabilities describe the exact verified operation, not everything its product
+might support. Missing availability/eligibility, an unproven requirement, a
+platform mismatch, or an incompatible explicit interface excludes it from both
+selection and fallback. Every native routing case now requires an explicit inventory; missing inventory
+reports unavailable rather than inferring a product from a generic surface label.
+
+The October 31, 2026 research ran the same Calculator `0 -> 7 -> 0` AX action
+through Codex first-party Computer Use and installed Peekaboo 4.4.0. Sanitized
+observations and primary sources are in the
+[desktop evidence record](../docs/research/desktop-automation/2026-10-31/source-comparison.md).
+agent-desktop was absent from PATH and was not installed or executed. Those
+checks establish the narrow action/readback path, not performance or focus safety.
+
+An independent read-only skill trial used only `vp-tool-comparison`, two upstream
+README snapshots and a dated local inventory in a separate temporary directory.
+The ordinary request asked which CLI route could meet no-pointer-movement and
+no-synthetic-keyboard constraints. The resulting artifact preserved the installed
+vs upstream version difference, declined to claim a verified executable action
+route, and left optional installation and command-specific trials conditional.
+It did not execute either tool. This is one independent decision trial, not proof
+of automatic skill selection or correctness on every comparison.
+
+For a source/documentation-only validation run that must not start live bridge
+UI work, set `CODEX_CUA_BRIDGE_CODEX_BIN` to a deliberately absent task-local
+path. The existing live guard will explicitly skip those checks; report their
+skip count separately. This is not a replacement for live bridge validation when
+bridge behavior changes.
+
+The subsequent [live PK](../docs/research/desktop-automation/2026-10-31/live-pk.md)
+added installed agent-desktop 1.0.1, an owned AppKit fixture, cursor-on/off cohorts,
+exact-window checks and disposal readback. Routing tests preserve the user's
+Codex-first preference even when other candidates have the same CLI/system
+capabilities, prefer capable agent-desktop before Peekaboo, and retain Peekaboo
+when the earlier candidate lacks the required capability.
+
+The npm cursor claim was subsequently narrowed: `rendered: true` was a false
+positive in the installed platform-suffixed executable. The source-backed
+[basename probe](../fixtures/desktop-pk/cursor-basename-probe.py) reproduced
+renderer socket counts `0 -> 1 -> 0` for identical bytes/arguments while changing
+only the filename. It is a manual macOS probe, not an automatic CI/UI test. The
+user confirmed the renamed copy's visible cursor, and a separate actual-renderer
+cohort passed three rounds. The installed npm command and mise configuration
+were left unchanged.
+
+## Decision-tree maintenance
+
+`native-route-order.json` is shared by the native candidate evaluator and
+`generate-routing-diagrams.mjs`. The generator owns the native section of the full
+tree and the shared standalone native diagram. `npm run validate` checks freshness;
+`routing-diagram-generation.test.mjs` changes a temporary priority source, proves
+that checking rejects stale diagrams, then regenerates and checks successfully.
+Native routing tests exercise the shared first-party-first rule across harnesses,
+capability gates, explicit constraints and harness-specific bridge exclusions. These are decision-policy
+checks, not additional live desktop trials.

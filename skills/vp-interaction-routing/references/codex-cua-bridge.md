@@ -326,19 +326,22 @@ cannot approve an unclassified request. Set it only deliberately.
 
 ## Choosing between this bridge and Peekaboo
 
-Both read the accessibility tree, act on it, and do not steal focus. They differ
-in payload size and in breadth.
+The original bridge study compared AX payload and surface breadth. Its latency
+results are historical, not a current comparison against the live PK versions.
+Both offer AX routes; verify focus behavior for the exact installed operation.
 
 | Dimension | This bridge | Peekaboo |
 |-----------|-------------|----------|
 | Full tree of one small window | smaller, and includes the menu bar | larger, menu bar needs a separate call |
 | Re-read after a small change | diff only | full tree every time |
-| Screenshot | opt-in, never required to act | required snapshot for clicks |
-| Per-click latency | higher | lower |
+| Screenshot | opt-in for semantic AX | semantic AX snapshots can act without images; coordinates need capture receipts |
+| Per-click latency | not remeasured for the current bridge | not inferred from the earlier study |
 | Surface breadth | 11 accessibility operations | windows, menus, Dock, Spaces, dialogs, clipboard, capture, predicate verification |
 
-Route by the binding constraint. Prefer Peekaboo for breadth, for system
-surfaces, and for latency-sensitive click sequences. Prefer this bridge when
-accessibility-tree size is the binding constraint, such as long sessions against
-a large application UI, where the server-side diff avoids re-sending an entire
-tree on every read.
+Apply the current native routing gate: Codex itself uses first-party Computer
+Use. Elsewhere, consider an eligible verified agent-desktop before this optional
+bridge or Peekaboo. A registered healthy bridge can fit a binding diff/payload
+requirement; retain Peekaboo for remaining capabilities. Do not select a route
+from unversioned per-click latency claims. The current
+repository research under `docs/research/desktop-automation/` compares installed
+native drivers, not this bridge's current end-to-end latency.

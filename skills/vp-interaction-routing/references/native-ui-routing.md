@@ -20,10 +20,11 @@ resource and the client action required to release it.
 
 ## First-Party Computer Use
 
-Prefer Codex first-party Computer Use for native application work when operating
-as Codex. In another agent, prefer that agent's first-party computer use when it
-supports the operation; otherwise use the Codex Computer Use bridge through Codex
-app-server when it is registered and healthy. Typical operations include
+Prefer Codex first-party Computer Use for ordinary native application work when
+operating as Codex and no binding requirement favors another eligible route.
+In another agent, prefer that host's own first-party surface whenever capable.
+Apply the capability gate below before choosing a CLI or registered healthy bridge.
+Typical operations include
 reading an application's accessibility state, clicking controls, entering text,
 scrolling, dragging, and reading back the result.
 
@@ -73,106 +74,95 @@ Treat the bridge as an optional capability, not a universal dependency:
   confirmation policy; honor a policy that permits the action without prompting
   and do not add a separate confirmation gate in this routing layer.
 
-Prefer the host's first-party surface when it provides equal capability and
-better integration. Use the bridge when the host has no native UI surface or
+Prefer the host's first-party surface over the optional bridge when both
+provide equal capability and the former has better integration. Use the bridge when the host has no native UI surface or
 when the bridge materially improves background-safe accessibility interaction.
+
+## Capability-Gated Native Selection
+
+Read the [native decision tree](native-decision-tree.md) before selecting a
+route. Every harness prefers its own first-party surface; Codex uses Codex
+Computer Use and must not use the bridge. Do not derive a global product ranking
+from one app or upstream docs.
+Filter candidates by platform, availability, authorization, exact operation,
+required state, and readback before ranking. Apply the same filters to fallbacks.
+
+- In every harness, prefer its own first-party computer use whenever it can
+  complete the authorized operation and readback. In Codex, this is Codex Computer
+  Use. This preference remains first even when a small driver benchmark favors
+  another tool. Preserve explicit tool
+  requests and genuinely binding requirements it cannot satisfy.
+- Next prefer capable agent-desktop over Peekaboo. Verify the exact operation,
+  target and readback; read its version-matched core, platform and relevant
+  command skills.
+  An absent binary or missing permission is not an implicit setup request.
+- For visible feedback, use a task-owned session with `session start --cursor`
+  or `cursor-overlay enable --session <id>`. Check `data.rendered`: saved settings
+  are not proof of rendering. In the tested npm 1.0.1 package, even `rendered: true`
+  was a false positive because the platform-suffixed binary skipped renderer
+  startup. Verify the actual executable and renderer/visibility before treating
+  visible feedback as available; the repository research contains the source-backed reproduction.
+  Do not introduce its temporary renamed-copy diagnostic as a persistent fix.
+  The overlay is presentation, not physical-pointer delivery; it does not require
+  `--headed`. Inspect its actual visibility when that matters, measure the intended enabled mode, and disable/end it on exit.
+- For no-synthetic-input work, require evidence for the exact command and target.
+  macOS `press` explicitly uses physical keyboard input even without `--headed`.
+  A semantic ref action's delivery metadata and readback establish a narrower
+  fact than a product-wide headless label.
+- Retain Peekaboo for requirements still missing or unverified in the preceding
+  candidates, including specialized system/AX diagnostics. A dedicated command
+  family helps discovery but does not establish that no other tool can do it.
+- Outside Codex, a registered healthy eligible bridge remains another native
+  candidate after a capable CLI and the host first-party surface. Codex itself
+  must not use that bridge. Do not route around an app or action denial.
+- For locked use, use only an already authorized, configured and verified route.
+  Do not enable unlock support or change permissions as part of tool selection.
+
+Installed-version PK results and raw observations are maintained outside the
+skill under `docs/research/desktop-automation/`. They are maintenance evidence,
+not a prerequisite for an ordinary native task. All selection
+and fallback paths require a current candidate inventory; a generic native UI
+label is insufficient. Inspect nested resolution details and delivery disposition
+before interpreting an error such as `TIMEOUT`; refresh the intended target
+rather than treating the top-level name as proof that the whole app is dead.
 
 ## Peekaboo
 
-Peekaboo can move focus, pointer, windows, and Spaces in the user's live desktop,
-so it can contend with the user's own interaction. Use the installed `peekaboo`
-skill only when first-party computer use and a healthy bridge are unavailable on macOS,
-or when the task requires a capability they do not provide:
+Peekaboo can contend with the user's own interaction through focus, pointer and
+system state. It also supports background semantic and exact-target input; do
+not infer contention from the product name alone. Use the installed `peekaboo`
+skill and inspect the actual host, version, permissions and command help.
 
-- operating an unfocused application or a specifically identified window;
-- window movement, resizing, focus, menus, Dock, Spaces, or system dialogs;
-- deep accessibility inspection, identifiers, bounds, and named AX actions;
-- comparing accessibility actions with synthetic input paths;
-- window-scoped capture and annotated inspection;
-- stable predicate verification and desktop automation troubleshooting.
+Prefer background accessibility actions when the exact target supports them.
+Use foreground interaction only when authorized and necessary. A refused
+background operation does not authorize foreground input. Untargeted background
+input is refused rather than delivered; target by the exact window and fresh
+snapshot or another command-supported exact selector. Pass a process id through
+`--pid <pid>` or `--app 'PID:<pid>'`, not a bare numeric app name.
 
-Refresh Peekaboo state before interaction. Treat its element and snapshot IDs
-as valid only for the observed UI state. Avoid Peekaboo interaction while the
-user is actively using the same desktop. If contention is likely and the task
-cannot be isolated, pause for user coordination before acting.
+Refresh identifiers after mutation. `success: true` or `effect: unverifiable`
+does not establish an app change; inspect delivery/retry metadata and read the
+intended predicate before another input. For a visual effect compare a follow-up
+capture; use semantic readback for nonvisual state or noisy captures. Background
+coordinate clicks require `--snapshot` from a fresh `see` capture of that
+exact target window with the receipts required by the installed command.
 
-Prefer background accessibility actions when Peekaboo can resolve the target
-process. Use foreground interaction only when the operation requires a key
-window, a Space switch, or a synthetic foreground event. Confirm command-level
-support before relying on a background-specific flag such as
-`--focus-background`.
+An exact-window AX-only snapshot can support semantic mutation when its current
+host reports mutation targeting available. Check that capability and the command's
+receipts rather than requiring screenshots for every semantic click. Coordinates
+still require a qualifying fresh capture; an AX-only observation is insufficient.
 
-Peekaboo 4 requires explicit targets for background input. Always pass `--app`
-or `--pid` to `peekaboo click`, `type`, `scroll`, and `press`. Untargeted
-background input is refused rather than delivered:
+For Electron/Chromium, inspect the actual app's AX exposure first. Menu discovery
+can reveal a semantic action or shortcut, but accepted targeted keyboard dispatch
+can still have no visible effect. Background reachability is a property of the
+app, build and input route, not of Electron as a whole. Prefer a verified DOM/CDP
+route for web content when available. Do not relaunch an existing private profile
+with CDP merely to get another automation interface. Check native-picker focus
+requirements before opening one; no universal focus-free guarantee is established.
 
-```
-Keyboard input requires --app, --pid, or --snapshot for background delivery.
-```
-
-`--foreground` is the documented escape hatch and does send global input, so
-treat an untargeted foreground call as input aimed at whatever the user is
-using. Pass a process id through `--pid <pid>` or `--app 'PID:<pid>'`; `--app`
-with a bare number is read as an application name and fails with
-`Application '<pid>' not found`.
-
-Peekaboo also refuses a cold background `app launch` before dispatch and directs
-the caller to retry in the foreground. When an app must start without taking the
-foreground, use `open -g -a <App>` instead, which was measured to leave the
-active application unchanged.
-
-For a native Electron app, use this background-first order:
-
-1. Run `peekaboo menu list --pid <pid>` to enumerate the menu tree and discover
-   keyboard shortcuts without activating the app. This read is background-safe.
-2. Try process-targeted `press` and `type` keyboard input next, and prove the
-   result with a readback. Background keyboard delivery into Electron web
-   content is not reliable: it can be accepted and reported as `success: true`
-   with `effect: unverifiable` while changing nothing.
-3. Use coordinate clicks only as a last resort. A background click presses the
-   accessibility element under the point, so the route exists only where the
-   target app exposes one. Probe the app with `see` before relying on it: an
-   app whose window returns only chrome controls has nothing for the click to
-   press, and the call fails with
-   `No pressable accessibility element was found`.
-4. Before opening a native file or folder picker, disclose and budget the
-   unavoidable foreground interruption.
-
-How much of steps 2 and 3 survives is a property of the app, not of Electron.
-Accessibility exposure differs between builds, so establish it per target rather
-than assuming it. In the one app measured here, Antigravity 90766, the window
-exposed 12 elements, all of them window chrome, and neither keyboard input nor a
-coordinate click reached the web content. When a readback shows nothing changed
-in an app like that, escalate to `--foreground`, disclose the foreground cost,
-or move the task to a DOM-aware surface.
-
-`effect: unverifiable` is not evidence of success, for pointer and keyboard
-input alike. Capture the exact target window before the interaction and
-compare a follow-up capture before another step depends on a visual effect.
-Verify the intended predicate through a semantic readback when the effect is
-nonvisual or when unrelated animation, caret movement, or other visual noise
-could change the capture. A background coordinate click also requires
-`--snapshot` from a fresh `see` capture of that exact target window; PID-only
-or app-only coordinates are refused.
-
-The Peekaboo behavior in this section was measured against Peekaboo 4.0.0. Treat
-a specific message, flag, or refusal as version-dependent and re-derive it from
-the installed build before relying on it; the routing rules above hold because
-of what the input model can reach, not because of any one release.
-
-Reading and acting use different observations. The text-only read, `inspect_ui`
-over MCP or `see --tree --no-screenshot` on the command line, is the cheap way to
-inspect a tree, but its snapshot cannot drive a click:
-
-```
-Snapshot is stale: Exact-window click snapshot has no capture-time process-generation receipt and bounds. Re-run peekaboo see to refresh.
-```
-
-Use `see` when the intent is to act, and reserve the text-only read for
-inspection.
-
-Use the `vp-recording` skill when the requested artifact is a video or contact
-sheet rather than an automation diagnostic.
+Use the `vp-recording` skill for video or contact sheets rather than automation
+diagnostics. Track task-created snapshots and helper processes; use documented
+cleanup without stopping pre-existing shared hosts.
 
 ## Final Fallback
 

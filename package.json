@@ -1,13 +1,15 @@
 {
   "name": "agent-plugin-vp-interaction-routing",
-  "version": "0.3.2",
+  "version": "0.4.0",
   "description": "Interaction routing for agents, with a bridge that exposes macOS Codex Computer Use as MCP tools.",
   "private": true,
   "type": "module",
   "license": "MIT",
   "scripts": {
     "validate": "node scripts/validate.mjs",
-    "test": "npm run validate"
+    "test": "npm run validate",
+    "routing:generate": "node scripts/generate-routing-diagrams.mjs",
+    "routing:check": "node scripts/generate-routing-diagrams.mjs --check"
   },
   "devDependencies": {
     "mdast-util-from-markdown": "^2.0.3",
