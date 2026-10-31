@@ -1,13 +1,19 @@
 ---
-name: vp-tool-comparison
+name: vpir-tool-comparison
 description: >-
-  Compare automation tools or competing interfaces by scenario, verify capability
-  claims, preserve reusable evidence, and derive conditional routing rules.
-  Use for a tool PK, capability matrix, or evidence-based routing revision.
+  Maintain this repository's interaction-tool comparisons and routing evidence.
+  Use for a desktop/browser tool PK, capability matrix, or evidence-based update
+  to the vp-interaction-routing plugin.
   Boundary: not an installation workflow or a synthetic universal leaderboard.
 ---
 
-# Tool Comparison
+# Interaction Tool Comparison
+
+Work from the repository root. Keep dated findings in
+`docs/research/desktop-automation/`, fixtures in `fixtures/desktop-pk/`, and
+consumer routing under `skills/vp-interaction-routing/`. Update the research index
+and use `npm run routing:generate` when changing native priority data; finish
+with `npm run validate`. This maintenance skill is not a plugin component.
 
 Produce a comparison another agent can audit and refresh. A product's claim,
 implementation, installed version, and observed outcome are different evidence.

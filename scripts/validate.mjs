@@ -131,31 +131,34 @@ check("the bridge is executable", () => {
   assert.ok(statSync(p).mode & 0o111, "needs the executable bit for a bare-path command");
 });
 
-check("every skill has a SKILL.md with name and description", () => {
-  const dirs = readdirSync(join(root, "skills"), { withFileTypes: true }).filter((d) =>
-    d.isDirectory(),
-  );
-  assert.ok(dirs.length > 0, "no skills found");
-  for (const dir of dirs) {
-    const md = join(root, "skills", dir.name, "SKILL.md");
-    assert.ok(existsSync(md), `${dir.name} has no SKILL.md`);
-    const front = readFileSync(md, "utf8").split("---")[1] ?? "";
-    assert.match(front, /\bname:/, `${dir.name} frontmatter has no name`);
-    assert.match(front, /\bdescription:/, `${dir.name} frontmatter has no description`);
-    assert.ok(
-      front.includes(`name: ${dir.name}`),
-      `${dir.name} frontmatter name must match its directory`,
-    );
+const skillRoots = ["skills", ".agents/skills"];
+check("all consumer and maintainer skills have valid matching names and descriptions", () => {
+  for (const relative of skillRoots) {
+    const dirs = readdirSync(join(root, relative), { withFileTypes: true });
+    assert.ok(dirs.length > 0, `no skills found in ${relative}`);
+    for (const dir of dirs) {
+      assert.ok(dir.isDirectory(), `${relative}/${dir.name} must be a real directory`);
+      assert.match(dir.name, /^[a-z0-9]+(?:-[a-z0-9]+)*$/);
+      assert.ok(dir.name.length <= 64);
+      assert.ok(dir.name.startsWith(relative === "skills" ? "vp-" : "vpir-"));
+      const md = join(root, relative, dir.name, "SKILL.md");
+      const front = readFileSync(md, "utf8").split("---")[1] ?? "";
+      assert.match(front, /\bdescription:/, `${dir.name} frontmatter has no description`);
+      assert.ok(front.includes(`name: ${dir.name}\n`),
+        `${dir.name} frontmatter name must match its directory`);
+    }
   }
 });
 
 check("every reference file is linked from its SKILL.md", () => {
-  for (const dir of readdirSync(join(root, "skills"))) {
-    const refs = join(root, "skills", dir, "references");
-    if (!existsSync(refs)) continue;
-    const md = readFileSync(join(root, "skills", dir, "SKILL.md"), "utf8");
-    for (const file of readdirSync(refs)) {
-      assert.ok(md.includes(file), `references/${file} is not linked from ${dir}/SKILL.md`);
+  for (const relative of skillRoots) {
+    for (const dir of readdirSync(join(root, relative))) {
+      const refs = join(root, relative, dir, "references");
+      if (!existsSync(refs)) continue;
+      const md = readFileSync(join(root, relative, dir, "SKILL.md"), "utf8");
+      for (const file of readdirSync(refs)) {
+        assert.ok(md.includes(file), `references/${file} is not linked from ${dir}/SKILL.md`);
+      }
     }
   }
 });
