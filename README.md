@@ -37,17 +37,22 @@ The skill directly uses its
 [native decision tree](skills/vp-interaction-routing/references/native-decision-tree.md),
 with a shared first-party-first principle and harness-specific tool identities
 and bridge eligibility. The diagrams and executable
-candidate order share one JSON source; `npm run routing:check` detects drift. Use
-[`vp-tool-comparison`](skills/vp-tool-comparison/SKILL.md) to repeat a tool PK and
-update routing from evidence. These repository changes do not install or update
+candidate order share one JSON source; `npm run routing:check` detects drift.
+For repository maintenance, use
+[`vpir-tool-comparison`](.agents/skills/vpir-tool-comparison/SKILL.md) to repeat
+a tool PK and update routing from evidence. These repository changes do not install or update
 any desktop tool or globally installed skill.
+
+Repository maintenance conventions are in [AGENTS.md](AGENTS.md). Maintenance
+skills use `vpir-` under `.agents/skills/`; distributed plugin skills retain `vp-`
+under `skills/`. These are separate discovery roots.
 
 ## What is in it
 
 | Component | Purpose |
 |-----------|---------|
 | `skills/vp-interaction-routing/` | Routing guidance: connectors and CLIs first, then browser surfaces, then native UI, then coordinates as a last resort |
-| `skills/vp-tool-comparison/` | Scenario-based tool comparison with versioned evidence, small checks, and conditional routing decisions |
+| `.agents/skills/vpir-tool-comparison/` | Repo-only comparison maintenance; Claude Code reads its relative symlink in `.claude/skills/` |
 | `skills/vp-interaction-routing/scripts/codex-cua-bridge.mjs` | An MCP stdio server exposing macOS Codex Computer Use, so a non-Codex harness can call it as ordinary tools |
 | `docs/research/desktop-automation/` | Versioned research and PK observations, separate from skill execution guidance |
 | `tests/` | Repository checks; the ones needing macOS with Computer Use skip themselves elsewhere |
@@ -69,7 +74,7 @@ do not collide, so both ship from one tree:
 | Codex | `.codex-plugin/plugin.json` | `.mcp.json`, shared with Claude Code | `${CLAUDE_PLUGIN_ROOT}` |
 | Antigravity | `plugin.json`, shared with Agent Plugins | `mcp_config.json` | `${PLUGIN_ROOT}` |
 
-Every client reads `skills/<name>/SKILL.md`, so that directory is shared rather
+Every plugin client reads `skills/<name>/SKILL.md`, so that directory is shared rather
 than duplicated.
 
 Codex must not use this bridge: it reaches Computer Use through the first-party

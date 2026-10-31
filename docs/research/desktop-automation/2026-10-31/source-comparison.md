@@ -4,7 +4,7 @@ Observed October 31, 2026 (Asia/Taipei). This is a versioned research record,
 not a claim that every tool has passed the same live benchmark. The later
 [live PK](live-pk.md) records the installed agent-desktop 1.0.1
 trials and the current first-party-first routing preference. The method is
-maintained in [vp-tool-comparison](../../../../skills/vp-tool-comparison/SKILL.md).
+maintained in [vpir-tool-comparison](../../../../.agents/skills/vpir-tool-comparison/SKILL.md).
 
 ## Baselines and evidence classes
 

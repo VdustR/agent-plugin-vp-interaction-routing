@@ -27,7 +27,7 @@ bug and the temporary correctly named copy remain separate configurations.
 
 1. Read the relevant dated record and identify which premise changed: binary or
    resolved executable, host protocol, OS, permissions, target app or requirement.
-2. Use `vp-tool-comparison` and the smallest relevant fixture. Record observation
+2. Use `vpir-tool-comparison` and the smallest relevant fixture. Record observation
    time/timezone, exact versions, initial state, outcome and evidence limits.
    Keep source claims, actual actions and human observations distinct.
 3. Add a dated directory for a new observation date. For a same-day follow-up,

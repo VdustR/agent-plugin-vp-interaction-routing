@@ -1,0 +1,4 @@
+interface:
+  display_name: "VPIR Tool Comparison"
+  short_description: "Maintain interaction-tool evidence and routing"
+  default_prompt: "Use $vpir-tool-comparison to refresh this repository's tool comparison by scenario, preserve evidence limits, and update plugin routing from verified capabilities."

@@ -1,4 +1,0 @@
-interface:
-  display_name: "VP Tool Comparison"
-  short_description: "Compare tool capabilities and derive verified routing"
-  default_prompt: "Use $vp-tool-comparison to compare these tools by scenario, preserve evidence limits, and update routing from verified capabilities."

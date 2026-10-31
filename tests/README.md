@@ -172,7 +172,8 @@ observations and primary sources are in the
 agent-desktop was absent from PATH and was not installed or executed. Those
 checks establish the narrow action/readback path, not performance or focus safety.
 
-An independent read-only skill trial used only `vp-tool-comparison`, two upstream
+An independent read-only skill trial used only the comparison skill (then named
+`vp-tool-comparison`, now repo-local `vpir-tool-comparison`), two upstream
 README snapshots and a dated local inventory in a separate temporary directory.
 The ordinary request asked which CLI route could meet no-pointer-movement and
 no-synthetic-keyboard constraints. The resulting artifact preserved the installed
@@ -213,3 +214,12 @@ that checking rejects stale diagrams, then regenerates and checks successfully.
 Native routing tests exercise the shared first-party-first rule across harnesses,
 capability gates, explicit constraints and harness-specific bridge exclusions. These are decision-policy
 checks, not additional live desktop trials.
+
+## Maintainer and consumer skill boundaries
+
+`skill-layout.test.mjs` checks that plugin discovery contains only consumer
+skills, each maintainer skill has a resolving relative Claude alias to its
+canonical source, and `CLAUDE.md` resolves to `AGENTS.md`. The repository
+validator checks naming and frontmatter in both canonical roots. These are
+filesystem/discovery contract checks, not proof of model skill selection or
+Claude/Antigravity runtime discovery.
