@@ -92,13 +92,14 @@ required state, and readback before ranking. Apply the same filters to fallbacks
   Use. This preference remains first even when a small driver benchmark favors
   another tool. Preserve explicit tool
   requests and genuinely binding requirements it cannot satisfy.
-- Next prefer capable agent-desktop over Peekaboo. Verify the exact operation,
-  target and readback; read its version-matched core, platform and relevant
+- Next prefer capable agent-desktop CLI or registered MCP over Peekaboo. Verify the
+  exact operation, target and readback; read its version-matched core, platform and relevant
   command skills.
   An absent binary or missing permission is not an implicit setup request.
 - For visible feedback, use a task-owned session with `session start --cursor`
   or `cursor-overlay enable --session <id>`. Check `data.rendered`: saved settings
-  are not proof of rendering. In the tested npm 1.0.1 package, even `rendered: true`
+  are not proof of rendering. In the tested npm 1.0.1 and 1.2.0
+  platform-named binaries, even `rendered: true`
   was a false positive because the platform-suffixed binary skipped renderer
   startup. Verify the actual executable and renderer/visibility before treating
   visible feedback as available; the repository research contains the source-backed reproduction.
@@ -125,6 +126,43 @@ and fallback paths require a current candidate inventory; a generic native UI
 label is insufficient. Inspect nested resolution details and delivery disposition
 before interpreting an error such as `TIMEOUT`; refresh the intended target
 rather than treating the top-level name as proof that the whole app is dead.
+
+## agent-desktop CLI and MCP
+
+The CLI and a registered `agent-desktop mcp` server are adapters for the same
+candidate, not separate priority tiers. Preserve an explicit CLI or MCP
+requirement. Discover the actual tools and read their schemas; shipping an MCP
+command does not register a server in the current harness or authorize persistent
+registration. A task-local stdio probe establishes that process, not installed
+client integration.
+
+For MCP, read `desktop_skills_get` with `name: "desktop"`, then
+`name: "platform"`, and the relevant command reference. Use tool-schema argument
+names, such as `ref_id` and `window_id`, rather than CLI flags. In tested 1.2.0,
+`--session`, `--agent-id`, `--headed`, wait and trace globals are fixed at server
+startup; per-call overrides are refused. Session creation does not switch that
+running server to the new scope. Check the server's actual mode and namespace
+before using its refs. Each call spawns a CLI child; MCP availability alone does
+not prove lower latency, cancellation rollback, or automatic session cleanup.
+CLI `--stdin` is not exposed by the tested MCP schema. The CLI stdin mode omits
+value fields from its result, but does not redact unrelated observations or screenshots.
+
+On macOS, 1.1.0 changed ref identity to retained accessibility addresses; the
+tested 1.2.0 distinguished identical buttons and refused a removed element with
+`STALE_REF` / `retained_object_stale`. A live retained ref can still dispatch
+after its window is hidden. Reobserve the intended visible window after a state
+change and derive fresh refs; hidden-window refusal is not a liveness guarantee.
+This macOS result does not establish Windows/Linux identity behavior. For row
+selection, verify the selection itself: successful descendant activation need
+not select its row; use a verified table `select` operation when applicable.
+
+Read `data.complete` on snapshots. An observation can succeed with
+`complete: false` and `truncated: true`; raise its observation budget or drill a
+known region before treating missing controls as absent. A very short budget
+can instead expire during setup and return `TIMEOUT`. Do not interpret either
+result as evidence that the whole application is unresponsive. A headless
+`type --interval-ms` still needs the target's semantic TypeText capability;
+a refusal does not authorize physical input or a headed retry.
 
 ## Peekaboo
 

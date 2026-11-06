@@ -223,3 +223,21 @@ canonical source, and `CLAUDE.md` resolves to `AGENTS.md`. The repository
 validator checks naming and frontmatter in both canonical roots. These are
 filesystem/discovery contract checks, not proof of model skill selection or
 Claude/Antigravity runtime discovery.
+
+## November 6 refresh
+
+The [updated comparison](../docs/research/desktop-automation/2026-11-06/comparison.md)
+adds agent-desktop 1.2.0 CLI/MCP, both installed Peekaboo 4.4.0 and task-local
+4.9.8, plus separate browser-route evidence. The same original AppKit workload
+passed three serial rounds per configuration. Advanced owned-fixture trials
+covered identical twins/removal, retained hidden refs, delayed-value waits,
+partial observations and stdin. A supported semantic paced-text case passed;
+an unsupported field refused without physical escalation. Ordinary row click
+did not select, while table select did; container-only rows remain unverified.
+
+The native diagrams name CLI and registered MCP as adapters of one candidate.
+Priority is unchanged. Existing policy tests and two manual walkthrough passes
+verify different layers; no new independent agent trial is claimed. The
+[fixture guide](../fixtures/desktop-pk/README.md) describes reproduction and
+cleanup. Live bridge tests intentionally skip in Codex for this routing-only
+change; direct first-party native checks were run separately.

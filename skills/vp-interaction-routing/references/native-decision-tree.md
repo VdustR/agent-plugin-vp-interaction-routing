@@ -30,8 +30,8 @@ flowchart TD
   Q0 -->|Yes| R0["Use the selected host's first-party Computer Use"]
   R0 --> V
   Q0 -->|No| Q1
-  Q1{"agent-desktop<br/>available, capable and eligible?"}
-  Q1 -->|Yes| R1["Use agent-desktop"]
+  Q1{"agent-desktop CLI or registered MCP<br/>available, capable and eligible?"}
+  Q1 -->|Yes| R1["Use verified agent-desktop CLI or registered MCP"]
   R1 --> V
   Q1 -->|No| Q2
   Q2{"Identified non-Codex harness with a registered<br/>healthy, capable and eligible macOS Codex bridge?"}

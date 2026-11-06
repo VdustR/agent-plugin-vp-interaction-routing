@@ -16,6 +16,10 @@ Preserve explicit tool requests and all input/platform constraints. Archived PK
 results are under the repository's `docs/research/desktop-automation/`; current
 availability and exact operation support still require discovery.
 
+agent-desktop CLI and registered MCP are the same native candidate. For MCP,
+verify the server's fixed global mode/session and tool schemas; CLI availability
+does not prove registration. See the [adapter and ref constraints](native-ui-routing.md#agent-desktop-cli-and-mcp).
+
 ## Codex
 
 - Prefer Apps, connectors, APIs, and repository CLIs for semantic operations.

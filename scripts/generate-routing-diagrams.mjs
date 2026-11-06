@@ -9,7 +9,7 @@ const root = new URL("../", import.meta.url);
 const checkOnly = process.argv.includes("--check");
 const routes = {
   "host-first-party-computer-use": { id: "O", label: "Use the selected host's first-party Computer Use" },
-  "agent-desktop": { id: "AD", label: "Use agent-desktop" },
+  "agent-desktop": { id: "AD", label: "Use verified agent-desktop CLI or registered MCP" },
   "healthy-codex-cua-bridge": { id: "S", label: "Use the registered healthy Codex CUA bridge" },
   "peekaboo": { id: "T", label: "Use Peekaboo" },
 };
@@ -25,7 +25,7 @@ function question(route) {
     return "Identified non-Codex harness with a registered<br/>healthy, capable and eligible macOS Codex bridge?";
   }
   if (route === "peekaboo") return "Peekaboo on macOS<br/>available, capable and eligible?";
-  return "agent-desktop<br/>available, capable and eligible?";
+  return "agent-desktop CLI or registered MCP<br/>available, capable and eligible?";
 }
 
 function combinedFragment() {
