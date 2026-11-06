@@ -56,7 +56,7 @@ candidate order and generated diagrams.
    - native UI in every harness: the current host's first-party computer use
      first whenever capable; in Codex, this is Codex Computer Use. A measured
      driver timing or visible cursor preference does not override this principle;
-   - after an ineligible first-party route: verified agent-desktop, then an
+   - after an ineligible first-party route: verified agent-desktop CLI or registered MCP, then an
      eligible registered healthy bridge outside Codex, then Peekaboo;
    - native fallback or an explicitly requested CLI workflow: agent-desktop
      before Peekaboo when its installed adapter and exact operation are verified;

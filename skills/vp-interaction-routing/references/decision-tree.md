@@ -129,7 +129,7 @@ flowchart TD
   NQ0{"This harness's first-party computer use<br/>available, capable and eligible?"}
   NQ0 -->|Yes| O
   NQ0 -->|No| NQ1
-  NQ1{"agent-desktop<br/>available, capable and eligible?"}
+  NQ1{"agent-desktop CLI or registered MCP<br/>available, capable and eligible?"}
   NQ1 -->|Yes| AD
   NQ1 -->|No| NQ2
   NQ2{"Identified non-Codex harness with a registered<br/>healthy, capable and eligible macOS Codex bridge?"}
@@ -139,7 +139,7 @@ flowchart TD
   NQ3 -->|Yes| T
   NQ3 -->|No| U0
   O["Use the selected host's first-party Computer Use<br/><small>route: host-first-party-computer-use</small>"]
-  AD["Use agent-desktop<br/><small>route: agent-desktop</small>"]
+  AD["Use verified agent-desktop CLI or registered MCP<br/><small>route: agent-desktop</small>"]
   S["Use the registered healthy Codex CUA bridge<br/><small>route: healthy-codex-cua-bridge</small>"]
   T["Use Peekaboo<br/><small>route: peekaboo</small>"]
   %% END GENERATED NATIVE ROUTING

@@ -15,13 +15,19 @@ override explicit user preferences, authorization or current capability checks.
 
 | Observation date | Report | Supporting data | Scope |
 | --- | --- | --- | --- |
+| November 6, 2026, Asia/Taipei | [Release and live comparison refresh](2026-11-06/comparison.md) / [complete changes](2026-11-06/change-inventory.md) | [Sanitized observations](2026-11-06/observations.json) | agent-desktop 1.2.0 CLI/MCP, Codex, Peekaboo 4.4.0/4.9.8 and browser-route boundaries |
 | October 31, 2026, Asia/Taipei | [Primary-source comparison](2026-10-31/source-comparison.md) | [Initial observations](2026-10-31/initial-observations.json) | Initial docs/inventory research before the agent-desktop installation |
 | October 31, 2026, Asia/Taipei | [Live PK and cursor diagnosis](2026-10-31/live-pk.md) | [PK observations](2026-10-31/pk-observations.json) | Installed drivers, owned AppKit fixture, cursor basename fail/pass/revert, human visibility confirmation and cleanup |
 
-The second record supersedes the first record's local agent-desktop availability
+The October 31 live record supersedes the first record's local agent-desktop availability
 finding. It does not turn an old binary, source contract or single-app success
 into a current product-wide guarantee. The unchanged npm installation's cursor
 bug and the temporary correctly named copy remain separate configurations.
+
+The November 6 refresh supersedes the rerun configurations and scenarios only.
+It confirms that the platform-filename cursor issue persists in 1.2.0 and that
+hidden retained refs can still act. The CLI and registered MCP share one route;
+the first-party-first priority is unchanged.
 
 ## Updating the evidence
 

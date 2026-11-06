@@ -1,0 +1,1027 @@
+{
+  "observedDate": "2026-11-06",
+  "timezone": "Asia/Taipei",
+  "environment": {
+    "os": "macOS 26.6.2 (25G83)",
+    "architecture": "arm64",
+    "agentDesktop": "1.2.0",
+    "agentDesktopProtocol": "2.6",
+    "nativeSha256": "dec75e0bba0d1f9b589bdb88188770ad1a199cde9e02cf0a5b94175491f738e9",
+    "agentDesktopEntry": "existing local wrapper -> version-local symlink named agent-desktop -> npm platform binary; paired npm helper",
+    "permissions": {
+      "accessibility": "granted",
+      "screenRecording": "granted",
+      "automation": "unknown"
+    },
+    "peekabooInstalled": "4.4.0 d82dbd888",
+    "peekabooTaskLocal": "4.9.8 70dbc4183",
+    "peekabooArchiveSha256": "5b82b246cd7b257b68d15e136a8234848a8e70a5999cdf5526993fb860685bfe",
+    "peekabooSigner": "OpenClaw Foundation (FWJYW4S8P8); codesign --verify --strict passed",
+    "agentBrowser": "0.41.2"
+  },
+  "nativeCohorts": {
+    "codexFirstParty": {
+      "rounds": [
+        {
+          "milliseconds": 1870,
+          "readCharacters": 1902,
+          "passed": true
+        },
+        {
+          "milliseconds": 1685,
+          "readCharacters": 1902,
+          "passed": true
+        },
+        {
+          "milliseconds": 1718,
+          "readCharacters": 1902,
+          "passed": true
+        }
+      ],
+      "textReadback": "cua sample",
+      "checkboxReadback": true,
+      "independentWitness": {
+        "counter": 0,
+        "text": "cua sample",
+        "checked": true,
+        "fixtureFrontmost": false
+      },
+      "multiwindow": "App binding remained on Main; Main incremented, Secondary stayed zero",
+      "setup": "First getApp timed out before explicitly starting fixture; after start, getApp succeeded",
+      "cleanup": "No App end/disconnect exposed; completion_summary acknowledged; native service teardown unverified"
+    },
+    "agentDesktopCli": {
+      "rounds": [
+        {
+          "milliseconds": 1110.18,
+          "readCharacters": 5277,
+          "passed": true
+        },
+        {
+          "milliseconds": 1242.15,
+          "readCharacters": 5277,
+          "passed": true
+        },
+        {
+          "milliseconds": 1105.98,
+          "readCharacters": 5286,
+          "passed": true
+        }
+      ],
+      "setValue": {
+        "ok": true,
+        "command": "set-value",
+        "version": "2.6",
+        "data": {
+          "action": "set-value",
+          "disposition": {
+            "delivery": "delivered_verified",
+            "retry": "unsafe"
+          },
+          "steps": [
+            {
+              "label": "AXValue",
+              "mechanism": "semantic_api",
+              "outcome": "succeeded",
+              "verified": true
+            }
+          ],
+          "post_state": {
+            "enabled": true,
+            "hidden": false,
+            "offscreen": false,
+            "role": "textfield",
+            "states": [
+              "focused"
+            ],
+            "value": "native sample"
+          }
+        }
+      },
+      "checkbox": {
+        "ok": true,
+        "command": "click",
+        "version": "2.6",
+        "data": {
+          "action": "click",
+          "disposition": {
+            "delivery": "delivered_unverified",
+            "retry": "unsafe"
+          },
+          "steps": [
+            {
+              "label": "AXPress",
+              "mechanism": "semantic_api",
+              "outcome": "succeeded",
+              "verified": false
+            }
+          ]
+        }
+      },
+      "readbackPassed": true,
+      "cohortEndpoints": {
+        "fixtureFrontmostBefore": false,
+        "fixtureFrontmostAfter": false,
+        "pointerUnchanged": true,
+        "clipboardChangeCountDelta": 0
+      }
+    },
+    "agentDesktopCursor": {
+      "rounds": [
+        {
+          "milliseconds": 1751.79,
+          "readCharacters": 5286,
+          "passed": true
+        },
+        {
+          "milliseconds": 1633.46,
+          "readCharacters": 5277,
+          "passed": true
+        },
+        {
+          "milliseconds": 1659.32,
+          "readCharacters": 5286,
+          "passed": true
+        }
+      ],
+      "setValue": {
+        "ok": true,
+        "command": "set-value",
+        "version": "2.6",
+        "data": {
+          "action": "set-value",
+          "disposition": {
+            "delivery": "delivered_verified",
+            "retry": "unsafe"
+          },
+          "steps": [
+            {
+              "label": "AXValue",
+              "mechanism": "semantic_api",
+              "outcome": "succeeded",
+              "verified": true
+            }
+          ],
+          "post_state": {
+            "enabled": true,
+            "hidden": false,
+            "offscreen": false,
+            "role": "textfield",
+            "states": [
+              "focused"
+            ],
+            "value": "native sample"
+          }
+        }
+      },
+      "checkbox": {
+        "ok": true,
+        "command": "click",
+        "version": "2.6",
+        "data": {
+          "action": "click",
+          "disposition": {
+            "delivery": "delivered_unverified",
+            "retry": "unsafe"
+          },
+          "steps": [
+            {
+              "label": "AXPress",
+              "mechanism": "semantic_api",
+              "outcome": "succeeded",
+              "verified": false
+            }
+          ]
+        }
+      },
+      "readbackPassed": true,
+      "cohortEndpoints": {
+        "fixtureFrontmostBefore": false,
+        "fixtureFrontmostAfter": false,
+        "pointerUnchanged": true,
+        "clipboardChangeCountDelta": 0
+      }
+    },
+    "peekaboo44": {
+      "rounds": [
+        {
+          "milliseconds": 4623.28,
+          "readCharacters": 13071,
+          "passed": true
+        },
+        {
+          "milliseconds": 4557.79,
+          "readCharacters": 13071,
+          "passed": true
+        },
+        {
+          "milliseconds": 4583.76,
+          "readCharacters": 13071,
+          "passed": true
+        }
+      ],
+      "setValue": {
+        "success": true,
+        "data": {},
+        "outcome": {
+          "route": "bridge",
+          "mutation_dispatched": true,
+          "delivery_mode": "background",
+          "effect": "confirmed",
+          "retry_safety": "not_applicable",
+          "requires_fresh_observation": false,
+          "delivery_mechanism": "accessibility_value",
+          "dispatched_unit_count": 1,
+          "retry_safe": false,
+          "evidence": "verified_change",
+          "state": "confirmed_change",
+          "escalation": "none",
+          "dispatch_state": "dispatched"
+        }
+      },
+      "checkbox": {
+        "success": true,
+        "data": {},
+        "outcome": {
+          "requires_fresh_observation": true,
+          "evidence": "delivery_accepted",
+          "state": "dispatched_unverified",
+          "delivery_mechanism": "accessibility_action",
+          "escalation": "observe_before_retry",
+          "mutation_dispatched": true,
+          "effect": "unverifiable",
+          "route": "bridge",
+          "dispatch_state": "dispatched",
+          "retry_safe": false,
+          "dispatched_unit_count": 1,
+          "delivery_mode": "background",
+          "retry_safety": "unsafe"
+        }
+      },
+      "readbackPassed": true,
+      "cohortEndpoints": {
+        "fixtureFrontmostBefore": false,
+        "fixtureFrontmostAfter": false,
+        "pointerUnchanged": false,
+        "clipboardChangeCountDelta": 0
+      }
+    },
+    "peekaboo498": {
+      "rounds": [
+        {
+          "milliseconds": 11556.76,
+          "readCharacters": 13721,
+          "passed": true
+        },
+        {
+          "milliseconds": 11404.65,
+          "readCharacters": 13720,
+          "passed": true
+        },
+        {
+          "milliseconds": 11578.04,
+          "readCharacters": 13722,
+          "passed": true
+        }
+      ],
+      "setValue": {
+        "success": true,
+        "data": {},
+        "outcome": {
+          "evidence": "verified_change",
+          "state": "confirmed_change",
+          "retry_safe": false,
+          "effect": "confirmed",
+          "mutation_dispatched": true,
+          "dispatch_state": "dispatched",
+          "delivery_mechanism": "accessibility_value",
+          "delivery_mode": "background",
+          "route": "bridge",
+          "dispatched_unit_count": 1,
+          "escalation": "none",
+          "retry_safety": "not_applicable",
+          "requires_fresh_observation": false
+        }
+      },
+      "checkbox": {
+        "success": true,
+        "data": {},
+        "outcome": {
+          "dispatched_unit_count": 1,
+          "escalation": "observe_before_retry",
+          "effect": "unverifiable",
+          "dispatch_state": "dispatched",
+          "state": "dispatched_unverified",
+          "evidence": "delivery_accepted",
+          "retry_safety": "unsafe",
+          "retry_safe": false,
+          "mutation_dispatched": true,
+          "requires_fresh_observation": true,
+          "route": "bridge",
+          "delivery_mechanism": "accessibility_action",
+          "delivery_mode": "background"
+        }
+      },
+      "readbackPassed": true,
+      "cohortEndpoints": {
+        "fixtureFrontmostBefore": false,
+        "fixtureFrontmostAfter": false,
+        "pointerUnchanged": false,
+        "clipboardChangeCountDelta": 0
+      }
+    },
+    "agentDesktopMcp": {
+      "initialize": "2025-11-25",
+      "toolCount": 67,
+      "rounds": [
+        {
+          "milliseconds": 1017.25,
+          "passed": true
+        },
+        {
+          "milliseconds": 1172.47,
+          "passed": true
+        },
+        {
+          "milliseconds": 1665.02,
+          "passed": true
+        }
+      ],
+      "stdinAbsentFromSchema": true,
+      "serverExit": 0,
+      "ended": true,
+      "perCallHeadedRefusal": "Unknown argument 'headed' for desktop_click. Known arguments: ref_id, timeout_ms"
+    }
+  },
+  "advanced": {
+    "identity": [
+      {
+        "firstClick": {
+          "ok": true,
+          "command": "click",
+          "version": "2.6",
+          "data": {
+            "action": "click",
+            "disposition": {
+              "delivery": "delivered_unverified",
+              "retry": "unsafe"
+            },
+            "steps": [
+              {
+                "label": "AXPress",
+                "mechanism": "semantic_api",
+                "outcome": "succeeded",
+                "verified": false
+              }
+            ]
+          }
+        },
+        "secondClick": {
+          "ok": true,
+          "command": "click",
+          "version": "2.6",
+          "data": {
+            "action": "click",
+            "disposition": {
+              "delivery": "delivered_unverified",
+              "retry": "unsafe"
+            },
+            "steps": [
+              {
+                "label": "AXPress",
+                "mechanism": "semantic_api",
+                "outcome": "succeeded",
+                "verified": false
+              }
+            ]
+          }
+        },
+        "removedRef": {
+          "ok": false,
+          "command": "click",
+          "version": "2.6",
+          "error": {
+            "code": "STALE_REF",
+            "message": "The saved element no longer exists or no longer matches: role=button, name_chars=4, description_chars=0",
+            "disposition": {
+              "delivery": "not_delivered",
+              "retry": "safe"
+            },
+            "kind": "retained_object_stale"
+          }
+        },
+        "witness": {
+          "firstAttached": false,
+          "selectedRow": -1,
+          "text": "seed",
+          "twins": [
+            1,
+            1
+          ]
+        }
+      },
+      {
+        "firstClick": {
+          "ok": true,
+          "command": "click",
+          "version": "2.6",
+          "data": {
+            "action": "click",
+            "disposition": {
+              "delivery": "delivered_unverified",
+              "retry": "unsafe"
+            },
+            "steps": [
+              {
+                "label": "AXPress",
+                "mechanism": "semantic_api",
+                "outcome": "succeeded",
+                "verified": false
+              }
+            ]
+          }
+        },
+        "secondClick": {
+          "ok": true,
+          "command": "click",
+          "version": "2.6",
+          "data": {
+            "action": "click",
+            "disposition": {
+              "delivery": "delivered_unverified",
+              "retry": "unsafe"
+            },
+            "steps": [
+              {
+                "label": "AXPress",
+                "mechanism": "semantic_api",
+                "outcome": "succeeded",
+                "verified": false
+              }
+            ]
+          }
+        },
+        "removedRef": {
+          "ok": false,
+          "command": "click",
+          "version": "2.6",
+          "error": {
+            "code": "STALE_REF",
+            "message": "The saved element no longer exists or no longer matches: role=button, name_chars=4, description_chars=0",
+            "disposition": {
+              "delivery": "not_delivered",
+              "retry": "safe"
+            },
+            "kind": "retained_object_stale"
+          }
+        },
+        "witness": {
+          "firstAttached": false,
+          "selectedRow": -1,
+          "text": "seed",
+          "twins": [
+            1,
+            1
+          ]
+        }
+      }
+    ],
+    "rowClick": {
+      "result": {
+        "ok": true,
+        "command": "click",
+        "version": "2.6",
+        "data": {
+          "action": "click",
+          "disposition": {
+            "delivery": "delivered_verified",
+            "retry": "unsafe"
+          },
+          "steps": [
+            {
+              "label": "AXPress",
+              "mechanism": "semantic_api",
+              "outcome": "skipped"
+            },
+            {
+              "label": "AXOpen",
+              "mechanism": "semantic_api",
+              "outcome": "skipped"
+            },
+            {
+              "label": "activate_descendant",
+              "mechanism": "semantic_api",
+              "outcome": "succeeded",
+              "verified": true
+            }
+          ]
+        }
+      },
+      "selectedRow": -1
+    },
+    "tableSelect": {
+      "result": {
+        "ok": true,
+        "command": "select",
+        "version": "2.6",
+        "data": {
+          "action": "select",
+          "disposition": {
+            "delivery": "delivered_verified",
+            "retry": "unsafe"
+          },
+          "steps": [
+            {
+              "label": "Select",
+              "mechanism": "semantic_api",
+              "outcome": "succeeded",
+              "verified": true
+            }
+          ]
+        }
+      },
+      "selectedRow": 1
+    },
+    "stdin": {
+      "result": {
+        "ok": true,
+        "command": "set-value",
+        "version": "2.6",
+        "data": {
+          "action": "set-value",
+          "disposition": {
+            "delivery": "delivered_verified",
+            "retry": "unsafe"
+          },
+          "steps": [
+            {
+              "label": "AXValue",
+              "mechanism": "semantic_api",
+              "outcome": "succeeded",
+              "verified": true
+            }
+          ],
+          "post_state": {
+            "enabled": true,
+            "hidden": false,
+            "offscreen": false,
+            "role": "textfield"
+          }
+        }
+      },
+      "witnessText": "stdin 台灣 --stdin",
+      "valueOmitted": true
+    },
+    "pacedUnsupportedTarget": {
+      "ok": false,
+      "command": "type",
+      "version": "2.6",
+      "error": {
+        "code": "POLICY_DENIED",
+        "message": "Target is not actionable: supported_action (semantic action is unavailable and focus fallback is denied)",
+        "disposition": {
+          "delivery": "not_delivered",
+          "retry": "safe"
+        }
+      }
+    },
+    "changedDuringWait": [
+      {
+        "milliseconds": 1250.71,
+        "result": {
+          "ok": true,
+          "command": "wait",
+          "version": "2.6",
+          "data": {
+            "elapsed_ms": 1176,
+            "predicate": "value",
+            "observed": {
+              "expected_chars": 7,
+              "matched": true,
+              "value_chars": 7,
+              "value_present": true
+            }
+          }
+        }
+      },
+      {
+        "milliseconds": 1153.9,
+        "result": {
+          "ok": true,
+          "command": "wait",
+          "version": "2.6",
+          "data": {
+            "elapsed_ms": 1081,
+            "predicate": "value",
+            "observed": {
+              "expected_chars": 7,
+              "matched": true,
+              "value_chars": 7,
+              "value_present": true
+            }
+          }
+        }
+      }
+    ],
+    "ownedStatusRead": true,
+    "ownedStatusDrill": true,
+    "systemSurfaces": {
+      "dock": true,
+      "menu-bar-extras": true
+    },
+    "observationBudgets": [
+      {
+        "budgetMs": 1,
+        "elapsedMs": 87.54,
+        "result": {
+          "ok": false,
+          "command": "snapshot",
+          "version": "2.6",
+          "error": {
+            "code": "TIMEOUT",
+            "message": "NSWorkspace app inventory timed out",
+            "disposition": {
+              "delivery": "not_delivered",
+              "retry": "safe"
+            }
+          }
+        }
+      },
+      {
+        "budgetMs": 20,
+        "elapsedMs": 131.62,
+        "result": {
+          "ok": false,
+          "command": "snapshot",
+          "version": "2.6",
+          "error": {
+            "code": "TIMEOUT",
+            "message": "CoreGraphics window inventory timed out",
+            "disposition": {
+              "delivery": "not_delivered",
+              "retry": "safe"
+            }
+          }
+        }
+      },
+      {
+        "budgetMs": 100,
+        "elapsedMs": 182.65,
+        "result": {
+          "ok": false,
+          "command": "snapshot",
+          "version": "2.6",
+          "error": {
+            "code": "TIMEOUT",
+            "message": "NSWorkspace app inventory timed out",
+            "disposition": {
+              "delivery": "not_delivered",
+              "retry": "safe"
+            }
+          }
+        }
+      },
+      {
+        "budgetMs": 3000,
+        "elapsedMs": 724.52,
+        "result": {
+          "ok": true,
+          "command": "snapshot",
+          "version": "2.6",
+          "data": {
+            "complete": true
+          }
+        }
+      },
+      {
+        "budgetMs": 200,
+        "elapsedMs": 330.21,
+        "result": {
+          "ok": false,
+          "command": "snapshot",
+          "version": "2.6",
+          "error": {
+            "code": "TIMEOUT",
+            "message": "NSWorkspace app inventory timed out",
+            "disposition": {
+              "delivery": "not_delivered",
+              "retry": "safe"
+            }
+          }
+        }
+      },
+      {
+        "budgetMs": 300,
+        "elapsedMs": 427.98,
+        "result": {
+          "ok": true,
+          "command": "snapshot",
+          "version": "2.6",
+          "data": {
+            "complete": false,
+            "truncated": true,
+            "nodes_observed": 551
+          }
+        }
+      },
+      {
+        "budgetMs": 500,
+        "elapsedMs": 596.92,
+        "result": {
+          "ok": true,
+          "command": "snapshot",
+          "version": "2.6",
+          "data": {
+            "complete": false,
+            "truncated": true,
+            "nodes_observed": 1544
+          }
+        }
+      }
+    ],
+    "pacedSupportedTarget": {
+      "actions": [
+        "Click",
+        "RightClick",
+        "SetValue",
+        "SetFocus",
+        "TypeText"
+      ],
+      "result": {
+        "ok": true,
+        "command": "type",
+        "version": "2.6",
+        "data": {
+          "action": "type",
+          "disposition": {
+            "delivery": "delivered_verified",
+            "retry": "unsafe"
+          },
+          "steps": [
+            {
+              "label": "AXSelectedText",
+              "mechanism": "semantic_api",
+              "outcome": "succeeded",
+              "verified": false
+            }
+          ],
+          "post_state": {
+            "enabled": true,
+            "hidden": false,
+            "offscreen": false,
+            "role": "textfield",
+            "states": [
+              "focused"
+            ],
+            "value": "Aé👩‍💻"
+          },
+          "interval_ms": 40,
+          "keystrokes": 3
+        }
+      },
+      "witness": {
+        "checked": false,
+        "counter": 0,
+        "fixtureFrontmost": false,
+        "secondaryCounter": 0,
+        "secondaryVisible": false,
+        "text": "Aé👩‍💻"
+      }
+    },
+    "hiddenWindow": [
+      {
+        "exactClick": {
+          "ok": true,
+          "command": "click",
+          "version": "2.6",
+          "data": {
+            "action": "click",
+            "disposition": {
+              "delivery": "delivered_unverified",
+              "retry": "unsafe"
+            },
+            "steps": [
+              {
+                "label": "AXPress",
+                "mechanism": "semantic_api",
+                "outcome": "succeeded",
+                "verified": false
+              }
+            ]
+          }
+        },
+        "exactWitness": {
+          "checked": false,
+          "counter": 0,
+          "fixtureFrontmost": false,
+          "secondaryCounter": 1,
+          "secondaryVisible": true,
+          "text": "seed"
+        },
+        "hiddenBefore": {
+          "checked": false,
+          "counter": 0,
+          "fixtureFrontmost": false,
+          "secondaryCounter": 0,
+          "secondaryVisible": false,
+          "text": "seed"
+        },
+        "hiddenResult": {
+          "ok": true,
+          "command": "click",
+          "version": "2.6",
+          "data": {
+            "action": "click",
+            "disposition": {
+              "delivery": "delivered_unverified",
+              "retry": "unsafe"
+            },
+            "steps": [
+              {
+                "label": "AXPress",
+                "mechanism": "semantic_api",
+                "outcome": "succeeded",
+                "verified": false
+              }
+            ]
+          }
+        },
+        "hiddenAfter": {
+          "checked": false,
+          "counter": 0,
+          "fixtureFrontmost": false,
+          "secondaryCounter": 1,
+          "secondaryVisible": false,
+          "text": "seed"
+        }
+      },
+      {
+        "exactClick": {
+          "ok": true,
+          "command": "click",
+          "version": "2.6",
+          "data": {
+            "action": "click",
+            "disposition": {
+              "delivery": "delivered_unverified",
+              "retry": "unsafe"
+            },
+            "steps": [
+              {
+                "label": "AXPress",
+                "mechanism": "semantic_api",
+                "outcome": "succeeded",
+                "verified": false
+              }
+            ]
+          }
+        },
+        "exactWitness": {
+          "checked": false,
+          "counter": 0,
+          "fixtureFrontmost": false,
+          "secondaryCounter": 1,
+          "secondaryVisible": true,
+          "text": "seed"
+        },
+        "hiddenBefore": {
+          "checked": false,
+          "counter": 0,
+          "fixtureFrontmost": false,
+          "secondaryCounter": 0,
+          "secondaryVisible": false,
+          "text": "seed"
+        },
+        "hiddenResult": {
+          "ok": true,
+          "command": "click",
+          "version": "2.6",
+          "data": {
+            "action": "click",
+            "disposition": {
+              "delivery": "delivered_unverified",
+              "retry": "unsafe"
+            },
+            "steps": [
+              {
+                "label": "AXPress",
+                "mechanism": "semantic_api",
+                "outcome": "succeeded",
+                "verified": false
+              }
+            ]
+          }
+        },
+        "hiddenAfter": {
+          "checked": false,
+          "counter": 0,
+          "fixtureFrontmost": false,
+          "secondaryCounter": 1,
+          "secondaryVisible": false,
+          "text": "seed"
+        }
+      }
+    ]
+  },
+  "cursorBasename": {
+    "sha256": "dec75e0bba0d1f9b589bdb88188770ad1a199cde9e02cf0a5b94175491f738e9",
+    "checks": [
+      {
+        "executableName": "agent-desktop-darwin-arm64",
+        "rendered": true,
+        "rendererSocketCount": 0
+      },
+      {
+        "executableName": "agent-desktop",
+        "rendered": true,
+        "rendererSocketCount": 1
+      },
+      {
+        "executableName": "agent-desktop-darwin-arm64",
+        "rendered": true,
+        "rendererSocketCount": 0
+      }
+    ],
+    "limit": "Socket evidence is not pixel evidence",
+    "version": {
+      "os": "macos",
+      "target": "aarch64",
+      "version": "1.2.0"
+    },
+    "observedSocketSequence": [
+      0,
+      1,
+      0
+    ],
+    "reproduced": true,
+    "cleanup": {
+      "sessionEnded": true,
+      "rendererSocketsRemaining": 0
+    }
+  },
+  "browser": {
+    "agentBrowser": {
+      "version": "0.41.2",
+      "taskSessionCreated": true,
+      "task": "Owned file page: 0 -> 1; fill DOM sample; checked true; reset to 0/seed/false",
+      "actingSnapshotConfirmed": true,
+      "closed": true,
+      "sessionListAfter": []
+    },
+    "firstPartyIab": {
+      "outcome": "policy-blocked before page creation",
+      "reason": "data: URL refused; only http/https allowed; no alternate route attempted for blocked action"
+    },
+    "chromeExtension": {
+      "inventoryAvailable": true,
+      "executed": false
+    },
+    "chromeDevtools": {
+      "exposedToolsFound": false,
+      "executed": false
+    },
+    "codexBridge": {
+      "executed": false,
+      "reason": "Ineligible in Codex; mandated live-bridge skip procedure used"
+    }
+  },
+  "excludedRuns": [
+    "Peekaboo 4.9.8 first cohort overlapped an AD fixture reset; excluded and rerun serially",
+    "MCP prototype name-argument collision; server exited and session ended before corrected run",
+    "Wrong positional system-surface arguments, screenshot --out flag, and an incorrect dense window ID were probe setup errors; corrected from help/live inventory"
+  ],
+  "limits": [
+    "Endpoint pointer movement cannot be attributed to a driver on a shared desktop",
+    "Clipboard contents were never read; only change-count deltas retained",
+    "No Windows/Linux run, locked use, permission prompt, private app, physical input or concurrent multi-agent trial",
+    "Socket acknowledgement is not human-visible cursor evidence",
+    "MCP cancellation is source-inspected only; EOF exit plus explicit session end were observed",
+    "All timings exclude model reasoning and harness round trips; representations and launch paths differ"
+  ],
+  "cleanup": {
+    "fixtureProcessesExited": true,
+    "agentDesktopManifestSessionEnded": true,
+    "agentDesktopAdHocNamespace": "No manifest/session existed; only local snapshot namespace files in task scratch",
+    "agentDesktopRendererSocketsRemaining": 0,
+    "mcpServerExited": true,
+    "mcpSessionsEnded": true,
+    "agentBrowserSessionListAfter": [],
+    "ownedPeekabooSnapshotCleanupAttempts": 55,
+    "ownedPeekabooSnapshotCleanupErrors": 0,
+    "peekaboo44DaemonRunning": false,
+    "peekaboo498DaemonRunning": false,
+    "preexistingPeekabooMcpPreserved": true,
+    "preexistingGuiHostPreserved": true,
+    "codexNativeTeardown": "API exposes no App end/disconnect; completion_summary acknowledged; native service teardown unverified"
+  },
+  "committedRunner": {
+    "agentDesktop": {
+      "passedRounds": 3,
+      "readbackPassed": true
+    },
+    "peekaboo44": {
+      "passedRounds": 3,
+      "readbackPassed": true
+    }
+  }
+}
