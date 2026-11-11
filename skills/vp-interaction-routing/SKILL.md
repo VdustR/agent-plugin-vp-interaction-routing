@@ -105,6 +105,19 @@ references. Use the repository research index when refreshing a tool comparison.
 
 ## Target Verification
 
+- Before writing draft content or uploading an attachment, establish the intended
+  account or workspace and destination: recipient, channel, thread versus main
+  conversation, document, or folder as applicable. Match that intent to the
+  target platform's current state. The open composer and a reference link alone
+  do not establish where the user wants the result.
+- Resolve a missing destination from the request and verified context first;
+  ask only for the remaining choice before mutating a draft or attachment.
+  Proceed without another confirmation when the destination is already clear,
+  verified, and authorized. Drafting or uploading alone does not authorize sending or
+  publishing.
+- Read back the destination, draft content, and attachment state after the
+  write. Report whether the result remains a draft or has been published;
+  a successful upload does not establish that it belongs to the intended thread.
 - Before mentioning, notifying, assigning, or otherwise addressing a person by
   an identifier, verify on the target platform that the account belongs to the
   intended person and organization or team. Never reuse an identifier from
